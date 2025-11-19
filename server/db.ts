@@ -89,4 +89,131 @@ export async function getUserByOpenId(openId: string) {
   return result.length > 0 ? result[0] : undefined;
 }
 
-// TODO: add feature queries here as your schema grows.
+// Processos
+export async function getUserProcesses(userId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  const { processes } = await import("../drizzle/schema");
+  return db.select().from(processes).where(eq(processes.userId, userId)).orderBy(processes.createdAt);
+}
+
+export async function getProcessById(id: number, userId: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const { processes } = await import("../drizzle/schema");
+  const result = await db.select().from(processes).where(eq(processes.id, id)).limit(1);
+  if (result.length === 0 || result[0]!.userId !== userId) return undefined;
+  return result[0];
+}
+
+export async function createProcess(data: any) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const { processes } = await import("../drizzle/schema");
+  const result = await db.insert(processes).values(data);
+  return result;
+}
+
+export async function updateProcess(id: number, userId: number, data: any) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const { processes } = await import("../drizzle/schema");
+  const { and } = await import("drizzle-orm");
+  await db.update(processes).set(data).where(and(eq(processes.id, id), eq(processes.userId, userId)));
+}
+
+export async function deleteProcess(id: number, userId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const { processes } = await import("../drizzle/schema");
+  const { and } = await import("drizzle-orm");
+  await db.delete(processes).where(and(eq(processes.id, id), eq(processes.userId, userId)));
+}
+
+// Minutas
+export async function getProcessDrafts(processId: number, userId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  const { drafts } = await import("../drizzle/schema");
+  const { and } = await import("drizzle-orm");
+  return db.select().from(drafts).where(and(eq(drafts.processId, processId), eq(drafts.userId, userId))).orderBy(drafts.createdAt);
+}
+
+export async function getUserDrafts(userId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  const { drafts } = await import("../drizzle/schema");
+  return db.select().from(drafts).where(eq(drafts.userId, userId)).orderBy(drafts.createdAt);
+}
+
+export async function createDraft(data: any) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const { drafts } = await import("../drizzle/schema");
+  const result = await db.insert(drafts).values(data);
+  return result;
+}
+
+export async function updateDraft(id: number, userId: number, data: any) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const { drafts } = await import("../drizzle/schema");
+  const { and } = await import("drizzle-orm");
+  await db.update(drafts).set(data).where(and(eq(drafts.id, id), eq(drafts.userId, userId)));
+}
+
+export async function deleteDraft(id: number, userId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const { drafts } = await import("../drizzle/schema");
+  const { and } = await import("drizzle-orm");
+  await db.delete(drafts).where(and(eq(drafts.id, id), eq(drafts.userId, userId)));
+}
+
+// Jurisprudência
+export async function getUserJurisprudence(userId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  const { jurisprudence } = await import("../drizzle/schema");
+  return db.select().from(jurisprudence).where(eq(jurisprudence.userId, userId)).orderBy(jurisprudence.createdAt);
+}
+
+export async function createJurisprudence(data: any) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const { jurisprudence } = await import("../drizzle/schema");
+  const result = await db.insert(jurisprudence).values(data);
+  return result;
+}
+
+export async function updateJurisprudence(id: number, userId: number, data: any) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const { jurisprudence } = await import("../drizzle/schema");
+  const { and } = await import("drizzle-orm");
+  await db.update(jurisprudence).set(data).where(and(eq(jurisprudence.id, id), eq(jurisprudence.userId, userId)));
+}
+
+export async function deleteJurisprudence(id: number, userId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const { jurisprudence } = await import("../drizzle/schema");
+  const { and } = await import("drizzle-orm");
+  await db.delete(jurisprudence).where(and(eq(jurisprudence.id, id), eq(jurisprudence.userId, userId)));
+}
+
+// Configurações do usuário
+export async function getUserSettings(userId: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const { userSettings } = await import("../drizzle/schema");
+  const result = await db.select().from(userSettings).where(eq(userSettings.userId, userId)).limit(1);
+  return result.length > 0 ? result[0] : undefined;
+}
+
+export async function upsertUserSettings(userId: number, data: any) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const { userSettings } = await import("../drizzle/schema");
+  await db.insert(userSettings).values({ userId, ...data }).onDuplicateKeyUpdate({ set: data });
+}

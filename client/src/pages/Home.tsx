@@ -1,33 +1,122 @@
-import { useAuth } from "@/_core/hooks/useAuth";
+import DashboardLayout from "@/components/DashboardLayout";
 import { Button } from "@/components/ui/button";
-import { Loader2 } from "lucide-react";
-import { APP_LOGO, APP_TITLE, getLoginUrl } from "@/const";
-import { Streamdown } from 'streamdown';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { FileText, FolderOpen, Gavel, Scale } from "lucide-react";
+import { Link } from "wouter";
 
-/**
- * All content in this page are only for example, replace with your own feature implementation
- * When building pages, remember your instructions in Frontend Workflow, Frontend Best Practices, Design Guide and Common Pitfalls
- */
 export default function Home() {
-  // The userAuth hooks provides authentication state
-  // To implement login/logout functionality, simply call logout() or redirect to getLoginUrl()
-  let { user, loading, error, isAuthenticated, logout } = useAuth();
-
-  // If theme is switchable in App.tsx, we can implement theme toggling like this:
-  // const { theme, toggleTheme } = useTheme();
-
-  // Use APP_LOGO (as image src) and APP_TITLE if needed
+  const features = [
+    {
+      icon: FolderOpen,
+      title: "Gestão de Processos",
+      description: "Cadastre e organize informações de processos judiciais do e-Proc TJSP",
+      href: "/processos",
+      color: "text-blue-600",
+    },
+    {
+      icon: Gavel,
+      title: "Ghostwriter IA",
+      description: "Gere minutas judiciais automaticamente com inteligência artificial",
+      href: "/ghostwriter",
+      color: "text-purple-600",
+    },
+    {
+      icon: FileText,
+      title: "Minutas Salvas",
+      description: "Acesse e edite suas minutas geradas anteriormente",
+      href: "/minutas",
+      color: "text-green-600",
+    },
+    {
+      icon: Scale,
+      title: "Jurisprudência",
+      description: "Consulte e salve jurisprudências relevantes para seus casos",
+      href: "/jurisprudencia",
+      color: "text-amber-600",
+    },
+  ];
 
   return (
-    <div className="min-h-screen flex flex-col">
-      <main>
-        {/* Example: lucide-react for icons */}
-        <Loader2 className="animate-spin" />
-        Example Page
-        {/* Example: Streamdown for markdown rendering */}
-        <Streamdown>Any **markdown** content</Streamdown>
-        <Button variant="default">Example Button</Button>
-      </main>
-    </div>
+    <DashboardLayout>
+      <div className="space-y-8">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight text-foreground">
+            Bem-vindo ao e-Proc Ghostwriter
+          </h1>
+          <p className="mt-2 text-muted-foreground">
+            Assistente inteligente para geração de minutas judiciais
+          </p>
+        </div>
+
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-2">
+          {features.map((feature) => {
+            const Icon = feature.icon;
+            return (
+              <Card key={feature.href} className="hover:shadow-lg transition-shadow">
+                <CardHeader>
+                  <div className="flex items-center gap-4">
+                    <div className={`p-3 rounded-lg bg-muted ${feature.color}`}>
+                      <Icon className="h-6 w-6" />
+                    </div>
+                    <div>
+                      <CardTitle>{feature.title}</CardTitle>
+                      <CardDescription className="mt-1">{feature.description}</CardDescription>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <Button asChild variant="outline" className="w-full">
+                    <Link href={feature.href}>
+                      <a className="w-full">Acessar</a>
+                    </Link>
+                  </Button>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+
+        <Card className="bg-primary/5 border-primary/20">
+          <CardHeader>
+            <CardTitle className="text-xl">Como funciona?</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex gap-4">
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground font-semibold">
+                1
+              </div>
+              <div>
+                <h3 className="font-semibold text-foreground">Cadastre seus processos</h3>
+                <p className="text-sm text-muted-foreground">
+                  Insira manualmente as informações processuais do e-Proc TJSP
+                </p>
+              </div>
+            </div>
+            <div className="flex gap-4">
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground font-semibold">
+                2
+              </div>
+              <div>
+                <h3 className="font-semibold text-foreground">Configure sua API de IA</h3>
+                <p className="text-sm text-muted-foreground">
+                  Adicione sua chave de API OpenAI ou similar nas configurações
+                </p>
+              </div>
+            </div>
+            <div className="flex gap-4">
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground font-semibold">
+                3
+              </div>
+              <div>
+                <h3 className="font-semibold text-foreground">Gere minutas automaticamente</h3>
+                <p className="text-sm text-muted-foreground">
+                  Use o Ghostwriter para criar sentenças, decisões e despachos com IA
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    </DashboardLayout>
   );
 }
