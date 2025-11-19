@@ -93,23 +93,28 @@ export async function extractProcessData(
     }
 
     const contentText = typeof content === 'string' ? content : JSON.stringify(content);
+    console.log('[extractProcessData] Resposta da IA:', contentText.substring(0, 500));
     const cleanedJson = cleanJsonResponse(contentText);
+    console.log('[extractProcessData] JSON limpo:', cleanedJson.substring(0, 500));
     const extractedData = JSON.parse(cleanedJson) as ExtractedProcessData;
+    console.log('[extractProcessData] Dados parseados:', JSON.stringify(extractedData, null, 2));
 
-    // Validar e limpar dados
+    // Validar e limpar dados - aceitar tanto camelCase quanto português
+    const data = extractedData as any;
     const cleanedData = {
-      numeroProcesso: extractedData.numeroProcesso || undefined,
-      autor: extractedData.autor || undefined,
-      reu: extractedData.reu || undefined,
-      vara: extractedData.vara || undefined,
-      assunto: extractedData.assunto || undefined,
-      valorCausa: extractedData.valorCausa || undefined,
-      dataDistribuicao: extractedData.dataDistribuicao || undefined,
-      resumoFatos: extractedData.resumoFatos || undefined,
-      pedidos: Array.isArray(extractedData.pedidos) 
-        ? extractedData.pedidos.join('\n') 
-        : (extractedData.pedidos || undefined),
+      numeroProcesso: data.numeroProcesso || data['Número do Processo'] || undefined,
+      autor: data.autor || data['Autor/Requerente'] || data.Autor || undefined,
+      reu: data.reu || data['Réu/Requerido'] || data.Réu || undefined,
+      vara: data.vara || data['Vara/Juízo'] || data.Vara || undefined,
+      assunto: data.assunto || data.Assunto || undefined,
+      valorCausa: data.valorCausa || data['Valor da Causa'] || undefined,
+      dataDistribuicao: data.dataDistribuicao || data['Data de Distribuição'] || undefined,
+      resumoFatos: data.resumoFatos || data['Resumo dos Fatos'] || undefined,
+      pedidos: Array.isArray(data.pedidos || data.Pedidos) 
+        ? (data.pedidos || data.Pedidos).join('\n') 
+        : (data.pedidos || data.Pedidos || undefined),
     };
+    console.log('[extractProcessData] cleanedData:', JSON.stringify(cleanedData, null, 2));
 
     // Calcular campos extraídos
     const extractedFields: string[] = [];
@@ -184,23 +189,28 @@ export async function extractProcessDataFromImages(
     }
 
     const contentText = typeof content === 'string' ? content : JSON.stringify(content);
+    console.log('[extractProcessData] Resposta da IA:', contentText.substring(0, 500));
     const cleanedJson = cleanJsonResponse(contentText);
+    console.log('[extractProcessData] JSON limpo:', cleanedJson.substring(0, 500));
     const extractedData = JSON.parse(cleanedJson) as ExtractedProcessData;
+    console.log('[extractProcessData] Dados parseados:', JSON.stringify(extractedData, null, 2));
 
-    // Validar e limpar dados
+    // Validar e limpar dados - aceitar tanto camelCase quanto português
+    const data = extractedData as any;
     const cleanedData = {
-      numeroProcesso: extractedData.numeroProcesso || undefined,
-      autor: extractedData.autor || undefined,
-      reu: extractedData.reu || undefined,
-      vara: extractedData.vara || undefined,
-      assunto: extractedData.assunto || undefined,
-      valorCausa: extractedData.valorCausa || undefined,
-      dataDistribuicao: extractedData.dataDistribuicao || undefined,
-      resumoFatos: extractedData.resumoFatos || undefined,
-      pedidos: Array.isArray(extractedData.pedidos) 
-        ? extractedData.pedidos.join('\n') 
-        : (extractedData.pedidos || undefined),
+      numeroProcesso: data.numeroProcesso || data['Número do Processo'] || undefined,
+      autor: data.autor || data['Autor/Requerente'] || data.Autor || undefined,
+      reu: data.reu || data['Réu/Requerido'] || data.Réu || undefined,
+      vara: data.vara || data['Vara/Juízo'] || data.Vara || undefined,
+      assunto: data.assunto || data.Assunto || undefined,
+      valorCausa: data.valorCausa || data['Valor da Causa'] || undefined,
+      dataDistribuicao: data.dataDistribuicao || data['Data de Distribuição'] || undefined,
+      resumoFatos: data.resumoFatos || data['Resumo dos Fatos'] || undefined,
+      pedidos: Array.isArray(data.pedidos || data.Pedidos) 
+        ? (data.pedidos || data.Pedidos).join('\n') 
+        : (data.pedidos || data.Pedidos || undefined),
     };
+    console.log('[extractProcessData] cleanedData:', JSON.stringify(cleanedData, null, 2));
 
     // Calcular campos extraídos
     const extractedFields: string[] = [];

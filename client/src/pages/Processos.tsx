@@ -81,19 +81,29 @@ export default function Processos() {
   const extractMutation = trpc.processes.extractFromPDF.useMutation({
     onSuccess: (data) => {
       console.log('Dados recebidos da extração:', data);
-      // Preencher formulário com dados extraídos
-      setFormData(prev => ({
-        ...prev,
-        processNumber: data.numeroProcesso || prev.processNumber,
-        plaintiff: data.autor || prev.plaintiff,
-        defendant: data.reu || prev.defendant,
-        court: data.vara || prev.court,
-        subject: data.assunto || prev.subject,
-        facts: data.resumoFatos || prev.facts,
-        requests: Array.isArray(data.pedidos) ? data.pedidos.join('\n') : (data.pedidos || prev.requests),
-      }));
+      console.log('Tipo de data:', typeof data);
+      console.log('Keys de data:', Object.keys(data));
       
-      setExtractedFields(data.extractedFields);
+      // Preencher formulário com dados extraídos usando forma funcional
+      setFormData(prev => {
+        const newData = {
+          ...prev,
+          processNumber: data.numeroProcesso || prev.processNumber,
+          plaintiff: data.autor || prev.plaintiff,
+          defendant: data.reu || prev.defendant,
+          court: data.vara || prev.court,
+          subject: data.assunto || prev.subject,
+          facts: data.resumoFatos || prev.facts,
+          requests: Array.isArray(data.pedidos) ? data.pedidos.join('\n') : (data.pedidos || prev.requests),
+        };
+        console.log('Novo formData:', newData);
+        return newData;
+      });
+      
+      if (data.extractedFields) {
+        console.log('ExtractedFields:', data.extractedFields);
+        setExtractedFields(data.extractedFields);
+      }
       
       const confidence = data.confidence === 'high' ? 'alta' : data.confidence === 'medium' ? 'média' : 'baixa';
       toast.success(`Dados extraídos com confiança ${confidence}! Revise antes de salvar.`);

@@ -144,3 +144,4 @@
 
 - [x] Corrigir erro 404 ao clicar em "Ver Detalhes" do processo (criar página de detalhes)
 - [x] Corrigir extração automática que não está preenchendo os campos do formulário
+- [x] Investigar por que dados extraídos ainda não preenchem campos (toast aparece mas campos vazios) - RESOLVIDO: Problema era mapeamento de campos PT vs camelCase

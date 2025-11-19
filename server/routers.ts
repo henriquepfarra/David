@@ -82,9 +82,15 @@ export const appRouter = router({
       .mutation(async ({ input }) => {
         const { extractProcessData, extractProcessDataFromImages } = await import("./processExtractor");
         
+        console.log('[extractFromPDF] Texto recebido (primeiros 500 chars):', input.text?.substring(0, 500));
+        console.log('[extractFromPDF] Tamanho do texto:', input.text?.length);
+        console.log('[extractFromPDF] Número de imagens:', input.images?.length || 0);
+        
         // Se tiver texto, tentar extrair do texto primeiro
         if (input.text && input.text.length > 100) {
-          return await extractProcessData(input.text);
+          const result = await extractProcessData(input.text);
+          console.log('[extractFromPDF] Resultado da extração:', JSON.stringify(result, null, 2));
+          return result;
         }
         
         // Se não tiver texto suficiente mas tiver imagens, usar extração multimodal
