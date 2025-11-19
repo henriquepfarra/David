@@ -137,3 +137,5 @@
 - [x] Corrigir extração de dados processuais para usar LLM nativa como fallback
 
 - [x] Corrigir parse JSON quando LLM retorna resposta em bloco markdown (```json)
+
+- [x] Corrigir erro "Cannot read properties of undefined (reading 'includes')" na página Processos

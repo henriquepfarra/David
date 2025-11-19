@@ -205,7 +205,7 @@ export default function Processos() {
                   <div className="space-y-2">
                     <Label htmlFor="processNumber" className="flex items-center gap-2">
                       Número do Processo *
-                      {extractedFields.includes('numeroProcesso') && (
+                      {extractedFields?.includes('numeroProcesso') && (
                         <span className="text-xs text-green-600 dark:text-green-400">✓ Extraído</span>
                       )}
                     </Label>
@@ -217,13 +217,13 @@ export default function Processos() {
                         setFormData({ ...formData, processNumber: e.target.value })
                       }
                       placeholder="0000000-00.0000.0.00.0000"
-                      className={extractedFields.includes('numeroProcesso') ? 'border-green-500' : ''}
+                      className={extractedFields?.includes('numeroProcesso') ? 'border-green-500' : ''}
                     />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="court" className="flex items-center gap-2">
                       Vara/Comarca
-                      {extractedFields.includes('vara') && (
+                      {extractedFields?.includes('vara') && (
                         <span className="text-xs text-green-600 dark:text-green-400">✓ Extraído</span>
                       )}
                     </Label>
@@ -232,7 +232,7 @@ export default function Processos() {
                       value={formData.court}
                       onChange={(e) => setFormData({ ...formData, court: e.target.value })}
                       placeholder="Ex: 1ª Vara Cível"
-                      className={extractedFields.includes('vara') ? 'border-green-500' : ''}
+                      className={extractedFields?.includes('vara') ? 'border-green-500' : ''}
                     />
                   </div>
                 </div>
@@ -261,7 +261,7 @@ export default function Processos() {
                 <div className="space-y-2">
                   <Label htmlFor="plaintiff" className="flex items-center gap-2">
                     Autor(es)
-                    {extractedFields.includes('autor') && (
+                    {extractedFields?.includes('autor') && (
                       <span className="text-xs text-green-600 dark:text-green-400">✓ Extraído</span>
                     )}
                   </Label>
@@ -270,14 +270,14 @@ export default function Processos() {
                     value={formData.plaintiff}
                     onChange={(e) => setFormData({ ...formData, plaintiff: e.target.value })}
                     placeholder="Nome do(s) autor(es)"
-                    className={extractedFields.includes('autor') ? 'border-green-500' : ''}
+                    className={extractedFields?.includes('autor') ? 'border-green-500' : ''}
                   />
                 </div>
 
                 <div className="space-y-2">
                   <Label htmlFor="defendant" className="flex items-center gap-2">
                     Réu(s)
-                    {extractedFields.includes('reu') && (
+                    {extractedFields?.includes('reu') && (
                       <span className="text-xs text-green-600 dark:text-green-400">✓ Extraído</span>
                     )}
                   </Label>
@@ -286,14 +286,14 @@ export default function Processos() {
                     value={formData.defendant}
                     onChange={(e) => setFormData({ ...formData, defendant: e.target.value })}
                     placeholder="Nome do(s) réu(s)"
-                    className={extractedFields.includes('reu') ? 'border-green-500' : ''}
+                    className={extractedFields?.includes('reu') ? 'border-green-500' : ''}
                   />
                 </div>
 
                 <div className="space-y-2">
                   <Label htmlFor="subject" className="flex items-center gap-2">
                     Assunto/Objeto
-                    {extractedFields.includes('assunto') && (
+                    {extractedFields?.includes('assunto') && (
                       <span className="text-xs text-green-600 dark:text-green-400">✓ Extraído</span>
                     )}
                   </Label>
