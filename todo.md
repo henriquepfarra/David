@@ -124,3 +124,11 @@
 
 
 - [x] Corrigir erro de extração quando API key não está configurada (validação e mensagem clara)
+
+
+## Sistema de Fallback LLM
+
+- [x] Implementar lógica de fallback no ghostwriter (API externa → LLM nativa Manus)
+- [x] Implementar lógica de fallback na extração de dados processuais (já usa LLM nativa)
+- [x] Atualizar interface para indicar qual LLM está sendo usado
+- [x] Adicionar badge/indicador visual do provider ativo

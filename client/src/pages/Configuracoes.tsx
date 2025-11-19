@@ -155,8 +155,19 @@ export default function Configuracoes() {
         <Card>
           <CardHeader>
             <CardTitle>Configuração de IA</CardTitle>
-            <CardDescription>
-              Configure o provedor, modelo e chave de API para geração de minutas
+            <CardDescription className="space-y-2">
+              <p>Configure o provedor, modelo e chave de API para geração de minutas</p>
+              {!llmApiKey || llmApiKey.length < 10 ? (
+                <div className="flex items-center gap-2 text-sm bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-300 px-3 py-2 rounded-md">
+                  <CheckCircle2 className="h-4 w-4" />
+                  <span>Usando LLM nativa da Manus (sem configuração necessária)</span>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2 text-sm bg-green-50 dark:bg-green-950 text-green-700 dark:text-green-300 px-3 py-2 rounded-md">
+                  <CheckCircle2 className="h-4 w-4" />
+                  <span>Usando API externa configurada ({llmProvider})</span>
+                </div>
+              )}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -185,7 +196,7 @@ export default function Configuracoes() {
                   placeholder="Insira sua chave de API"
                 />
                 <p className="text-xs text-muted-foreground">
-                  Sua chave de API é armazenada de forma segura no banco de dados
+                  Opcional: Se não configurar, o sistema usará automaticamente a LLM nativa da Manus. Sua chave é armazenada de forma segura.
                 </p>
               </div>
 

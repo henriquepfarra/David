@@ -156,14 +156,23 @@ export async function generateDraft(input: GhostwriterInput): Promise<string> {
   const userPrompt = buildUserPrompt(input);
 
   try {
-    const response = await invokeLLM({
+    // Se não houver API key customizada, usar LLM nativa da Manus
+    const llmParams: any = {
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: userPrompt },
       ],
-      ...(input.customApiKey && { apiKey: input.customApiKey }),
-      ...(input.customModel && { model: input.customModel }),
-    });
+    };
+    
+    // Adicionar parâmetros customizados apenas se fornecidos
+    if (input.customApiKey) {
+      llmParams.apiKey = input.customApiKey;
+    }
+    if (input.customModel) {
+      llmParams.model = input.customModel;
+    }
+    
+    const response = await invokeLLM(llmParams);
 
     const content = response.choices[0]?.message?.content;
     if (typeof content === "string") {
@@ -262,14 +271,22 @@ async function generateDraftWithImages(
       });
     }
 
-    const response = await invokeLLM({
+    // Se não houver API key customizada, usar LLM nativa da Manus
+    const llmParams: any = {
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content },
       ],
-      ...(input.customApiKey && { apiKey: input.customApiKey }),
-      ...(input.customModel && { model: input.customModel }),
-    });
+    };
+    
+    if (input.customApiKey) {
+      llmParams.apiKey = input.customApiKey;
+    }
+    if (input.customModel) {
+      llmParams.model = input.customModel;
+    }
+    
+    const response = await invokeLLM(llmParams);
 
     const responseContent = response.choices[0]?.message?.content;
     if (typeof responseContent === "string") {
