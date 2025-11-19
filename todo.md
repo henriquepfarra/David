@@ -97,3 +97,12 @@
 - [x] Checagem de jurisprudências
 - [x] Citação padronizada de provas
 - [x] Estilo e linguagem (DNA do juiz)
+
+
+## Interface de Configuração do David
+
+- [x] Adicionar campo de edição do System Prompt na página de Configurações
+- [x] Salvar System Prompt customizado no banco de dados
+- [x] Permitir reset para o System Prompt padrão
+- [x] Adicionar upload de arquivos (PDF, DOCX, TXT) na Base de Conhecimento
+- [x] Processar arquivos automaticamente e extrair texto

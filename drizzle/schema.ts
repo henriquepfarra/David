@@ -90,6 +90,7 @@ export const userSettings = mysqlTable("userSettings", {
   llmApiKey: text("llmApiKey"),
   llmProvider: varchar("llmProvider", { length: 50 }).default("openai"),
   llmModel: varchar("llmModel", { length: 100 }).default("gpt-4"),
+  customSystemPrompt: text("customSystemPrompt"), // System Prompt customizado do David
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });

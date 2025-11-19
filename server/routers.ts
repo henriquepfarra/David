@@ -185,6 +185,7 @@ export const appRouter = router({
         llmApiKey: z.string().optional(),
         llmProvider: z.string().optional(),
         llmModel: z.string().optional(),
+        customSystemPrompt: z.string().nullable().optional(),
       }))
       .mutation(async ({ ctx, input }) => {
         await db.upsertUserSettings(ctx.user.id, input);
@@ -273,6 +274,7 @@ export const appRouter = router({
           requests: process.requests || undefined,
           customApiKey: settings?.llmApiKey || undefined,
           customModel: settings?.llmModel || undefined,
+          customSystemPrompt: settings?.customSystemPrompt || undefined,
           knowledgeBase: knowledgeBaseContent || undefined,
           driveContent: driveContent || undefined,
         });

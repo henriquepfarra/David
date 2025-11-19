@@ -1,5 +1,5 @@
 import DashboardLayout from "@/components/DashboardLayout";
-import PDFUploader from "@/components/PDFUploader";
+import FileUploader from "@/components/FileUploader";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -21,7 +21,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { ProcessingResult } from "@/lib/pdfProcessor";
+import { FileProcessingResult } from "@/lib/fileProcessor";
 import { trpc } from "@/lib/trpc";
 import { BookOpen, FileText, Loader2, Plus, Trash2, Upload } from "lucide-react";
 import { useState } from "react";
@@ -118,23 +118,23 @@ export default function BaseConhecimento() {
                     className="flex-1"
                   >
                     <Upload className="mr-2 h-4 w-4" />
-                    {showPDFUpload ? "Ocultar" : "Importar"} PDF
+                    {showPDFUpload ? "Ocultar" : "Importar"} Arquivo (PDF/DOCX/TXT)
                   </Button>
                 </div>
 
-                {/* Upload de PDF */}
+                {/* Upload de Arquivos */}
                 {showPDFUpload && (
                   <div className="space-y-2">
-                    <PDFUploader
+                    <FileUploader
                       maxFiles={1}
-                      onProcessComplete={(result: ProcessingResult) => {
+                      onProcessComplete={(result: FileProcessingResult) => {
                         if (result.text) {
                           setFormData(prev => ({
                             ...prev,
                             content: result.text,
-                            fileType: "pdf",
+                            fileType: result.method === "docx" ? "docx" : result.method === "txt" ? "text" : "pdf",
                           }));
-                          toast.success(`Texto extraído via ${result.method}`);
+                          toast.success(`Texto extraído via ${result.method.toUpperCase()}`);
                         }
                       }}
                     />

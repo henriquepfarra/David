@@ -1,6 +1,7 @@
 import { invokeLLM } from "./_core/llm";
 
 export interface GhostwriterInput {
+  customSystemPrompt?: string; // System Prompt customizado pelo usuário
   draftType: "sentenca" | "decisao" | "despacho" | "acordao";
   processNumber: string;
   court?: string;
@@ -143,7 +144,8 @@ export async function generateDraft(input: GhostwriterInput): Promise<string> {
     return handleSpecialCommand(input);
   }
 
-  const systemPrompt = getDavidSystemPrompt(input.knowledgeBase, input.driveContent);
+  // Usar system prompt customizado se fornecido, caso contrário usar o padrão do David
+  const systemPrompt = input.customSystemPrompt || getDavidSystemPrompt(input.knowledgeBase, input.driveContent);
   
   // Se tiver imagens, usar processamento multimodal
   if (input.images && input.images.length > 0) {

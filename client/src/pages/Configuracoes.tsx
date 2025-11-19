@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -11,7 +12,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { trpc } from "@/lib/trpc";
-import { AlertCircle, CheckCircle2, Loader2, RefreshCw, Save, Settings } from "lucide-react";
+import { AlertCircle, CheckCircle2, FileText, Loader2, RefreshCw, RotateCcw, Save, Settings } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
@@ -19,6 +20,7 @@ export default function Configuracoes() {
   const [llmApiKey, setLlmApiKey] = useState("");
   const [llmProvider, setLlmProvider] = useState("google");
   const [llmModel, setLlmModel] = useState("");
+  const [customSystemPrompt, setCustomSystemPrompt] = useState("");
   const [isLoadingModels, setIsLoadingModels] = useState(false);
   const [availableModels, setAvailableModels] = useState<any[]>([]);
   const [modelsError, setModelsError] = useState("");
@@ -41,6 +43,7 @@ export default function Configuracoes() {
       setLlmApiKey(settings.llmApiKey || "");
       setLlmProvider(settings.llmProvider || "google");
       setLlmModel(settings.llmModel || "");
+      setCustomSystemPrompt(settings.customSystemPrompt || "");
       
       // Carregar modelos se já tiver API key
       if (settings.llmApiKey && settings.llmProvider) {
@@ -100,6 +103,11 @@ export default function Configuracoes() {
     loadModels(llmProvider, llmApiKey);
   };
 
+  const handleResetSystemPrompt = () => {
+    setCustomSystemPrompt("");
+    toast.success("System Prompt resetado. Salve para aplicar.");
+  };
+
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -117,6 +125,7 @@ export default function Configuracoes() {
       llmApiKey,
       llmProvider,
       llmModel,
+      customSystemPrompt: customSystemPrompt || null,
     });
   };
 
@@ -132,14 +141,14 @@ export default function Configuracoes() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-6 max-w-3xl">
+      <div className="space-y-6 max-w-4xl">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-foreground flex items-center gap-2">
             <Settings className="h-8 w-8" />
             Configurações
           </h1>
           <p className="mt-2 text-muted-foreground">
-            Configure sua chave de API e selecione o modelo de IA
+            Configure sua chave de API, modelo de IA e personalize o System Prompt do David
           </p>
         </div>
 
@@ -262,6 +271,67 @@ export default function Configuracoes() {
                 )}
               </Button>
             </form>
+          </CardContent>
+        </Card>
+
+        {/* Card de System Prompt Customizado */}
+        <Card className="border-primary/30">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <FileText className="h-5 w-5" />
+              System Prompt do David
+            </CardTitle>
+            <CardDescription>
+              Personalize o comportamento do David editando o System Prompt. Deixe em branco para usar o padrão.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label htmlFor="systemPrompt">System Prompt Customizado</Label>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleResetSystemPrompt}
+                  disabled={!customSystemPrompt}
+                >
+                  <RotateCcw className="mr-2 h-4 w-4" />
+                  Resetar para Padrão
+                </Button>
+              </div>
+              <Textarea
+                id="systemPrompt"
+                value={customSystemPrompt}
+                onChange={(e) => setCustomSystemPrompt(e.target.value)}
+                placeholder="Cole aqui o System Prompt customizado do David, ou deixe em branco para usar o padrão..."
+                className="min-h-[400px] font-mono text-sm"
+              />
+              <p className="text-xs text-muted-foreground">
+                {customSystemPrompt 
+                  ? `${customSystemPrompt.length} caracteres • System Prompt customizado será usado`
+                  : "Usando System Prompt padrão do David (Assessor de Magistrado JEC)"
+                }
+              </p>
+            </div>
+
+            <Button
+              onClick={handleSave}
+              disabled={updateMutation.isPending}
+              className="w-full"
+            >
+              {updateMutation.isPending ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Salvando...
+                </>
+              ) : (
+                <>
+                  <Save className="mr-2 h-4 w-4" />
+                  Salvar System Prompt
+                </>
+              )}
+            </Button>
           </CardContent>
         </Card>
 
