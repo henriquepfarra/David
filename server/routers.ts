@@ -74,6 +74,27 @@ export const appRouter = router({
         return { success: true };
       }),
     
+    extractFromPDF: protectedProcedure
+      .input(z.object({
+        text: z.string(),
+        images: z.array(z.string()).optional(),
+      }))
+      .mutation(async ({ input }) => {
+        const { extractProcessData, extractProcessDataFromImages } = await import("./processExtractor");
+        
+        // Se tiver texto, tentar extrair do texto primeiro
+        if (input.text && input.text.length > 100) {
+          return await extractProcessData(input.text);
+        }
+        
+        // Se não tiver texto suficiente mas tiver imagens, usar extração multimodal
+        if (input.images && input.images.length > 0) {
+          return await extractProcessDataFromImages(input.images);
+        }
+        
+        throw new Error("Nenhum conteúdo válido fornecido para extração");
+      }),
+    
     delete: protectedProcedure
       .input(z.object({ id: z.number() }))
       .mutation(async ({ ctx, input }) => {

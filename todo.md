@@ -111,3 +111,13 @@
 ## Bugs Recentes
 
 - [x] Corrigir erro de carregamento do PDF.js worker (CDN externo falhando)
+
+
+## Extração Automática de Dados Processuais
+
+- [x] Helper de extração de dados com IA (número, partes, vara, assunto, valor, data)
+- [x] Rota tRPC para processar PDF e extrair dados
+- [x] Interface de upload de PDF na página de Processos
+- [x] Pré-preenchimento automático do formulário
+- [x] Indicador visual de campos extraídos automaticamente
+- [x] Validação e revisão manual antes de salvar

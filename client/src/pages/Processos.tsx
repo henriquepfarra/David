@@ -25,6 +25,9 @@ export default function Processos() {
   const [open, setOpen] = useState(false);
   const [showPDFUpload, setShowPDFUpload] = useState(false);
   const [extractedText, setExtractedText] = useState("");
+  const [extractedImages, setExtractedImages] = useState<string[]>([]);
+  const [isExtracting, setIsExtracting] = useState(false);
+  const [extractedFields, setExtractedFields] = useState<string[]>([]);
   const [formData, setFormData] = useState({
     processNumber: "",
     court: "",
@@ -72,6 +75,32 @@ export default function Processos() {
     },
     onError: (error) => {
       toast.error("Erro ao excluir processo: " + error.message);
+    },
+  });
+
+  const extractMutation = trpc.processes.extractFromPDF.useMutation({
+    onSuccess: (data) => {
+      // Preencher formulário com dados extraídos
+      setFormData(prev => ({
+        ...prev,
+        processNumber: data.numeroProcesso || prev.processNumber,
+        plaintiff: data.autor || prev.plaintiff,
+        defendant: data.reu || prev.defendant,
+        court: data.vara || prev.court,
+        subject: data.assunto || prev.subject,
+        facts: data.resumoFatos || prev.facts,
+        requests: data.pedidos || prev.requests,
+      }));
+      
+      setExtractedFields(data.extractedFields);
+      
+      const confidence = data.confidence === 'high' ? 'alta' : data.confidence === 'medium' ? 'média' : 'baixa';
+      toast.success(`Dados extraídos com confiança ${confidence}! Revise antes de salvar.`);
+      setIsExtracting(false);
+    },
+    onError: (error) => {
+      toast.error("Erro ao extrair dados: " + error.message);
+      setIsExtracting(false);
     },
   });
 
@@ -127,28 +156,59 @@ export default function Processos() {
 
                 {/* Upload de PDF */}
                 {showPDFUpload && (
-                  <div className="space-y-2">
+                  <div className="space-y-3">
                     <PDFUploader
                       maxFiles={1}
                       onProcessComplete={(result: ProcessingResult) => {
                         if (result.text) {
                           setExtractedText(result.text);
-                          // Preencher automaticamente o campo de fatos
-                          setFormData(prev => ({
-                            ...prev,
-                            facts: result.text.substring(0, 1000) + (result.text.length > 1000 ? '...' : ''),
-                          }));
                           toast.success(`Texto extraído via ${result.method}`);
+                        }
+                        if (result.images) {
+                          setExtractedImages(result.images);
                         }
                       }}
                     />
+                    
+                    {extractedText && (
+                      <Button
+                        type="button"
+                        onClick={() => {
+                          setIsExtracting(true);
+                          extractMutation.mutate({
+                            text: extractedText,
+                            images: extractedImages.length > 0 ? extractedImages : undefined,
+                          });
+                        }}
+                        disabled={isExtracting}
+                        className="w-full"
+                        variant="secondary"
+                      >
+                        {isExtracting ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            Extraindo dados com IA...
+                          </>
+                        ) : (
+                          <>
+                            <FileText className="mr-2 h-4 w-4" />
+                            Extrair Dados Automaticamente
+                          </>
+                        )}
+                      </Button>
+                    )}
                   </div>
                 )}
 
                 <div className="border-t pt-4" />
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="space-y-2">
-                    <Label htmlFor="processNumber">Número do Processo *</Label>
+                    <Label htmlFor="processNumber" className="flex items-center gap-2">
+                      Número do Processo *
+                      {extractedFields.includes('numeroProcesso') && (
+                        <span className="text-xs text-green-600 dark:text-green-400">✓ Extraído</span>
+                      )}
+                    </Label>
                     <Input
                       id="processNumber"
                       required
@@ -157,15 +217,22 @@ export default function Processos() {
                         setFormData({ ...formData, processNumber: e.target.value })
                       }
                       placeholder="0000000-00.0000.0.00.0000"
+                      className={extractedFields.includes('numeroProcesso') ? 'border-green-500' : ''}
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="court">Vara/Comarca</Label>
+                    <Label htmlFor="court" className="flex items-center gap-2">
+                      Vara/Comarca
+                      {extractedFields.includes('vara') && (
+                        <span className="text-xs text-green-600 dark:text-green-400">✓ Extraído</span>
+                      )}
+                    </Label>
                     <Input
                       id="court"
                       value={formData.court}
                       onChange={(e) => setFormData({ ...formData, court: e.target.value })}
                       placeholder="Ex: 1ª Vara Cível"
+                      className={extractedFields.includes('vara') ? 'border-green-500' : ''}
                     />
                   </div>
                 </div>
@@ -192,27 +259,44 @@ export default function Processos() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="plaintiff">Autor(es)</Label>
+                  <Label htmlFor="plaintiff" className="flex items-center gap-2">
+                    Autor(es)
+                    {extractedFields.includes('autor') && (
+                      <span className="text-xs text-green-600 dark:text-green-400">✓ Extraído</span>
+                    )}
+                  </Label>
                   <Input
                     id="plaintiff"
                     value={formData.plaintiff}
                     onChange={(e) => setFormData({ ...formData, plaintiff: e.target.value })}
                     placeholder="Nome do(s) autor(es)"
+                    className={extractedFields.includes('autor') ? 'border-green-500' : ''}
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="defendant">Réu(s)</Label>
+                  <Label htmlFor="defendant" className="flex items-center gap-2">
+                    Réu(s)
+                    {extractedFields.includes('reu') && (
+                      <span className="text-xs text-green-600 dark:text-green-400">✓ Extraído</span>
+                    )}
+                  </Label>
                   <Input
                     id="defendant"
                     value={formData.defendant}
                     onChange={(e) => setFormData({ ...formData, defendant: e.target.value })}
                     placeholder="Nome do(s) réu(s)"
+                    className={extractedFields.includes('reu') ? 'border-green-500' : ''}
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="subject">Assunto/Objeto</Label>
+                  <Label htmlFor="subject" className="flex items-center gap-2">
+                    Assunto/Objeto
+                    {extractedFields.includes('assunto') && (
+                      <span className="text-xs text-green-600 dark:text-green-400">✓ Extraído</span>
+                    )}
+                  </Label>
                   <Textarea
                     id="subject"
                     value={formData.subject}
