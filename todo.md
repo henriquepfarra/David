@@ -106,3 +106,8 @@
 - [x] Permitir reset para o System Prompt padrão
 - [x] Adicionar upload de arquivos (PDF, DOCX, TXT) na Base de Conhecimento
 - [x] Processar arquivos automaticamente e extrair texto
+
+
+## Bugs Recentes
+
+- [x] Corrigir erro de carregamento do PDF.js worker (CDN externo falhando)
