@@ -123,9 +123,13 @@ export async function extractProcessData(
       },
     });
 
+    if (!response || !response.choices || response.choices.length === 0) {
+      throw new Error("API n\u00e3o retornou resposta v\u00e1lida. Verifique se a API key est\u00e1 configurada corretamente nas Configura\u00e7\u00f5es.");
+    }
+    
     const content = response.choices[0]?.message?.content;
     if (!content) {
-      throw new Error("Resposta vazia da IA");
+      throw new Error("Resposta vazia da IA. Verifique se a API key est\u00e1 configurada corretamente.");
     }
 
     const contentText = typeof content === 'string' ? content : JSON.stringify(content);
@@ -219,9 +223,13 @@ export async function extractProcessDataFromImages(
       },
     });
 
+    if (!response || !response.choices || response.choices.length === 0) {
+      throw new Error("API n\u00e3o retornou resposta v\u00e1lida. Verifique se a API key est\u00e1 configurada corretamente nas Configura\u00e7\u00f5es.");
+    }
+    
     const content = response.choices[0]?.message?.content;
     if (!content) {
-      throw new Error("Resposta vazia da IA");
+      throw new Error("Resposta vazia da IA. Verifique se a API key est\u00e1 configurada corretamente.");
     }
 
     const contentText = typeof content === 'string' ? content : JSON.stringify(content);

@@ -121,3 +121,6 @@
 - [x] Pré-preenchimento automático do formulário
 - [x] Indicador visual de campos extraídos automaticamente
 - [x] Validação e revisão manual antes de salvar
+
+
+- [x] Corrigir erro de extração quando API key não está configurada (validação e mensagem clara)
