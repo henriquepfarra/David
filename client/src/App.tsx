@@ -11,6 +11,7 @@ import Ghostwriter from "./pages/Ghostwriter";
 import Configuracoes from "./pages/Configuracoes";
 import Jurisprudencia from "./pages/Jurisprudencia";
 import Minutas from "./pages/Minutas";
+import ProcessoDetalhes from "./pages/ProcessoDetalhes";
 
 function Router() {
   // make sure to consider if you need authentication for certain routes
@@ -18,6 +19,7 @@ function Router() {
     <Switch>
       <Route path={"/"} component={Home} />
       <Route path={"/processos"} component={Processos} />
+      <Route path={"/processo/:id"} component={ProcessoDetalhes} />
       <Route path={"/minutas"} component={Minutas} />
       <Route path={"/ghostwriter"} component={Ghostwriter} />
       <Route path={"/jurisprudencia"} component={Jurisprudencia} />

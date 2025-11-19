@@ -141,3 +141,6 @@
 - [x] Corrigir erro "Cannot read properties of undefined (reading 'includes')" na página Processos
 
 - [x] Corrigir erro de tipo inválido no campo requests (converter array para string)
+
+- [x] Corrigir erro 404 ao clicar em "Ver Detalhes" do processo (criar página de detalhes)
+- [x] Corrigir extração automática que não está preenchendo os campos do formulário

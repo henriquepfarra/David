@@ -80,6 +80,7 @@ export default function Processos() {
 
   const extractMutation = trpc.processes.extractFromPDF.useMutation({
     onSuccess: (data) => {
+      console.log('Dados recebidos da extração:', data);
       // Preencher formulário com dados extraídos
       setFormData(prev => ({
         ...prev,

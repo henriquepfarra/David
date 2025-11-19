@@ -97,9 +97,7 @@ export async function extractProcessData(
     const extractedData = JSON.parse(cleanedJson) as ExtractedProcessData;
 
     // Validar e limpar dados
-    return {
-      ...extractedData,
-      // Garantir que campos vazios sejam undefined ao invés de null
+    const cleanedData = {
       numeroProcesso: extractedData.numeroProcesso || undefined,
       autor: extractedData.autor || undefined,
       reu: extractedData.reu || undefined,
@@ -111,6 +109,27 @@ export async function extractProcessData(
       pedidos: Array.isArray(extractedData.pedidos) 
         ? extractedData.pedidos.join('\n') 
         : (extractedData.pedidos || undefined),
+    };
+
+    // Calcular campos extraídos
+    const extractedFields: string[] = [];
+    if (cleanedData.numeroProcesso) extractedFields.push('processNumber');
+    if (cleanedData.autor) extractedFields.push('plaintiff');
+    if (cleanedData.reu) extractedFields.push('defendant');
+    if (cleanedData.vara) extractedFields.push('court');
+    if (cleanedData.assunto) extractedFields.push('subject');
+    if (cleanedData.resumoFatos) extractedFields.push('facts');
+    if (cleanedData.pedidos) extractedFields.push('requests');
+
+    // Determinar confiança baseado em quantos campos foram extraídos
+    const confidence: "high" | "medium" | "low" = 
+      extractedFields.length >= 5 ? "high" :
+      extractedFields.length >= 3 ? "medium" : "low";
+
+    return {
+      ...cleanedData,
+      confidence,
+      extractedFields,
     };
   } catch (error: any) {
     console.error("Erro ao extrair dados processuais:", error);
@@ -168,8 +187,8 @@ export async function extractProcessDataFromImages(
     const cleanedJson = cleanJsonResponse(contentText);
     const extractedData = JSON.parse(cleanedJson) as ExtractedProcessData;
 
-    return {
-      ...extractedData,
+    // Validar e limpar dados
+    const cleanedData = {
       numeroProcesso: extractedData.numeroProcesso || undefined,
       autor: extractedData.autor || undefined,
       reu: extractedData.reu || undefined,
@@ -181,6 +200,27 @@ export async function extractProcessDataFromImages(
       pedidos: Array.isArray(extractedData.pedidos) 
         ? extractedData.pedidos.join('\n') 
         : (extractedData.pedidos || undefined),
+    };
+
+    // Calcular campos extraídos
+    const extractedFields: string[] = [];
+    if (cleanedData.numeroProcesso) extractedFields.push('processNumber');
+    if (cleanedData.autor) extractedFields.push('plaintiff');
+    if (cleanedData.reu) extractedFields.push('defendant');
+    if (cleanedData.vara) extractedFields.push('court');
+    if (cleanedData.assunto) extractedFields.push('subject');
+    if (cleanedData.resumoFatos) extractedFields.push('facts');
+    if (cleanedData.pedidos) extractedFields.push('requests');
+
+    // Determinar confiança baseado em quantos campos foram extraídos
+    const confidence: "high" | "medium" | "low" = 
+      extractedFields.length >= 5 ? "high" :
+      extractedFields.length >= 3 ? "medium" : "low";
+
+    return {
+      ...cleanedData,
+      confidence,
+      extractedFields,
     };
   } catch (error: any) {
     console.error("Erro ao extrair dados de imagens:", error);
