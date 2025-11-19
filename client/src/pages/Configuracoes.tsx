@@ -11,14 +11,17 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { trpc } from "@/lib/trpc";
-import { Loader2, Save, Settings } from "lucide-react";
+import { AlertCircle, CheckCircle2, Loader2, RefreshCw, Save, Settings } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 export default function Configuracoes() {
   const [llmApiKey, setLlmApiKey] = useState("");
-  const [llmProvider, setLlmProvider] = useState("openai");
-  const [llmModel, setLlmModel] = useState("gpt-4");
+  const [llmProvider, setLlmProvider] = useState("google");
+  const [llmModel, setLlmModel] = useState("");
+  const [isLoadingModels, setIsLoadingModels] = useState(false);
+  const [availableModels, setAvailableModels] = useState<any[]>([]);
+  const [modelsError, setModelsError] = useState("");
 
   const { data: settings, isLoading } = trpc.settings.get.useQuery();
   const utils = trpc.useUtils();
@@ -36,13 +39,80 @@ export default function Configuracoes() {
   useEffect(() => {
     if (settings) {
       setLlmApiKey(settings.llmApiKey || "");
-      setLlmProvider(settings.llmProvider || "openai");
-      setLlmModel(settings.llmModel || "gpt-4");
+      setLlmProvider(settings.llmProvider || "google");
+      setLlmModel(settings.llmModel || "");
+      
+      // Carregar modelos se já tiver API key
+      if (settings.llmApiKey && settings.llmProvider) {
+        loadModels(settings.llmProvider, settings.llmApiKey);
+      }
     }
   }, [settings]);
 
+  const loadModels = async (provider: string, apiKey: string) => {
+    if (!apiKey || apiKey.length < 10) {
+      setModelsError("Insira uma chave de API válida");
+      return;
+    }
+
+    setIsLoadingModels(true);
+    setModelsError("");
+    
+    try {
+      const models = await utils.client.settings.listModels.query({
+        provider,
+        apiKey,
+      });
+      
+      setAvailableModels(models);
+      
+      if (models.length === 0) {
+        setModelsError("Nenhum modelo disponível");
+      } else {
+        toast.success(`${models.length} modelos carregados`);
+      }
+    } catch (error: any) {
+      setModelsError("Falha ao carregar modelos. Usando lista padrão.");
+      console.error("Erro ao carregar modelos:", error);
+    } finally {
+      setIsLoadingModels(false);
+    }
+  };
+
+  const handleProviderChange = (newProvider: string) => {
+    setLlmProvider(newProvider);
+    setLlmModel("");
+    setAvailableModels([]);
+    setModelsError("");
+  };
+
+  const handleApiKeyChange = (newApiKey: string) => {
+    setLlmApiKey(newApiKey);
+    setAvailableModels([]);
+    setModelsError("");
+  };
+
+  const handleLoadModels = () => {
+    if (!llmApiKey) {
+      toast.error("Insira a chave de API primeiro");
+      return;
+    }
+    loadModels(llmProvider, llmApiKey);
+  };
+
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!llmApiKey) {
+      toast.error("Insira a chave de API");
+      return;
+    }
+    
+    if (!llmModel) {
+      toast.error("Selecione um modelo");
+      return;
+    }
+    
     updateMutation.mutate({
       llmApiKey,
       llmProvider,
@@ -69,7 +139,7 @@ export default function Configuracoes() {
             Configurações
           </h1>
           <p className="mt-2 text-muted-foreground">
-            Configure sua chave de API para geração de minutas com IA
+            Configure sua chave de API e selecione o modelo de IA
           </p>
         </div>
 
@@ -77,39 +147,23 @@ export default function Configuracoes() {
           <CardHeader>
             <CardTitle>Configuração de IA</CardTitle>
             <CardDescription>
-              Configure o provedor e modelo de inteligência artificial para geração de minutas
+              Configure o provedor, modelo e chave de API para geração de minutas
             </CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSave} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="provider">Provedor de IA</Label>
-                <Select value={llmProvider} onValueChange={setLlmProvider}>
+                <Select value={llmProvider} onValueChange={handleProviderChange}>
                   <SelectTrigger id="provider">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="openai">OpenAI</SelectItem>
-                    <SelectItem value="anthropic">Anthropic (Claude)</SelectItem>
                     <SelectItem value="google">Google (Gemini)</SelectItem>
+                    <SelectItem value="openai">OpenAI (GPT)</SelectItem>
+                    <SelectItem value="anthropic">Anthropic (Claude)</SelectItem>
                   </SelectContent>
                 </Select>
-                <p className="text-xs text-muted-foreground">
-                  Selecione o provedor de IA que você deseja utilizar
-                </p>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="model">Modelo</Label>
-                <Input
-                  id="model"
-                  value={llmModel}
-                  onChange={(e) => setLlmModel(e.target.value)}
-                  placeholder="Ex: gpt-4, claude-3-opus, gemini-pro"
-                />
-                <p className="text-xs text-muted-foreground">
-                  Nome do modelo específico (ex: gpt-4, gpt-3.5-turbo, claude-3-opus-20240229)
-                </p>
               </div>
 
               <div className="space-y-2">
@@ -118,15 +172,83 @@ export default function Configuracoes() {
                   id="apiKey"
                   type="password"
                   value={llmApiKey}
-                  onChange={(e) => setLlmApiKey(e.target.value)}
-                  placeholder="sk-..."
+                  onChange={(e) => handleApiKeyChange(e.target.value)}
+                  placeholder="Insira sua chave de API"
                 />
                 <p className="text-xs text-muted-foreground">
-                  Sua chave de API do provedor selecionado. Esta informação é armazenada de forma segura.
+                  Sua chave de API é armazenada de forma segura no banco de dados
                 </p>
               </div>
 
-              <Button type="submit" disabled={updateMutation.isPending} className="w-full">
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleLoadModels}
+                  disabled={isLoadingModels || !llmApiKey}
+                  className="flex-1"
+                >
+                  {isLoadingModels ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Carregando Modelos...
+                    </>
+                  ) : (
+                    <>
+                      <RefreshCw className="mr-2 h-4 w-4" />
+                      Carregar Modelos Disponíveis
+                    </>
+                  )}
+                </Button>
+              </div>
+
+              {modelsError && (
+                <div className="flex items-center gap-2 text-sm text-amber-600 dark:text-amber-400">
+                  <AlertCircle className="h-4 w-4" />
+                  {modelsError}
+                </div>
+              )}
+
+              {availableModels.length > 0 && (
+                <div className="space-y-2">
+                  <Label htmlFor="model">Modelo</Label>
+                  <Select value={llmModel} onValueChange={setLlmModel}>
+                    <SelectTrigger id="model">
+                      <SelectValue placeholder="Selecione um modelo" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {availableModels.map((model) => (
+                        <SelectItem key={model.id} value={model.id}>
+                          <div className="flex items-center gap-2">
+                            <span>{model.name}</span>
+                            {model.supportsVision && (
+                              <span className="text-xs text-muted-foreground">(Visão)</span>
+                            )}
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {llmModel && availableModels.find(m => m.id === llmModel)?.description && (
+                    <p className="text-xs text-muted-foreground">
+                      {availableModels.find(m => m.id === llmModel)?.description}
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {availableModels.length > 0 && llmModel && (
+                <div className="flex items-center gap-2 text-sm text-green-600 dark:text-green-400">
+                  <CheckCircle2 className="h-4 w-4" />
+                  Modelo selecionado: {availableModels.find(m => m.id === llmModel)?.name}
+                </div>
+              )}
+
+              <Button 
+                type="submit" 
+                disabled={updateMutation.isPending || !llmModel} 
+                className="w-full"
+              >
                 {updateMutation.isPending ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -150,6 +272,21 @@ export default function Configuracoes() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3 text-sm text-blue-800 dark:text-blue-200">
+            <div>
+              <h4 className="font-semibold mb-1">Google Gemini</h4>
+              <p>
+                Acesse{" "}
+                <a
+                  href="https://aistudio.google.com/app/apikey"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="underline hover:text-blue-600"
+                >
+                  aistudio.google.com/app/apikey
+                </a>{" "}
+                e crie uma chave de API gratuita
+              </p>
+            </div>
             <div>
               <h4 className="font-semibold mb-1">OpenAI (GPT-4, GPT-3.5)</h4>
               <p>
@@ -178,21 +315,6 @@ export default function Configuracoes() {
                   console.anthropic.com/settings/keys
                 </a>{" "}
                 e gere sua chave
-              </p>
-            </div>
-            <div>
-              <h4 className="font-semibold mb-1">Google (Gemini)</h4>
-              <p>
-                Acesse{" "}
-                <a
-                  href="https://makersuite.google.com/app/apikey"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="underline hover:text-blue-600"
-                >
-                  makersuite.google.com/app/apikey
-                </a>{" "}
-                para obter sua chave
               </p>
             </div>
           </CardContent>

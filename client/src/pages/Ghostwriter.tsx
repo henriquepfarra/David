@@ -12,7 +12,8 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { trpc } from "@/lib/trpc";
-import { Gavel, Loader2, Sparkles } from "lucide-react";
+import { Gavel, Loader2, Sparkles, BookOpen } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useState } from "react";
 import { toast } from "sonner";
 import { Streamdown } from "streamdown";
@@ -23,9 +24,11 @@ export default function Ghostwriter() {
   const [title, setTitle] = useState("");
   const [generatedContent, setGeneratedContent] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
+  const [useKnowledgeBase, setUseKnowledgeBase] = useState(true);
 
   const { data: processes } = trpc.processes.list.useQuery();
   const { data: settings } = trpc.settings.get.useQuery();
+  const { data: knowledgeBase } = trpc.knowledgeBase.list.useQuery();
   
   const generateMutation = trpc.ghostwriter.generate.useMutation({
     onSuccess: (data) => {
@@ -145,6 +148,28 @@ export default function Ghostwriter() {
                   placeholder="Ex: Sentença de Procedência - Ação de Cobrança"
                 />
               </div>
+
+              {knowledgeBase && knowledgeBase.length > 0 && (
+                <div className="flex items-center space-x-2 p-3 bg-primary/5 rounded-lg">
+                  <Checkbox
+                    id="useKnowledge"
+                    checked={useKnowledgeBase}
+                    onCheckedChange={(checked) => setUseKnowledgeBase(checked as boolean)}
+                  />
+                  <div className="flex-1">
+                    <label
+                      htmlFor="useKnowledge"
+                      className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                    >
+                      Usar Base de Conhecimento
+                    </label>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {knowledgeBase.length} documento(s) disponível(is) para fundamentação
+                    </p>
+                  </div>
+                  <BookOpen className="h-4 w-4 text-primary" />
+                </div>
+              )}
 
               <Button
                 onClick={handleGenerate}

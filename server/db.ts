@@ -217,3 +217,27 @@ export async function upsertUserSettings(userId: number, data: any) {
   const { userSettings } = await import("../drizzle/schema");
   await db.insert(userSettings).values({ userId, ...data }).onDuplicateKeyUpdate({ set: data });
 }
+
+// Base de Conhecimento
+export async function createKnowledgeBase(data: any) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const { knowledgeBase } = await import("../drizzle/schema");
+  const result = await db.insert(knowledgeBase).values(data);
+  return result;
+}
+
+export async function getUserKnowledgeBase(userId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  const { knowledgeBase } = await import("../drizzle/schema");
+  return db.select().from(knowledgeBase).where(eq(knowledgeBase.userId, userId)).orderBy(knowledgeBase.createdAt);
+}
+
+export async function deleteKnowledgeBase(id: number, userId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const { knowledgeBase } = await import("../drizzle/schema");
+  const { and } = await import("drizzle-orm");
+  await db.delete(knowledgeBase).where(and(eq(knowledgeBase.id, id), eq(knowledgeBase.userId, userId)));
+}

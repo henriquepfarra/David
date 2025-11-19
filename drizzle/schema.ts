@@ -96,3 +96,19 @@ export const userSettings = mysqlTable("userSettings", {
 
 export type UserSettings = typeof userSettings.$inferSelect;
 export type InsertUserSettings = typeof userSettings.$inferInsert;
+
+// Base de conhecimento - Documentos de referência
+export const knowledgeBase = mysqlTable("knowledgeBase", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(),
+  title: varchar("title", { length: 300 }).notNull(),
+  content: text("content").notNull(),
+  fileType: varchar("fileType", { length: 50 }), // pdf, docx, txt
+  category: varchar("category", { length: 100 }), // decisoes, teses, referencias
+  tags: text("tags"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type KnowledgeBase = typeof knowledgeBase.$inferSelect;
+export type InsertKnowledgeBase = typeof knowledgeBase.$inferInsert;

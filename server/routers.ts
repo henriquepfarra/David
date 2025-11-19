@@ -5,6 +5,7 @@ import { protectedProcedure, publicProcedure, router } from "./_core/trpc";
 import { z } from "zod";
 import * as db from "./db";
 import { generateDraft } from "./ghostwriter";
+import { listAvailableModels } from "./llmModels";
 
 export const appRouter = router({
   system: systemRouter,
@@ -186,6 +187,46 @@ export const appRouter = router({
       }))
       .mutation(async ({ ctx, input }) => {
         await db.upsertUserSettings(ctx.user.id, input);
+        return { success: true };
+      }),
+
+    listModels: protectedProcedure
+      .input(z.object({
+        provider: z.string(),
+        apiKey: z.string(),
+      }))
+      .query(async ({ input }) => {
+        const models = await listAvailableModels(input.provider, input.apiKey);
+        return models;
+      }),
+  }),
+
+  // Base de Conhecimento
+  knowledgeBase: router({
+    list: protectedProcedure.query(async ({ ctx }) => {
+      return db.getUserKnowledgeBase(ctx.user.id);
+    }),
+
+    create: protectedProcedure
+      .input(z.object({
+        title: z.string(),
+        content: z.string(),
+        fileType: z.string().optional(),
+        category: z.string().optional(),
+        tags: z.string().optional(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        await db.createKnowledgeBase({
+          userId: ctx.user.id,
+          ...input,
+        });
+        return { success: true };
+      }),
+
+    delete: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ ctx, input }) => {
+        await db.deleteKnowledgeBase(input.id, ctx.user.id);
         return { success: true };
       }),
   }),

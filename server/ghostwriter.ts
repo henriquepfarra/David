@@ -13,10 +13,20 @@ export interface GhostwriterInput {
   requests?: string;
   customApiKey?: string;
   customModel?: string;
+  customProvider?: string;
+  images?: string[]; // Base64 images para processamento multimodal
+  knowledgeBase?: string; // Conteúdo da base de conhecimento
 }
 
 export async function generateDraft(input: GhostwriterInput): Promise<string> {
-  const systemPrompt = getSystemPrompt(input.draftType);
+  const systemPrompt = getSystemPrompt(input.draftType, input.knowledgeBase);
+  
+  // Se tiver imagens, usar processamento multimodal
+  if (input.images && input.images.length > 0) {
+    return generateDraftWithImages(input, systemPrompt);
+  }
+  
+  // Caso contrário, usar processamento de texto normal
   const userPrompt = buildUserPrompt(input);
 
   try {
@@ -26,7 +36,6 @@ export async function generateDraft(input: GhostwriterInput): Promise<string> {
         { role: "user", content: userPrompt },
       ],
       // Se o usuário forneceu API key customizada, usar ela
-      // Caso contrário, usar a API key padrão do sistema
       ...(input.customApiKey && { apiKey: input.customApiKey }),
       ...(input.customModel && { model: input.customModel }),
     });
@@ -42,7 +51,55 @@ export async function generateDraft(input: GhostwriterInput): Promise<string> {
   }
 }
 
-function getSystemPrompt(draftType: string): string {
+/**
+ * Gera minuta usando processamento multimodal (texto + imagens)
+ */
+async function generateDraftWithImages(
+  input: GhostwriterInput,
+  systemPrompt: string
+): Promise<string> {
+  try {
+    // Construir conteúdo multimodal
+    const content: any[] = [
+      {
+        type: "text",
+        text: buildUserPrompt(input),
+      },
+    ];
+
+    // Adicionar imagens (limitar a 10 para evitar timeout)
+    const maxImages = Math.min(input.images?.length || 0, 10);
+    for (let i = 0; i < maxImages; i++) {
+      content.push({
+        type: "image_url",
+        image_url: {
+          url: input.images![i],
+          detail: "high",
+        },
+      });
+    }
+
+    const response = await invokeLLM({
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content },
+      ],
+      ...(input.customApiKey && { apiKey: input.customApiKey }),
+      ...(input.customModel && { model: input.customModel }),
+    });
+
+    const responseContent = response.choices[0]?.message?.content;
+    if (typeof responseContent === "string") {
+      return responseContent;
+    }
+    return "Erro ao gerar minuta";
+  } catch (error) {
+    console.error("Erro ao gerar minuta multimodal:", error);
+    throw new Error("Falha ao gerar minuta com processamento multimodal");
+  }
+}
+
+function getSystemPrompt(draftType: string, knowledgeBase?: string): string {
   const basePrompt = `Você é um assistente jurídico especializado em elaboração de peças processuais para o Tribunal de Justiça de São Paulo (TJSP).
 Sua função é redigir minutas judiciais de alta qualidade, seguindo as normas técnicas, jurídicas e formais aplicáveis.
 
@@ -87,7 +144,14 @@ Você deve elaborar um ACÓRDÃO, contendo:
 4. DISPOSITIVO: Decisão colegiada final`,
   };
 
-  return specificPrompts[draftType as keyof typeof specificPrompts] || basePrompt;
+  let prompt = specificPrompts[draftType as keyof typeof specificPrompts] || basePrompt;
+
+  // Adicionar base de conhecimento se fornecida
+  if (knowledgeBase) {
+    prompt += `\n\nBASE DE CONHECIMENTO (Decisões anteriores, teses e referências):\n${knowledgeBase}\n\nUtilize as informações da base de conhecimento acima para fundamentar melhor sua decisão, citando precedentes e teses relevantes quando apropriado.`;
+  }
+
+  return prompt;
 }
 
 function buildUserPrompt(input: GhostwriterInput): string {
@@ -130,4 +194,34 @@ function buildUserPrompt(input: GhostwriterInput): string {
   prompt += `\n\nCom base nas informações acima, elabore uma ${input.draftType} completa, bem fundamentada e tecnicamente adequada.`;
   
   return prompt;
+}
+
+/**
+ * Divide texto grande em chunks para evitar limite de tokens
+ */
+export function chunkText(text: string, maxChunkSize: number = 10000): string[] {
+  if (text.length <= maxChunkSize) {
+    return [text];
+  }
+
+  const chunks: string[] = [];
+  const paragraphs = text.split('\n\n');
+  let currentChunk = '';
+
+  for (const paragraph of paragraphs) {
+    if (currentChunk.length + paragraph.length > maxChunkSize) {
+      if (currentChunk) {
+        chunks.push(currentChunk.trim());
+      }
+      currentChunk = paragraph;
+    } else {
+      currentChunk += '\n\n' + paragraph;
+    }
+  }
+
+  if (currentChunk) {
+    chunks.push(currentChunk.trim());
+  }
+
+  return chunks;
 }

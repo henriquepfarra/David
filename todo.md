@@ -46,3 +46,29 @@
 - [x] Corrigir tags <a> aninhadas em componentes Link
 
 - [x] Adicionar item Configurações ao menu de navegação lateral
+
+
+## Novas Funcionalidades Avançadas
+
+### 1. Configuração Dinâmica de API
+- [x] Campo de API Key com salvamento seguro
+- [x] Listagem automática de modelos disponíveis via API
+- [x] Dropdown de seleção de modelo dinâmico
+- [x] Lista estática de fallback para modelos
+
+### 2. Leitura Híbrida de PDFs (CRÍTICO)
+- [x] Componente de upload drag & drop para PDFs
+- [x] Suporte a múltiplos arquivos
+- [x] Pipeline inteligente de processamento:
+  - [x] Tentativa 1: Extração de texto nativo (pdfjs-dist)
+  - [x] Tentativa 2: OCR client-side (tesseract.js)
+  - [x] Tentativa 3: Suporte multimodal (envio de imagens para LLM)
+- [x] Sistema de chunking para documentos grandes
+- [x] Preview do texto identificado
+- [x] Indicador visual do método usado (OCR/Texto Nativo)
+
+### 3. Base de Conhecimento
+- [x] Upload de arquivos de referência (DOCX, TXT, PDF)
+- [x] Extração e armazenamento de conteúdo
+- [x] Injeção de contexto na geração de minutas
+- [x] Gerenciamento de documentos de referência

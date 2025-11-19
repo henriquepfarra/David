@@ -14,13 +14,17 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { trpc } from "@/lib/trpc";
-import { FileText, FolderOpen, Loader2, Plus, Trash2 } from "lucide-react";
+import { FileText, FolderOpen, Loader2, Plus, Trash2, Upload } from "lucide-react";
+import PDFUploader from "@/components/PDFUploader";
+import { ProcessingResult } from "@/lib/pdfProcessor";
 import { useState } from "react";
 import { toast } from "sonner";
 import { Link } from "wouter";
 
 export default function Processos() {
   const [open, setOpen] = useState(false);
+  const [showPDFUpload, setShowPDFUpload] = useState(false);
+  const [extractedText, setExtractedText] = useState("");
   const [formData, setFormData] = useState({
     processNumber: "",
     court: "",
@@ -103,10 +107,45 @@ export default function Processos() {
               <DialogHeader>
                 <DialogTitle>Cadastrar Novo Processo</DialogTitle>
                 <DialogDescription>
-                  Preencha as informações do processo judicial
+                  Preencha as informações do processo judicial ou importe de PDF
                 </DialogDescription>
               </DialogHeader>
               <form onSubmit={handleSubmit} className="space-y-4">
+                {/* Botão para alternar upload de PDF */}
+                <div className="flex gap-2">
+                  <Button
+                    type="button"
+                    variant={showPDFUpload ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setShowPDFUpload(!showPDFUpload)}
+                    className="flex-1"
+                  >
+                    <Upload className="mr-2 h-4 w-4" />
+                    {showPDFUpload ? "Ocultar" : "Importar"} PDF
+                  </Button>
+                </div>
+
+                {/* Upload de PDF */}
+                {showPDFUpload && (
+                  <div className="space-y-2">
+                    <PDFUploader
+                      maxFiles={1}
+                      onProcessComplete={(result: ProcessingResult) => {
+                        if (result.text) {
+                          setExtractedText(result.text);
+                          // Preencher automaticamente o campo de fatos
+                          setFormData(prev => ({
+                            ...prev,
+                            facts: result.text.substring(0, 1000) + (result.text.length > 1000 ? '...' : ''),
+                          }));
+                          toast.success(`Texto extraído via ${result.method}`);
+                        }
+                      }}
+                    />
+                  </div>
+                )}
+
+                <div className="border-t pt-4" />
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="space-y-2">
                     <Label htmlFor="processNumber">Número do Processo *</Label>
@@ -189,9 +228,14 @@ export default function Processos() {
                     id="facts"
                     value={formData.facts}
                     onChange={(e) => setFormData({ ...formData, facts: e.target.value })}
-                    placeholder="Resumo dos fatos principais"
+                    placeholder="Resumo dos fatos principais (ou importe de PDF acima)"
                     rows={3}
                   />
+                  {extractedText && (
+                    <p className="text-xs text-muted-foreground">
+                      Texto extraído do PDF ({extractedText.length} caracteres)
+                    </p>
+                  )}
                 </div>
 
                 <div className="space-y-2">

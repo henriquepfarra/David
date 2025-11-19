@@ -5,6 +5,7 @@ import { Route, Switch } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import Home from "./pages/Home";
+import BaseConhecimento from "./pages/BaseConhecimento";
 import Processos from "./pages/Processos";
 import Ghostwriter from "./pages/Ghostwriter";
 import Configuracoes from "./pages/Configuracoes";
@@ -20,6 +21,7 @@ function Router() {
       <Route path={"/minutas"} component={Minutas} />
       <Route path={"/ghostwriter"} component={Ghostwriter} />
       <Route path={"/jurisprudencia"} component={Jurisprudencia} />
+      <Route path={"/base-conhecimento"} component={BaseConhecimento} />
       <Route path={"/configuracoes"} component={Configuracoes} />
       <Route path={"/404"} component={NotFound} />
       {/* Final fallback route */}
