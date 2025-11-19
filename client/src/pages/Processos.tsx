@@ -89,7 +89,7 @@ export default function Processos() {
         court: data.vara || prev.court,
         subject: data.assunto || prev.subject,
         facts: data.resumoFatos || prev.facts,
-        requests: data.pedidos || prev.requests,
+        requests: Array.isArray(data.pedidos) ? data.pedidos.join('\n') : (data.pedidos || prev.requests),
       }));
       
       setExtractedFields(data.extractedFields);

@@ -108,7 +108,9 @@ export async function extractProcessData(
       valorCausa: extractedData.valorCausa || undefined,
       dataDistribuicao: extractedData.dataDistribuicao || undefined,
       resumoFatos: extractedData.resumoFatos || undefined,
-      pedidos: extractedData.pedidos || undefined,
+      pedidos: Array.isArray(extractedData.pedidos) 
+        ? extractedData.pedidos.join('\n') 
+        : (extractedData.pedidos || undefined),
     };
   } catch (error: any) {
     console.error("Erro ao extrair dados processuais:", error);
@@ -176,7 +178,9 @@ export async function extractProcessDataFromImages(
       valorCausa: extractedData.valorCausa || undefined,
       dataDistribuicao: extractedData.dataDistribuicao || undefined,
       resumoFatos: extractedData.resumoFatos || undefined,
-      pedidos: extractedData.pedidos || undefined,
+      pedidos: Array.isArray(extractedData.pedidos) 
+        ? extractedData.pedidos.join('\n') 
+        : (extractedData.pedidos || undefined),
     };
   } catch (error: any) {
     console.error("Erro ao extrair dados de imagens:", error);
