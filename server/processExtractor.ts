@@ -39,6 +39,28 @@ Sua tarefa é analisar o texto fornecido e extrair as seguintes informações:
 Retorne APENAS um objeto JSON válido, sem texto adicional.`;
 
 /**
+ * Remove blocos de código markdown do JSON
+ */
+function cleanJsonResponse(content: string): string {
+  // Remove blocos ```json ... ``` ou ``` ... ```
+  let cleaned = content.trim();
+  
+  // Remove ```json no início
+  if (cleaned.startsWith('```json')) {
+    cleaned = cleaned.slice(7);
+  } else if (cleaned.startsWith('```')) {
+    cleaned = cleaned.slice(3);
+  }
+  
+  // Remove ``` no final
+  if (cleaned.endsWith('```')) {
+    cleaned = cleaned.slice(0, -3);
+  }
+  
+  return cleaned.trim();
+}
+
+/**
  * Extrai dados processuais de um texto usando IA
  */
 export async function extractProcessData(
@@ -71,7 +93,8 @@ export async function extractProcessData(
     }
 
     const contentText = typeof content === 'string' ? content : JSON.stringify(content);
-    const extractedData = JSON.parse(contentText) as ExtractedProcessData;
+    const cleanedJson = cleanJsonResponse(contentText);
+    const extractedData = JSON.parse(cleanedJson) as ExtractedProcessData;
 
     // Validar e limpar dados
     return {
@@ -140,7 +163,8 @@ export async function extractProcessDataFromImages(
     }
 
     const contentText = typeof content === 'string' ? content : JSON.stringify(content);
-    const extractedData = JSON.parse(contentText) as ExtractedProcessData;
+    const cleanedJson = cleanJsonResponse(contentText);
+    const extractedData = JSON.parse(cleanedJson) as ExtractedProcessData;
 
     return {
       ...extractedData,

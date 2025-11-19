@@ -135,3 +135,5 @@
 
 
 - [x] Corrigir extração de dados processuais para usar LLM nativa como fallback
+
+- [x] Corrigir parse JSON quando LLM retorna resposta em bloco markdown (```json)
