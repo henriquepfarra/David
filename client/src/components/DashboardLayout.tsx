@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/sidebar";
 import { APP_LOGO, APP_TITLE, getLoginUrl } from "@/const";
 import { useIsMobile } from "@/hooks/useMobile";
-import { FileText, FolderOpen, Gavel, Home, LogOut, PanelLeft, Scale } from "lucide-react";
+import { FileText, FolderOpen, Gavel, Home, LogOut, PanelLeft, Scale, Settings } from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { DashboardLayoutSkeleton } from './DashboardLayoutSkeleton';
@@ -33,6 +33,7 @@ const menuItems = [
   { icon: FileText, label: "Minutas", path: "/minutas" },
   { icon: Gavel, label: "Ghostwriter", path: "/ghostwriter" },
   { icon: Scale, label: "Jurisprudência", path: "/jurisprudencia" },
+  { icon: Settings, label: "Configurações", path: "/configuracoes" },
 ];
 
 const SIDEBAR_WIDTH_KEY = "sidebar-width";

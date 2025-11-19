@@ -44,3 +44,5 @@
 ## Bugs
 
 - [x] Corrigir tags <a> aninhadas em componentes Link
+
+- [x] Adicionar item Configurações ao menu de navegação lateral
