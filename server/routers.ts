@@ -5,6 +5,7 @@ import { protectedProcedure, publicProcedure, router } from "./_core/trpc";
 import { z } from "zod";
 import * as db from "./db";
 import { generateDraft } from "./ghostwriter";
+import { fetchDriveContentCached } from "./driveHelper";
 import { listAvailableModels } from "./llmModels";
 
 export const appRouter = router({
@@ -249,6 +250,15 @@ export const appRouter = router({
         // Buscar configurações do usuário
         const settings = await db.getUserSettings(ctx.user.id);
 
+        // Buscar conteúdo do Google Drive (Teses e Diretrizes)
+        const driveContent = await fetchDriveContentCached();
+
+        // Buscar base de conhecimento do usuário
+        const knowledgeBase = await db.getUserKnowledgeBase(ctx.user.id);
+        const knowledgeBaseContent = knowledgeBase
+          .map(kb => `[${kb.title}]\n${kb.content}`)
+          .join("\n\n---\n\n");
+
         // Gerar minuta com IA
         const content = await generateDraft({
           draftType: input.draftType,
@@ -263,6 +273,8 @@ export const appRouter = router({
           requests: process.requests || undefined,
           customApiKey: settings?.llmApiKey || undefined,
           customModel: settings?.llmModel || undefined,
+          knowledgeBase: knowledgeBaseContent || undefined,
+          driveContent: driveContent || undefined,
         });
 
         // Salvar minuta no banco

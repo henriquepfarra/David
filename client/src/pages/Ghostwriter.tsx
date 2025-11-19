@@ -76,10 +76,10 @@ export default function Ghostwriter() {
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-foreground flex items-center gap-2">
             <Gavel className="h-8 w-8" />
-            Ghostwriter IA
+            David - Assessor de Magistrado JEC
           </h1>
           <p className="mt-2 text-muted-foreground">
-            Gere minutas judiciais automaticamente com inteligência artificial
+            Ghostwriter especializado em Juizados Especiais Cíveis com sistema de conhecimento híbrido
           </p>
         </div>
 
@@ -96,6 +96,36 @@ export default function Ghostwriter() {
             </CardHeader>
           </Card>
         )}
+
+        {/* Card Informativo sobre o David */}
+        <Card className="border-primary/20 bg-primary/5">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Sparkles className="h-5 w-5 text-primary" />
+              Sobre o David
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <p className="text-sm text-muted-foreground">
+              David é um Assessor de Magistrado especializado em <strong>Juizados Especiais Cíveis</strong>, 
+              configurado com system prompt rigoroso baseado na Lei 9.099/95, enunciados FONAJE/FOJESP, 
+              e jurisprudência do TJSP.
+            </p>
+            <div className="space-y-2">
+              <p className="text-sm font-medium">Sistema de Conhecimento Híbrido:</p>
+              <ul className="text-sm text-muted-foreground space-y-1 ml-4">
+                <li>• <strong>Base Local:</strong> {knowledgeBase?.length || 0} documento(s) na sua base de conhecimento</li>
+                <li>• <strong>Base Dinâmica:</strong> Consulta automática ao Google Drive (Teses e Diretrizes)</li>
+                <li>• <strong>Anti-alucinação:</strong> Citação padronizada de provas e jurisprudências</li>
+              </ul>
+            </div>
+            <div className="pt-2 border-t">
+              <p className="text-xs text-muted-foreground">
+                <strong>Comandos especiais:</strong> /minutar [Veredito], /consultar [tema], /tese
+              </p>
+            </div>
+          </CardContent>
+        </Card>
 
         <div className="grid gap-6 lg:grid-cols-2">
           {/* Formulário */}

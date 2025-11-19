@@ -72,3 +72,28 @@
 - [x] Extração e armazenamento de conteúdo
 - [x] Injeção de contexto na geração de minutas
 - [x] Gerenciamento de documentos de referência
+
+
+## Configuração do "Cérebro" - David (Assessor JEC)
+
+### System Prompt Especializado
+- [x] Implementar system prompt completo do David
+- [x] Configurar identidade e propósito (Assessor de Magistrado JEC)
+- [x] Adicionar diretrizes de execução e base normativa
+
+### Sistema de Conhecimento Híbrido
+- [x] Base Estrutural (arquivos locais da base de conhecimento)
+- [x] Base Dinâmica (consulta ao Google Drive)
+- [x] Regra de prevalência (Drive > Arquivos Locais)
+- [x] Sistema de rastreabilidade de provas
+
+### Comandos Especiais
+- [x] Comando /minutar [Veredito] - Redação final
+- [x] Comando /consultar [tema] - Pesquisa interna
+- [x] Comando /tese - Extração de aprendizado
+
+### Diretrizes de Análise
+- [x] Sistema anti-alucinação
+- [x] Checagem de jurisprudências
+- [x] Citação padronizada de provas
+- [x] Estilo e linguagem (DNA do juiz)
