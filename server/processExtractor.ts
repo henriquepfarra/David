@@ -52,75 +52,13 @@ export async function extractProcessData(
       messages: [
         {
           role: "system",
-          content: EXTRACTION_SYSTEM_PROMPT,
+          content: EXTRACTION_SYSTEM_PROMPT + "\n\nRETORNE APENAS JSON V\u00c1LIDO, SEM TEXTO ADICIONAL.",
         },
         {
           role: "user",
-          content: `Analise o seguinte texto processual e extraia os dados estruturados:\n\n${truncatedText}`,
+          content: `Analise o seguinte texto processual e extraia os dados estruturados em formato JSON:\n\n${truncatedText}`,
         },
       ],
-      response_format: {
-        type: "json_schema",
-        json_schema: {
-          name: "process_data_extraction",
-          strict: true,
-          schema: {
-            type: "object",
-            properties: {
-              numeroProcesso: {
-                type: ["string", "null"],
-                description: "Número do processo no formato CNJ ou outro formato identificado",
-              },
-              autor: {
-                type: ["string", "null"],
-                description: "Nome completo da parte autora/requerente",
-              },
-              reu: {
-                type: ["string", "null"],
-                description: "Nome completo da parte ré/requerida",
-              },
-              vara: {
-                type: ["string", "null"],
-                description: "Identificação da vara ou juizado",
-              },
-              assunto: {
-                type: ["string", "null"],
-                description: "Assunto ou matéria principal do processo",
-              },
-              valorCausa: {
-                type: ["string", "null"],
-                description: "Valor da causa em formato monetário",
-              },
-              dataDistribuicao: {
-                type: ["string", "null"],
-                description: "Data de distribuição no formato DD/MM/AAAA",
-              },
-              resumoFatos: {
-                type: ["string", "null"],
-                description: "Resumo conciso dos fatos narrados (máximo 500 caracteres)",
-              },
-              pedidos: {
-                type: ["string", "null"],
-                description: "Principais pedidos formulados",
-              },
-              confidence: {
-                type: "string",
-                enum: ["high", "medium", "low"],
-                description: "Nível de confiança da extração",
-              },
-              extractedFields: {
-                type: "array",
-                items: {
-                  type: "string",
-                },
-                description: "Lista de campos que foram extraídos com sucesso",
-              },
-            },
-            required: ["confidence", "extractedFields"],
-            additionalProperties: false,
-          },
-        },
-      },
     });
 
     if (!response || !response.choices || response.choices.length === 0) {
@@ -177,50 +115,19 @@ export async function extractProcessDataFromImages(
       messages: [
         {
           role: "system",
-          content: EXTRACTION_SYSTEM_PROMPT,
+          content: EXTRACTION_SYSTEM_PROMPT + "\n\nRETORNE APENAS JSON V\u00c1LIDO, SEM TEXTO ADICIONAL.",
         },
         {
           role: "user",
           content: [
             {
               type: "text",
-              text: "Analise as imagens do documento processual e extraia os dados estruturados:",
+              text: "Analise as imagens do documento processual e extraia os dados estruturados em formato JSON:",
             },
             ...imageContent,
           ],
         },
       ],
-      response_format: {
-        type: "json_schema",
-        json_schema: {
-          name: "process_data_extraction",
-          strict: true,
-          schema: {
-            type: "object",
-            properties: {
-              numeroProcesso: { type: ["string", "null"] },
-              autor: { type: ["string", "null"] },
-              reu: { type: ["string", "null"] },
-              vara: { type: ["string", "null"] },
-              assunto: { type: ["string", "null"] },
-              valorCausa: { type: ["string", "null"] },
-              dataDistribuicao: { type: ["string", "null"] },
-              resumoFatos: { type: ["string", "null"] },
-              pedidos: { type: ["string", "null"] },
-              confidence: {
-                type: "string",
-                enum: ["high", "medium", "low"],
-              },
-              extractedFields: {
-                type: "array",
-                items: { type: "string" },
-              },
-            },
-            required: ["confidence", "extractedFields"],
-            additionalProperties: false,
-          },
-        },
-      },
     });
 
     if (!response || !response.choices || response.choices.length === 0) {

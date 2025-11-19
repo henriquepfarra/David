@@ -132,3 +132,6 @@
 - [x] Implementar lógica de fallback na extração de dados processuais (já usa LLM nativa)
 - [x] Atualizar interface para indicar qual LLM está sendo usado
 - [x] Adicionar badge/indicador visual do provider ativo
+
+
+- [x] Corrigir extração de dados processuais para usar LLM nativa como fallback
