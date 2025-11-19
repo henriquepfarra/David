@@ -287,11 +287,9 @@ export default function Processos() {
                   )}
                   <div className="pt-2">
                     <Button asChild variant="outline" size="sm" className="w-full">
-                      <Link href={`/processo/${process.id}`}>
-                        <a className="flex items-center gap-2">
-                          <FileText className="h-4 w-4" />
-                          Ver Detalhes
-                        </a>
+                      <Link href={`/processo/${process.id}`} className="flex items-center gap-2">
+                        <FileText className="h-4 w-4" />
+                        Ver Detalhes
                       </Link>
                     </Button>
                   </div>

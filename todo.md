@@ -40,3 +40,7 @@
 - [x] Testes unitários para rotas tRPC
 - [x] Validação de schema do banco
 - [ ] Testes de integração com LLM
+
+## Bugs
+
+- [x] Corrigir tags <a> aninhadas em componentes Link

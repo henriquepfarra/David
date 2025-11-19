@@ -66,8 +66,8 @@ export default function Home() {
                 </CardHeader>
                 <CardContent>
                   <Button asChild variant="outline" className="w-full">
-                    <Link href={feature.href}>
-                      <a className="w-full">Acessar</a>
+                    <Link href={feature.href} className="w-full">
+                      Acessar
                     </Link>
                   </Button>
                 </CardContent>
