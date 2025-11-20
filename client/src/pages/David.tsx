@@ -11,7 +11,15 @@ import {
 } from "@/components/ui/select";
 import { Card } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Loader2, Send, Plus, Trash2, FileText, Settings } from "lucide-react";
+import { Loader2, Send, Plus, Trash2, FileText, Settings, BookMarked } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 import { Streamdown } from "streamdown";
 import { useLocation } from "wouter";
@@ -23,6 +31,9 @@ export default function David() {
   const [messageInput, setMessageInput] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  // Carregar prompts salvos
+  const { data: savedPrompts } = trpc.david.savedPrompts.list.useQuery();
 
   // Queries
   const { data: conversations, refetch: refetchConversations } = trpc.david.listConversations.useQuery();
@@ -223,8 +234,49 @@ export default function David() {
 
             {/* Input de mensagem */}
             <div className="p-4 border-t">
-              <div className="max-w-4xl mx-auto flex gap-2">
-                <Textarea
+              <div className="max-w-4xl mx-auto space-y-2">
+                {/* Botão de prompts salvos */}
+                <div className="flex justify-end">
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="outline" size="sm">
+                        <BookMarked className="h-4 w-4 mr-2" />
+                        Usar Prompt Salvo
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-64">
+                      <DropdownMenuLabel>Prompts Salvos</DropdownMenuLabel>
+                      <DropdownMenuSeparator />
+                      {savedPrompts && savedPrompts.length > 0 ? (
+                        savedPrompts.map((prompt: any) => (
+                          <DropdownMenuItem
+                            key={prompt.id}
+                            onClick={() => {
+                              setMessageInput(prompt.content);
+                              toast.success(`Prompt "${prompt.title}" aplicado`);
+                            }}
+                          >
+                            <div className="flex flex-col">
+                              <span className="font-medium">{prompt.title}</span>
+                              {prompt.category && (
+                                <span className="text-xs text-muted-foreground">
+                                  {prompt.category}
+                                </span>
+                              )}
+                            </div>
+                          </DropdownMenuItem>
+                        ))
+                      ) : (
+                        <DropdownMenuItem disabled>
+                          Nenhum prompt salvo
+                        </DropdownMenuItem>
+                      )}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+
+                <div className="flex gap-2">
+                  <Textarea
                   value={messageInput}
                   onChange={(e) => setMessageInput(e.target.value)}
                   onKeyDown={handleKeyPress}
@@ -247,7 +299,8 @@ export default function David() {
                 </Button>
               </div>
             </div>
-          </>
+          </div>
+        </>
         ) : (
           <div className="flex-1 flex items-center justify-center text-center p-8">
             <div>

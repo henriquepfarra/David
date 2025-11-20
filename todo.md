@@ -197,3 +197,11 @@
 - [x] Selecionar processo ativo durante conversa
 - [x] Injetar dados do processo no contexto do chat
 - [ ] Acesso rápido a documentos do processo (futuro)
+
+
+## Melhorias do DAVID - Fase 2
+
+- [x] Implementar persistência do system prompt customizado no banco (davidConfig)
+- [x] Adicionar botão "Usar Prompt" na interface de chat para aplicar prompts salvos
+- [x] Criar prompt pré-configurado de tutela de urgência como template inicial
+- [x] Testar fluxo completo de aplicação de prompts

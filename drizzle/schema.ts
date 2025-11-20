@@ -154,3 +154,15 @@ export const savedPrompts = mysqlTable("savedPrompts", {
 
 export type SavedPrompt = typeof savedPrompts.$inferSelect;
 export type InsertSavedPrompt = typeof savedPrompts.$inferInsert;
+
+// Configurações personalizadas do DAVID por usuário
+export const davidConfig = mysqlTable("davidConfig", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull().unique(),
+  systemPrompt: text("systemPrompt"), // System prompt customizado
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type DavidConfig = typeof davidConfig.$inferSelect;
+export type InsertDavidConfig = typeof davidConfig.$inferInsert;

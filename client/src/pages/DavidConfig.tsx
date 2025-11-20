@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -32,19 +33,27 @@ Formato de resposta:
 export default function DavidConfig() {
   const [, setLocation] = useLocation();
   const [systemPrompt, setSystemPrompt] = useState(DEFAULT_SYSTEM_PROMPT);
-  const [isSaving, setIsSaving] = useState(false);
 
-  const handleSave = async () => {
-    setIsSaving(true);
-    try {
-      // TODO: Implementar salvamento no backend
-      await new Promise((resolve) => setTimeout(resolve, 500));
+  // Carregar configuração salva
+  const { data: config } = trpc.david.config.get.useQuery();
+  const saveMutation = trpc.david.config.save.useMutation({
+    onSuccess: () => {
       toast.success("Configurações salvas com sucesso!");
-    } catch (error) {
+    },
+    onError: () => {
       toast.error("Erro ao salvar configurações");
-    } finally {
-      setIsSaving(false);
+    },
+  });
+
+  // Atualizar prompt quando carregar do servidor
+  useEffect(() => {
+    if (config?.systemPrompt) {
+      setSystemPrompt(config.systemPrompt);
     }
+  }, [config]);
+
+  const handleSave = () => {
+    saveMutation.mutate({ systemPrompt });
   };
 
   const handleReset = () => {
@@ -84,9 +93,9 @@ export default function DavidConfig() {
             />
 
             <div className="flex gap-2">
-              <Button onClick={handleSave} disabled={isSaving}>
+              <Button onClick={handleSave} disabled={saveMutation.isPending}>
                 <Save className="h-4 w-4 mr-2" />
-                {isSaving ? "Salvando..." : "Salvar Configurações"}
+                {saveMutation.isPending ? "Salvando..." : "Salvar Configurações"}
               </Button>
               <Button variant="outline" onClick={handleReset}>
                 <RotateCcw className="h-4 w-4 mr-2" />

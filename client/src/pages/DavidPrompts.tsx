@@ -58,7 +58,21 @@ export default function DavidPrompts() {
   const deleteMutation = trpc.david.savedPrompts.delete.useMutation({
     onSuccess: () => {
       refetch();
-      toast.success("Prompt deletado!");
+      toast.success("Prompt deletado com sucesso!");
+    },
+  });
+
+  const seedTutelaMutation = trpc.david.savedPrompts.seedDefaultTutela.useMutation({
+    onSuccess: (data) => {
+      if (data.success) {
+        refetch();
+        toast.success("Prompt padrão de tutela criado com sucesso!");
+      } else {
+        toast.info("Prompt padrão já existe");
+      }
+    },
+    onError: () => {
+      toast.error("Erro ao criar prompt padrão");
     },
   });
 
@@ -120,14 +134,24 @@ export default function DavidPrompts() {
             </div>
           </div>
 
-          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-            <DialogTrigger asChild>
-              <Button
-                onClick={() => {
-                  resetForm();
-                  setEditingPrompt(null);
-                }}
-              >
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              onClick={() => seedTutelaMutation.mutate()}
+              disabled={seedTutelaMutation.isPending}
+            >
+              <FileText className="h-4 w-4 mr-2" />
+              Criar Prompt de Tutela
+            </Button>
+
+            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+              <DialogTrigger asChild>
+                <Button
+                  onClick={() => {
+                    resetForm();
+                    setEditingPrompt(null);
+                  }}
+                >
                 <Plus className="h-4 w-4 mr-2" />
                 Novo Prompt
               </Button>
@@ -196,6 +220,7 @@ export default function DavidPrompts() {
               </div>
             </DialogContent>
           </Dialog>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

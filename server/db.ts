@@ -371,3 +371,36 @@ export async function getProcessForContext(processId: number) {
   const result = await db.select().from(processes).where(eq(processes.id, processId)).limit(1);
   return result[0];
 }
+
+
+// Configurações do DAVID
+export async function getDavidConfig(userId: number) {
+  const db = await getDb();
+  if (!db) return null;
+  
+  const { davidConfig } = await import("../drizzle/schema");
+  const result = await db.select().from(davidConfig).where(eq(davidConfig.userId, userId)).limit(1);
+  return result[0] || null;
+}
+
+export async function upsertDavidConfig(userId: number, systemPrompt: string) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  const { davidConfig } = await import("../drizzle/schema");
+  
+  // Tentar atualizar primeiro
+  const existing = await getDavidConfig(userId);
+  
+  if (existing) {
+    await db
+      .update(davidConfig)
+      .set({ systemPrompt, updatedAt: new Date() })
+      .where(eq(davidConfig.userId, userId));
+  } else {
+    await db.insert(davidConfig).values({
+      userId,
+      systemPrompt,
+    });
+  }
+}
