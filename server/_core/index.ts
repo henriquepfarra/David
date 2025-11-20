@@ -35,6 +35,108 @@ async function startServer() {
   app.use(express.urlencoded({ limit: "50mb", extended: true }));
   // OAuth callback under /api/oauth/callback
   registerOAuthRoutes(app);
+  
+  // Streaming endpoint para DAVID
+  app.post("/api/david/stream", async (req, res) => {
+    try {
+      const { getConversationById, getConversationMessages, createMessage, getProcessForContext } = await import("../db");
+      const { invokeLLMStream: streamFn } = await import("../_core/llm");
+      const { sdk } = await import("./sdk");
+      
+      let user;
+      try {
+        user = await sdk.authenticateRequest(req);
+      } catch (error) {
+        res.status(401).json({ error: "Unauthorized" });
+        return;
+      }
+      
+      if (!user) {
+        res.status(401).json({ error: "Unauthorized" });
+        return;
+      }
+
+      const { conversationId, content, systemPromptOverride } = req.body;
+
+      const conversation = await getConversationById(conversationId);
+      if (!conversation || conversation.userId !== user.id) {
+        res.status(404).json({ error: "Conversa não encontrada" });
+        return;
+      }
+
+      // Salvar mensagem do usuário
+      await createMessage({
+        conversationId,
+        role: "user",
+        content,
+      });
+
+      // Buscar histórico
+      const history = await getConversationMessages(conversationId);
+
+      // Contexto do processo
+      let processContext = "";
+      if (conversation.processId) {
+        const process = await getProcessForContext(conversation.processId);
+        if (process) {
+          processContext = `\n\n## PROCESSO SELECIONADO\n\n**Número:** ${process.processNumber}\n**Autor:** ${process.plaintiff}\n**Réu:** ${process.defendant}\n**Vara:** ${process.court}\n**Assunto:** ${process.subject}\n**Fatos:** ${process.facts}\n**Pedidos:** ${process.requests}\n**Status:** ${process.status}\n`;
+        }
+      }
+
+      // System prompt
+      const DEFAULT_DAVID_SYSTEM_PROMPT = `Você é DAVID, um assistente jurídico especializado em processos judiciais brasileiros.\n\nSua função é auxiliar na análise de processos, geração de minutas e orientação jurídica com base em:\n1. Dados do processo fornecido pelo usuário\n2. Legislação brasileira (CPC, CDC, CC, etc.)\n3. Jurisprudência do TJSP e tribunais superiores\n4. Boas práticas jurídicas\n\nDiretrizes:\n- Seja preciso, técnico e fundamentado\n- Cite sempre a base legal (artigos, leis)\n- Quando sugerir jurisprudência, forneça perfis de busca específicos\n- NUNCA invente jurisprudência ou dados\n- Seja crítico e realista sobre pontos fortes e fracos\n- Use linguagem jurídica clara e acessível\n- Quando houver processo selecionado, utilize seus dados no contexto\n\nFormato de resposta:\n- Use markdown para estruturar\n- Destaque pontos importantes em **negrito**\n- Use listas quando apropriado\n- Cite dispositivos legais entre parênteses (ex: Art. 300, CPC)`;
+      
+      const systemPrompt = systemPromptOverride || DEFAULT_DAVID_SYSTEM_PROMPT;
+      const llmMessages: Array<{ role: "system" | "user" | "assistant"; content: string }> = [
+        { role: "system", content: systemPrompt + processContext },
+      ];
+
+      // Adicionar histórico
+      const recentHistory = history.slice(-10);
+      for (const msg of recentHistory) {
+        if (msg.role === "user" || msg.role === "assistant") {
+          llmMessages.push({
+            role: msg.role,
+            content: msg.content,
+          });
+        }
+      }
+
+      // Configurar SSE
+      res.setHeader("Content-Type", "text/event-stream");
+      res.setHeader("Cache-Control", "no-cache");
+      res.setHeader("Connection", "keep-alive");
+
+      let fullResponse = "";
+
+      try {
+        const { invokeLLMStream: streamFn } = await import("../_core/llm");
+        
+        for await (const chunk of streamFn({ messages: llmMessages })) {
+          fullResponse += chunk;
+          res.write(`data: ${JSON.stringify({ type: "chunk", content: chunk })}\n\n`);
+        }
+
+        // Salvar resposta completa
+        await createMessage({
+          conversationId,
+          role: "assistant",
+          content: fullResponse,
+        });
+
+        res.write(`data: ${JSON.stringify({ type: "done", content: fullResponse })}\n\n`);
+        res.end();
+      } catch (error) {
+        console.error("Stream error:", error);
+        res.write(`data: ${JSON.stringify({ type: "error", content: "Erro ao gerar resposta" })}\n\n`);
+        res.end();
+      }
+    } catch (error) {
+      console.error("Endpoint error:", error);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  });
+  
   // tRPC API
   app.use(
     "/api/trpc",

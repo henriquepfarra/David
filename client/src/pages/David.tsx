@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/select";
 import { Card } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Loader2, Send, Plus, Trash2, FileText, Settings, BookMarked } from "lucide-react";
+import { Loader2, Send, Plus, Trash2, FileText, Settings, BookMarked, X } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -30,7 +30,9 @@ export default function David() {
   const [selectedProcessId, setSelectedProcessId] = useState<number | undefined>();
   const [messageInput, setMessageInput] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
+  const [streamingMessage, setStreamingMessage] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   // Carregar prompts salvos
   const { data: savedPrompts } = trpc.david.savedPrompts.list.useQuery();
@@ -52,17 +54,90 @@ export default function David() {
     },
   });
 
-  const sendMessageMutation = trpc.david.sendMessage.useMutation({
-    onSuccess: () => {
-      refetchMessages();
-      setMessageInput("");
+  // Função para fazer streaming
+  const streamMessage = async (conversationId: number, content: string) => {
+    setIsStreaming(true);
+    setStreamingMessage("");
+
+    // Criar novo AbortController para este stream
+    abortControllerRef.current = new AbortController();
+
+    try {
+      const response = await fetch("/api/david/stream", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ conversationId, content }),
+        signal: abortControllerRef.current.signal,
+      });
+
+      if (!response.ok) {
+        throw new Error("Erro ao iniciar streaming");
+      }
+
+      if (!response.body) {
+        throw new Error("Response body is null");
+      }
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() || "";
+
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (!trimmed || !trimmed.startsWith("data: ")) continue;
+
+          try {
+            const data = JSON.parse(trimmed.slice(6));
+            
+            if (data.type === "chunk") {
+              setStreamingMessage((prev) => prev + data.content);
+            } else if (data.type === "done") {
+              setIsStreaming(false);
+              setStreamingMessage("");
+              refetchMessages();
+            } else if (data.type === "error") {
+              toast.error("Erro ao gerar resposta");
+              setIsStreaming(false);
+              setStreamingMessage("");
+            }
+          } catch (e) {
+            console.error("Failed to parse SSE:", e);
+          }
+        }
+      }
+    } catch (error) {
+      console.error("Stream error:", error);
+      if (error instanceof Error && error.name === "AbortError") {
+        // Stream foi cancelado pelo usuário
+        toast.info("Geração interrompida");
+      } else {
+        toast.error("Erro ao enviar mensagem");
+      }
       setIsStreaming(false);
-    },
-    onError: (error) => {
-      toast.error("Erro ao enviar mensagem: " + error.message);
+      setStreamingMessage("");
+    } finally {
+      abortControllerRef.current = null;
+    }
+  };
+
+  // Função para parar a geração
+  const stopGeneration = () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
       setIsStreaming(false);
-    },
-  });
+      setStreamingMessage("");
+    }
+  };
 
   const deleteConversationMutation = trpc.david.deleteConversation.useMutation({
     onSuccess: () => {
@@ -72,12 +147,12 @@ export default function David() {
     },
   });
 
-  // Auto-scroll ao receber novas mensagens
+  // Auto-scroll ao receber novas mensagens ou durante streaming
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [conversationData?.messages]);
+  }, [conversationData?.messages, streamingMessage]);
 
   const handleNewConversation = () => {
     createConversationMutation.mutate({
@@ -88,14 +163,14 @@ export default function David() {
     });
   };
 
-  const handleSendMessage = () => {
-    if (!messageInput.trim() || !selectedConversationId) return;
+  const handleSendMessage = async () => {
+    if (!messageInput.trim() || !selectedConversationId || isStreaming) return;
 
-    setIsStreaming(true);
-    sendMessageMutation.mutate({
-      conversationId: selectedConversationId,
-      content: messageInput,
-    });
+    const userMessage = messageInput;
+    setMessageInput("");
+    
+    // Iniciar streaming
+    await streamMessage(selectedConversationId, userMessage);
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -222,6 +297,19 @@ export default function David() {
                     </Card>
                   </div>
                 ))}
+                
+                {/* Mensagem em streaming */}
+                {isStreaming && streamingMessage && (
+                  <div className="flex justify-start">
+                    <Card className="p-4 max-w-[80%] bg-muted">
+                      <Streamdown>{streamingMessage}</Streamdown>
+                      <div className="flex items-center gap-2 mt-2">
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                        <p className="text-xs opacity-70">Gerando...</p>
+                      </div>
+                    </Card>
+                  </div>
+                )}
                 {isStreaming && (
                   <div className="flex justify-start">
                     <Card className="p-4 bg-muted">
@@ -285,18 +373,25 @@ export default function David() {
                   rows={3}
                   disabled={isStreaming}
                 />
-                <Button
-                  onClick={handleSendMessage}
-                  disabled={!messageInput.trim() || isStreaming}
-                  size="icon"
-                  className="h-full"
-                >
-                  {isStreaming ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
+                {isStreaming ? (
+                  <Button
+                    onClick={stopGeneration}
+                    size="icon"
+                    variant="destructive"
+                    className="h-full"
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                ) : (
+                  <Button
+                    onClick={handleSendMessage}
+                    disabled={!messageInput.trim()}
+                    size="icon"
+                    className="h-full"
+                  >
                     <Send className="h-4 w-4" />
-                  )}
-                </Button>
+                  </Button>
+                )}
               </div>
             </div>
           </div>

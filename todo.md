@@ -205,3 +205,14 @@
 - [x] Adicionar botão "Usar Prompt" na interface de chat para aplicar prompts salvos
 - [x] Criar prompt pré-configurado de tutela de urgência como template inicial
 - [x] Testar fluxo completo de aplicação de prompts
+
+
+## Streaming de Respostas no Chat do DAVID
+
+- [x] Implementar endpoint de streaming no backend usando Server-Sent Events (SSE)
+- [x] Atualizar invokeLLM para suportar streaming de tokens (invokeLLMStream)
+- [x] Modificar frontend para consumir stream via fetch + ReadableStream
+- [x] Exibir texto em tempo real conforme é gerado
+- [x] Adicionar botão "Parar Geração" para interromper resposta
+- [x] Implementar lógica de cancelamento de stream (AbortController)
+- [ ] Testar streaming end-to-end com conversa real

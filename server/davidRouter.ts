@@ -16,7 +16,8 @@ import {
   getDavidConfig,
   upsertDavidConfig,
 } from "./db";
-import { invokeLLM } from "./_core/llm";
+import { invokeLLM, invokeLLMStream } from "./_core/llm";
+import { observable } from "@trpc/server/observable";
 
 // System prompt padrão do DAVID
 const DEFAULT_DAVID_SYSTEM_PROMPT = `Você é DAVID, um assistente jurídico especializado em processos judiciais brasileiros.
@@ -173,6 +174,79 @@ export const davidRouter = router({
       return {
         content: assistantMessage,
       };
+    }),
+
+  // Enviar mensagem com streaming
+  sendMessageStream: protectedProcedure
+    .input(
+      z.object({
+        conversationId: z.number(),
+        content: z.string(),
+        systemPromptOverride: z.string().optional(),
+      })
+    )
+    .subscription(async function* ({ ctx, input }) {
+      const conversation = await getConversationById(input.conversationId);
+      if (!conversation || conversation.userId !== ctx.user.id) {
+        throw new Error("Conversa não encontrada");
+      }
+
+      // Salvar mensagem do usuário
+      await createMessage({
+        conversationId: input.conversationId,
+        role: "user",
+        content: input.content,
+      });
+
+      // Buscar histórico de mensagens
+      const history = await getConversationMessages(input.conversationId);
+
+      // Montar contexto do processo se houver
+      let processContext = "";
+      if (conversation.processId) {
+        const process = await getProcessForContext(conversation.processId);
+        if (process) {
+          processContext = `\n\n## PROCESSO SELECIONADO\n\n**Número:** ${process.processNumber}\n**Autor:** ${process.plaintiff}\n**Réu:** ${process.defendant}\n**Vara:** ${process.court}\n**Assunto:** ${process.subject}\n**Fatos:** ${process.facts}\n**Pedidos:** ${process.requests}\n**Status:** ${process.status}\n`;
+        }
+      }
+
+      // Montar mensagens para a IA
+      const systemPrompt = input.systemPromptOverride || DEFAULT_DAVID_SYSTEM_PROMPT;
+      const llmMessages: Array<{ role: "system" | "user" | "assistant"; content: string }> = [
+        { role: "system", content: systemPrompt + processContext },
+      ];
+
+      // Adicionar histórico (últimas 10 mensagens)
+      const recentHistory = history.slice(-10);
+      for (const msg of recentHistory) {
+        if (msg.role === "user" || msg.role === "assistant") {
+          llmMessages.push({
+            role: msg.role,
+            content: msg.content,
+          });
+        }
+      }
+
+      // Stream da resposta
+      let fullResponse = "";
+      try {
+        for await (const chunk of invokeLLMStream({ messages: llmMessages })) {
+          fullResponse += chunk;
+          yield { type: "chunk" as const, content: chunk };
+        }
+
+        // Salvar resposta completa do DAVID
+        await createMessage({
+          conversationId: input.conversationId,
+          role: "assistant",
+          content: fullResponse,
+        });
+
+        yield { type: "done" as const, content: fullResponse };
+      } catch (error) {
+        console.error("Stream error:", error);
+        yield { type: "error" as const, content: "Erro ao gerar resposta" };
+      }
     }),
 
   // Prompts salvos
