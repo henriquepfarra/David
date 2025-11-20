@@ -111,21 +111,20 @@ export default function Configuracoes() {
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!llmApiKey) {
-      toast.error("Insira a chave de API");
-      return;
+    // Se tem API key, precisa ter modelo selecionado
+    if (llmApiKey && llmApiKey.length >= 10) {
+      if (!llmModel) {
+        toast.error("Selecione um modelo");
+        return;
+      }
     }
     
-    if (!llmModel) {
-      toast.error("Selecione um modelo");
-      return;
-    }
-    
+    // Permitir salvar com API key vazia (para usar LLM nativa)
     updateMutation.mutate({
-      llmApiKey,
+      llmApiKey: llmApiKey || undefined,
       llmProvider,
-      llmModel,
-      customSystemPrompt: customSystemPrompt || null,
+      llmModel: llmModel || undefined,
+      customSystemPrompt: customSystemPrompt || undefined,
     });
   };
 

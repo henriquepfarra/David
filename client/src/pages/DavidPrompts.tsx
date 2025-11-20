@@ -152,10 +152,10 @@ export default function DavidPrompts() {
                     setEditingPrompt(null);
                   }}
                 >
-                <Plus className="h-4 w-4 mr-2" />
-                Novo Prompt
-              </Button>
-            </DialogTrigger>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Novo Prompt
+                </Button>
+              </DialogTrigger>
             <DialogContent className="max-w-2xl">
               <DialogHeader>
                 <DialogTitle>

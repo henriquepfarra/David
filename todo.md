@@ -223,3 +223,8 @@
 - [x] Alterar campos `text` para `longtext` em conteúdos grandes (drafts, messages, knowledgeBase)
 - [x] Adicionar índices em `userId` em todas as tabelas para performance (8 índices criados)
 - [x] Forçar `json_schema` no processExtractor para garantir JSON válido da IA
+
+
+## Correção Urgente - Configurações
+
+- [x] Corrigir salvamento de chave de API vazia (não salva quando usuário apaga a key para usar API nativa)

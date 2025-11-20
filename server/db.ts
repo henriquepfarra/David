@@ -215,7 +215,14 @@ export async function upsertUserSettings(userId: number, data: any) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
   const { userSettings } = await import("../drizzle/schema");
-  await db.insert(userSettings).values({ userId, ...data }).onDuplicateKeyUpdate({ set: data });
+  
+  // Converter undefined para null para limpar valores no banco
+  const normalizedData: any = {};
+  for (const key in data) {
+    normalizedData[key] = data[key] === undefined ? null : data[key];
+  }
+  
+  await db.insert(userSettings).values({ userId, ...normalizedData }).onDuplicateKeyUpdate({ set: normalizedData });
 }
 
 // Base de Conhecimento
