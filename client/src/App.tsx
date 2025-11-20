@@ -12,6 +12,9 @@ import Configuracoes from "./pages/Configuracoes";
 import Jurisprudencia from "./pages/Jurisprudencia";
 import Minutas from "./pages/Minutas";
 import ProcessoDetalhes from "./pages/ProcessoDetalhes";
+import David from "./pages/David";
+import DavidConfig from "./pages/DavidConfig";
+import DavidPrompts from "./pages/DavidPrompts";
 
 function Router() {
   // make sure to consider if you need authentication for certain routes
@@ -22,6 +25,9 @@ function Router() {
       <Route path={"/processo/:id"} component={ProcessoDetalhes} />
       <Route path={"/minutas"} component={Minutas} />
       <Route path={"/ghostwriter"} component={Ghostwriter} />
+      <Route path={"/david"} component={David} />
+      <Route path={"/david/config"} component={DavidConfig} />
+      <Route path={"/david/prompts"} component={DavidPrompts} />
       <Route path={"/jurisprudencia"} component={Jurisprudencia} />
       <Route path={"/base-conhecimento"} component={BaseConhecimento} />
       <Route path={"/configuracoes"} component={Configuracoes} />

@@ -241,3 +241,133 @@ export async function deleteKnowledgeBase(id: number, userId: number) {
   const { and } = await import("drizzle-orm");
   await db.delete(knowledgeBase).where(and(eq(knowledgeBase.id, id), eq(knowledgeBase.userId, userId)));
 }
+
+// ===== DAVID Chat Functions =====
+
+import { 
+  conversations, 
+  messages, 
+  savedPrompts,
+  processes,
+  type InsertConversation,
+  type InsertMessage,
+  type InsertSavedPrompt,
+  type Conversation,
+  type Message,
+  type SavedPrompt
+} from "../drizzle/schema";
+import { desc } from "drizzle-orm";
+
+// Conversas
+export async function createConversation(data: InsertConversation) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  const [conversation] = await db.insert(conversations).values(data).$returningId();
+  return conversation.id;
+}
+
+export async function getUserConversations(userId: number): Promise<Conversation[]> {
+  const db = await getDb();
+  if (!db) return [];
+  
+  return await db
+    .select()
+    .from(conversations)
+    .where(eq(conversations.userId, userId))
+    .orderBy(desc(conversations.updatedAt));
+}
+
+export async function getConversationById(id: number): Promise<Conversation | undefined> {
+  const db = await getDb();
+  if (!db) return undefined;
+  
+  const result = await db.select().from(conversations).where(eq(conversations.id, id)).limit(1);
+  return result[0];
+}
+
+export async function deleteConversation(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  // Deletar mensagens primeiro
+  await db.delete(messages).where(eq(messages.conversationId, id));
+  // Deletar conversa
+  await db.delete(conversations).where(eq(conversations.id, id));
+}
+
+// Mensagens
+export async function createMessage(data: InsertMessage) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  await db.insert(messages).values(data);
+  
+  // Atualizar updatedAt da conversa
+  await db
+    .update(conversations)
+    .set({ updatedAt: new Date() })
+    .where(eq(conversations.id, data.conversationId));
+}
+
+export async function getConversationMessages(conversationId: number): Promise<Message[]> {
+  const db = await getDb();
+  if (!db) return [];
+  
+  return await db
+    .select()
+    .from(messages)
+    .where(eq(messages.conversationId, conversationId))
+    .orderBy(messages.createdAt);
+}
+
+// Prompts Salvos
+export async function createSavedPrompt(data: InsertSavedPrompt) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  const [prompt] = await db.insert(savedPrompts).values(data).$returningId();
+  return prompt.id;
+}
+
+export async function getUserSavedPrompts(userId: number): Promise<SavedPrompt[]> {
+  const db = await getDb();
+  if (!db) return [];
+  
+  return await db
+    .select()
+    .from(savedPrompts)
+    .where(eq(savedPrompts.userId, userId))
+    .orderBy(desc(savedPrompts.createdAt));
+}
+
+export async function getSavedPromptById(id: number): Promise<SavedPrompt | undefined> {
+  const db = await getDb();
+  if (!db) return undefined;
+  
+  const result = await db.select().from(savedPrompts).where(eq(savedPrompts.id, id)).limit(1);
+  return result[0];
+}
+
+export async function updateSavedPrompt(id: number, data: Partial<InsertSavedPrompt>) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  await db.update(savedPrompts).set(data).where(eq(savedPrompts.id, id));
+}
+
+export async function deleteSavedPrompt(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  await db.delete(savedPrompts).where(eq(savedPrompts.id, id));
+}
+
+// Obter processo com todos os dados para contexto do DAVID
+export async function getProcessForContext(processId: number) {
+  const db = await getDb();
+  if (!db) return null;
+  
+  const result = await db.select().from(processes).where(eq(processes.id, processId)).limit(1);
+  return result[0];
+}

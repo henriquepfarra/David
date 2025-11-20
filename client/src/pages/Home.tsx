@@ -15,9 +15,9 @@ export default function Home() {
     },
     {
       icon: Gavel,
-      title: "Ghostwriter IA",
-      description: "Gere minutas judiciais automaticamente com inteligência artificial",
-      href: "/ghostwriter",
+      title: "DAVID - Assistente IA",
+      description: "Chat conversacional para análise de processos e geração de minutas",
+      href: "/david",
       color: "text-purple-600",
     },
     {
@@ -108,9 +108,9 @@ export default function Home() {
                 3
               </div>
               <div>
-                <h3 className="font-semibold text-foreground">Gere minutas automaticamente</h3>
+                <h3 className="font-semibold text-foreground">Converse com DAVID</h3>
                 <p className="text-sm text-muted-foreground">
-                  Use o Ghostwriter para criar sentenças, decisões e despachos com IA
+                  Use o assistente conversacional para analisar processos e gerar minutas
                 </p>
               </div>
             </div>

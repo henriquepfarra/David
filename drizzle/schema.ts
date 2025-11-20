@@ -113,3 +113,44 @@ export const knowledgeBase = mysqlTable("knowledgeBase", {
 
 export type KnowledgeBase = typeof knowledgeBase.$inferSelect;
 export type InsertKnowledgeBase = typeof knowledgeBase.$inferInsert;
+
+// Conversas do DAVID (chat conversacional)
+export const conversations = mysqlTable("conversations", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(),
+  processId: int("processId"), // Processo associado (opcional)
+  title: varchar("title", { length: 300 }).notNull(), // Título gerado automaticamente
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type Conversation = typeof conversations.$inferSelect;
+export type InsertConversation = typeof conversations.$inferInsert;
+
+// Mensagens das conversas
+export const messages = mysqlTable("messages", {
+  id: int("id").autoincrement().primaryKey(),
+  conversationId: int("conversationId").notNull(),
+  role: mysqlEnum("role", ["user", "assistant", "system"]).notNull(),
+  content: text("content").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type Message = typeof messages.$inferSelect;
+export type InsertMessage = typeof messages.$inferInsert;
+
+// Prompts especializados salvos pelo usuário
+export const savedPrompts = mysqlTable("savedPrompts", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(),
+  title: varchar("title", { length: 300 }).notNull(),
+  category: varchar("category", { length: 100 }), // tutela, sentenca, decisao, analise
+  content: text("content").notNull(), // O prompt completo
+  description: text("description"), // Descrição do que o prompt faz
+  isDefault: int("isDefault").default(0).notNull(), // Se é um prompt padrão do sistema
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type SavedPrompt = typeof savedPrompts.$inferSelect;
+export type InsertSavedPrompt = typeof savedPrompts.$inferInsert;

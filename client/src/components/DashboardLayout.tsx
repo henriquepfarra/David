@@ -31,7 +31,7 @@ const menuItems = [
   { icon: Home, label: "Início", path: "/" },
   { icon: FolderOpen, label: "Processos", path: "/processos" },
   { icon: FileText, label: "Minutas", path: "/minutas" },
-  { icon: Gavel, label: "Ghostwriter", path: "/ghostwriter" },
+  { icon: Gavel, label: "DAVID", path: "/david" },
   { icon: Scale, label: "Jurisprudência", path: "/jurisprudencia" },
   { icon: BookOpen, label: "Base de Conhecimento", path: "/base-conhecimento" },
   { icon: Settings, label: "Configurações", path: "/configuracoes" },

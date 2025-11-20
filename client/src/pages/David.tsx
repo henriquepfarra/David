@@ -1,0 +1,268 @@
+import { useState, useRef, useEffect } from "react";
+import { trpc } from "@/lib/trpc";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Card } from "@/components/ui/card";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Loader2, Send, Plus, Trash2, FileText, Settings } from "lucide-react";
+import { toast } from "sonner";
+import { Streamdown } from "streamdown";
+import { useLocation } from "wouter";
+
+export default function David() {
+  const [, setLocation] = useLocation();
+  const [selectedConversationId, setSelectedConversationId] = useState<number | null>(null);
+  const [selectedProcessId, setSelectedProcessId] = useState<number | undefined>();
+  const [messageInput, setMessageInput] = useState("");
+  const [isStreaming, setIsStreaming] = useState(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  // Queries
+  const { data: conversations, refetch: refetchConversations } = trpc.david.listConversations.useQuery();
+  const { data: processes } = trpc.processes.list.useQuery();
+  const { data: conversationData, refetch: refetchMessages } = trpc.david.getConversation.useQuery(
+    { id: selectedConversationId! },
+    { enabled: !!selectedConversationId }
+  );
+
+  // Mutations
+  const createConversationMutation = trpc.david.createConversation.useMutation({
+    onSuccess: (data) => {
+      setSelectedConversationId(data.id);
+      refetchConversations();
+      toast.success("Nova conversa criada");
+    },
+  });
+
+  const sendMessageMutation = trpc.david.sendMessage.useMutation({
+    onSuccess: () => {
+      refetchMessages();
+      setMessageInput("");
+      setIsStreaming(false);
+    },
+    onError: (error) => {
+      toast.error("Erro ao enviar mensagem: " + error.message);
+      setIsStreaming(false);
+    },
+  });
+
+  const deleteConversationMutation = trpc.david.deleteConversation.useMutation({
+    onSuccess: () => {
+      refetchConversations();
+      setSelectedConversationId(null);
+      toast.success("Conversa deletada");
+    },
+  });
+
+  // Auto-scroll ao receber novas mensagens
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [conversationData?.messages]);
+
+  const handleNewConversation = () => {
+    createConversationMutation.mutate({
+      processId: selectedProcessId,
+      title: selectedProcessId 
+        ? `Conversa sobre processo ${processes?.find(p => p.id === selectedProcessId)?.processNumber}` 
+        : "Nova conversa",
+    });
+  };
+
+  const handleSendMessage = () => {
+    if (!messageInput.trim() || !selectedConversationId) return;
+
+    setIsStreaming(true);
+    sendMessageMutation.mutate({
+      conversationId: selectedConversationId,
+      content: messageInput,
+    });
+  };
+
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleSendMessage();
+    }
+  };
+
+  return (
+    <div className="flex h-screen bg-background">
+      {/* Sidebar - Histórico de Conversas */}
+      <div className="w-80 border-r flex flex-col">
+        <div className="p-4 border-b">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold">DAVID</h2>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => setLocation("/david/config")}
+              title="Configurações do DAVID"
+            >
+              <Settings className="h-4 w-4" />
+            </Button>
+          </div>
+          <Button onClick={handleNewConversation} className="w-full" size="sm">
+            <Plus className="h-4 w-4 mr-2" />
+            Nova Conversa
+          </Button>
+        </div>
+
+        <ScrollArea className="flex-1 p-2">
+          {conversations?.map((conv) => (
+            <Card
+              key={conv.id}
+              className={`p-3 mb-2 cursor-pointer hover:bg-accent transition-colors ${
+                selectedConversationId === conv.id ? "bg-accent" : ""
+              }`}
+              onClick={() => setSelectedConversationId(conv.id)}
+            >
+              <div className="flex items-start justify-between">
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium truncate">{conv.title}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {new Date(conv.updatedAt).toLocaleDateString("pt-BR")}
+                  </p>
+                </div>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-6 w-6 p-0 ml-2"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (confirm("Deseja deletar esta conversa?")) {
+                      deleteConversationMutation.mutate({ id: conv.id });
+                    }
+                  }}
+                >
+                  <Trash2 className="h-3 w-3" />
+                </Button>
+              </div>
+            </Card>
+          ))}
+        </ScrollArea>
+      </div>
+
+      {/* Área Principal - Chat */}
+      <div className="flex-1 flex flex-col">
+        {selectedConversationId ? (
+          <>
+            {/* Header com seletor de processo */}
+            <div className="p-4 border-b flex items-center gap-4">
+              <FileText className="h-5 w-5 text-muted-foreground" />
+              <Select
+                value={conversationData?.conversation.processId?.toString() || "none"}
+                onValueChange={(value) => {
+                  const processId = value === "none" ? undefined : parseInt(value);
+                  setSelectedProcessId(processId);
+                  // TODO: Atualizar processo da conversa
+                }}
+              >
+                <SelectTrigger className="w-[400px]">
+                  <SelectValue placeholder="Selecione um processo" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Nenhum processo selecionado</SelectItem>
+                  {processes?.map((process) => (
+                    <SelectItem key={process.id} value={process.id.toString()}>
+                      {process.processNumber} - {process.subject}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {conversationData?.processData && (
+                <div className="text-sm text-muted-foreground">
+                  Autor: {conversationData.processData.plaintiff} vs {conversationData.processData.defendant}
+                </div>
+              )}
+            </div>
+
+            {/* Mensagens */}
+            <ScrollArea className="flex-1 p-4" ref={scrollRef}>
+              <div className="space-y-4 max-w-4xl mx-auto">
+                {conversationData?.messages.map((message) => (
+                  <div
+                    key={message.id}
+                    className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}
+                  >
+                    <Card
+                      className={`p-4 max-w-[80%] ${
+                        message.role === "user"
+                          ? "bg-primary text-primary-foreground"
+                          : "bg-muted"
+                      }`}
+                    >
+                      {message.role === "assistant" ? (
+                        <Streamdown>{message.content}</Streamdown>
+                      ) : (
+                        <p className="whitespace-pre-wrap">{message.content}</p>
+                      )}
+                      <p className="text-xs opacity-70 mt-2">
+                        {new Date(message.createdAt).toLocaleTimeString("pt-BR")}
+                      </p>
+                    </Card>
+                  </div>
+                ))}
+                {isStreaming && (
+                  <div className="flex justify-start">
+                    <Card className="p-4 bg-muted">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    </Card>
+                  </div>
+                )}
+              </div>
+            </ScrollArea>
+
+            {/* Input de mensagem */}
+            <div className="p-4 border-t">
+              <div className="max-w-4xl mx-auto flex gap-2">
+                <Textarea
+                  value={messageInput}
+                  onChange={(e) => setMessageInput(e.target.value)}
+                  onKeyDown={handleKeyPress}
+                  placeholder="Digite sua mensagem... (Shift+Enter para nova linha)"
+                  className="resize-none"
+                  rows={3}
+                  disabled={isStreaming}
+                />
+                <Button
+                  onClick={handleSendMessage}
+                  disabled={!messageInput.trim() || isStreaming}
+                  size="icon"
+                  className="h-full"
+                >
+                  {isStreaming ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Send className="h-4 w-4" />
+                  )}
+                </Button>
+              </div>
+            </div>
+          </>
+        ) : (
+          <div className="flex-1 flex items-center justify-center text-center p-8">
+            <div>
+              <h2 className="text-2xl font-bold mb-2">Bem-vindo ao DAVID</h2>
+              <p className="text-muted-foreground mb-6">
+                Seu assistente jurídico inteligente para análise de processos e geração de minutas
+              </p>
+              <Button onClick={handleNewConversation} size="lg">
+                <Plus className="h-5 w-5 mr-2" />
+                Iniciar Nova Conversa
+              </Button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}

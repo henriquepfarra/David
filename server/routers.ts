@@ -7,9 +7,11 @@ import * as db from "./db";
 import { generateDraft } from "./ghostwriter";
 import { fetchDriveContentCached } from "./driveHelper";
 import { listAvailableModels } from "./llmModels";
+import { davidRouter } from "./davidRouter";
 
 export const appRouter = router({
   system: systemRouter,
+  david: davidRouter,
   auth: router({
     me: publicProcedure.query(opts => opts.ctx.user),
     logout: publicProcedure.mutation(({ ctx }) => {

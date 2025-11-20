@@ -151,3 +151,49 @@
 - [x] Testar extração com PDF real fornecido pelo usuário (40055301620258260009_2b017720bc79dfdcf151566e902840b4.pdf)
 - [x] Identificar causa raiz do problema (prompt genérico não eficaz para PDFs longos)
 - [x] Implementar correção definitiva e validar com PDF real - RESOLVIDO: Prompt melhorado com instruções específicas para e-Proc TJSP
+
+
+## Transformação do Ghostwriter em DAVID - Assistente Conversacional
+
+### 1. Renomeação e Identidade
+- [x] Renomear "Ghostwriter" para "DAVID" em toda a interface
+- [x] Atualizar ícones e branding do assistente
+
+### 2. Interface de Chat Conversacional
+- [x] Remover formulário de configuração de geração
+- [x] Criar interface de chat completa (estilo ChatGPT)
+- [x] Implementar histórico de mensagens na conversa
+- [x] Indicador de "digitando..." durante geração
+- [ ] Adicionar sugestões contextuais durante o chat (futuro)
+- [ ] Suporte a streaming de respostas (futuro)
+
+### 3. Sistema de Conversas
+- [x] Schema do banco: tabela de conversas (conversations)
+- [x] Schema do banco: tabela de mensagens (messages)
+- [x] Rota tRPC: criar nova conversa
+- [x] Rota tRPC: listar conversas do usuário
+- [x] Rota tRPC: enviar mensagem e receber resposta
+- [x] Rota tRPC: deletar conversa
+- [x] Sidebar com histórico de conversas
+
+### 4. Painel "Sobre David" (Configurações)
+- [x] Criar página de configurações do DAVID
+- [x] Editor de System Prompt do DAVID
+- [x] Botão para resetar para configuração padrão
+- [ ] Salvar configurações personalizadas no banco (implementar persistência)
+- [ ] Preview das configurações ativas (futuro)
+
+### 5. Biblioteca de Prompts Especializados
+- [x] Schema do banco: tabela de prompts salvos (saved_prompts)
+- [x] Interface para criar/editar prompts especializados
+- [x] Categorização de prompts (tutela, sentença, decisão, etc.)
+- [x] Rota tRPC: salvar novo prompt
+- [x] Rota tRPC: listar prompts do usuário
+- [x] Rota tRPC: aplicar prompt em conversa
+- [ ] Botão para usar prompt durante o chat (integrar UI)
+- [ ] Importar prompt exemplo (análise de tutela de urgência)
+
+### 6. Integração com Processos
+- [x] Selecionar processo ativo durante conversa
+- [x] Injetar dados do processo no contexto do chat
+- [ ] Acesso rápido a documentos do processo (futuro)
