@@ -102,13 +102,36 @@ export async function extractProcessData(
       messages: [
         {
           role: "system",
-          content: EXTRACTION_SYSTEM_PROMPT + "\n\nRETORNE APENAS JSON V\u00c1LIDO, SEM TEXTO ADICIONAL.",
+          content: EXTRACTION_SYSTEM_PROMPT,
         },
         {
           role: "user",
-          content: `Analise o seguinte texto processual e extraia os dados estruturados em formato JSON:\n\n${truncatedText}`,
+          content: `Analise o seguinte texto processual e extraia os dados estruturados:\n\n${truncatedText}`,
         },
       ],
+      response_format: {
+        type: "json_schema",
+        json_schema: {
+          name: "process_data_extraction",
+          strict: true,
+          schema: {
+            type: "object",
+            properties: {
+              numeroProcesso: { type: ["string", "null"], description: "Número do processo no formato CNJ" },
+              autor: { type: ["string", "null"], description: "Nome completo do autor/requerente" },
+              reu: { type: ["string", "null"], description: "Nome completo do réu/requerido" },
+              vara: { type: ["string", "null"], description: "Nome da vara ou juízo" },
+              assunto: { type: ["string", "null"], description: "Assunto principal do processo" },
+              valorCausa: { type: ["string", "null"], description: "Valor da causa" },
+              dataDistribuicao: { type: ["string", "null"], description: "Data de distribuição" },
+              resumoFatos: { type: ["string", "null"], description: "Resumo dos fatos" },
+              pedidos: { type: ["string", "null"], description: "Pedidos principais" },
+            },
+            required: ["numeroProcesso", "autor", "reu", "vara", "assunto", "valorCausa", "dataDistribuicao", "resumoFatos", "pedidos"],
+            additionalProperties: false,
+          },
+        },
+      },
     });
 
     if (!response || !response.choices || response.choices.length === 0) {
@@ -192,19 +215,42 @@ export async function extractProcessDataFromImages(
       messages: [
         {
           role: "system",
-          content: EXTRACTION_SYSTEM_PROMPT + "\n\nRETORNE APENAS JSON V\u00c1LIDO, SEM TEXTO ADICIONAL.",
+          content: EXTRACTION_SYSTEM_PROMPT,
         },
         {
           role: "user",
           content: [
             {
               type: "text",
-              text: "Analise as imagens do documento processual e extraia os dados estruturados em formato JSON:",
+              text: "Analise as imagens do documento processual e extraia os dados estruturados:",
             },
             ...imageContent,
           ],
         },
       ],
+      response_format: {
+        type: "json_schema",
+        json_schema: {
+          name: "process_data_extraction",
+          strict: true,
+          schema: {
+            type: "object",
+            properties: {
+              numeroProcesso: { type: ["string", "null"], description: "Número do processo no formato CNJ" },
+              autor: { type: ["string", "null"], description: "Nome completo do autor/requerente" },
+              reu: { type: ["string", "null"], description: "Nome completo do réu/requerido" },
+              vara: { type: ["string", "null"], description: "Nome da vara ou juízo" },
+              assunto: { type: ["string", "null"], description: "Assunto principal do processo" },
+              valorCausa: { type: ["string", "null"], description: "Valor da causa" },
+              dataDistribuicao: { type: ["string", "null"], description: "Data de distribuição" },
+              resumoFatos: { type: ["string", "null"], description: "Resumo dos fatos" },
+              pedidos: { type: ["string", "null"], description: "Pedidos principais" },
+            },
+            required: ["numeroProcesso", "autor", "reu", "vara", "assunto", "valorCausa", "dataDistribuicao", "resumoFatos", "pedidos"],
+            additionalProperties: false,
+          },
+        },
+      },
     });
 
     if (!response || !response.choices || response.choices.length === 0) {

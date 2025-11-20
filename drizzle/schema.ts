@@ -1,4 +1,4 @@
-import { int, mysqlEnum, mysqlTable, text, timestamp, varchar } from "drizzle-orm/mysql-core";
+import { int, mysqlEnum, mysqlTable, text, timestamp, varchar, longtext, index } from "drizzle-orm/mysql-core";
 
 /**
  * Core user table backing auth flow.
@@ -35,15 +35,17 @@ export const processes = mysqlTable("processes", {
   plaintiff: text("plaintiff"),
   defendant: text("defendant"),
   subject: text("subject"),
-  facts: text("facts"),
-  evidence: text("evidence"),
-  requests: text("requests"),
+  facts: longtext("facts"),
+  evidence: longtext("evidence"),
+  requests: longtext("requests"),
   status: varchar("status", { length: 50 }),
   distributionDate: timestamp("distributionDate"),
   notes: text("notes"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
-});
+}, (table) => ({
+  userIdIdx: index("processes_userId_idx").on(table.userId),
+}));
 
 export type Process = typeof processes.$inferSelect;
 export type InsertProcess = typeof processes.$inferInsert;
@@ -55,10 +57,13 @@ export const drafts = mysqlTable("drafts", {
   userId: int("userId").notNull(),
   draftType: mysqlEnum("draftType", ["sentenca", "decisao", "despacho", "acordao"]).notNull(),
   title: varchar("title", { length: 200 }).notNull(),
-  content: text("content").notNull(),
+  content: longtext("content").notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
-});
+}, (table) => ({
+  userIdIdx: index("drafts_userId_idx").on(table.userId),
+  processIdIdx: index("drafts_processId_idx").on(table.processId),
+}));
 
 export type Draft = typeof drafts.$inferSelect;
 export type InsertDraft = typeof drafts.$inferInsert;
@@ -71,14 +76,16 @@ export const jurisprudence = mysqlTable("jurisprudence", {
   caseNumber: varchar("caseNumber", { length: 100 }),
   title: varchar("title", { length: 300 }).notNull(),
   summary: text("summary"),
-  content: text("content").notNull(),
+  content: longtext("content").notNull(),
   decisionDate: timestamp("decisionDate"),
   keywords: text("keywords"),
   url: varchar("url", { length: 500 }),
   isFavorite: int("isFavorite").default(0).notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
-});
+}, (table) => ({
+  userIdIdx: index("jurisprudence_userId_idx").on(table.userId),
+}));
 
 export type Jurisprudence = typeof jurisprudence.$inferSelect;
 export type InsertJurisprudence = typeof jurisprudence.$inferInsert;
@@ -90,7 +97,7 @@ export const userSettings = mysqlTable("userSettings", {
   llmApiKey: text("llmApiKey"),
   llmProvider: varchar("llmProvider", { length: 50 }).default("openai"),
   llmModel: varchar("llmModel", { length: 100 }).default("gpt-4"),
-  customSystemPrompt: text("customSystemPrompt"), // System Prompt customizado do David
+  customSystemPrompt: longtext("customSystemPrompt"), // System Prompt customizado do David
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
@@ -103,13 +110,15 @@ export const knowledgeBase = mysqlTable("knowledgeBase", {
   id: int("id").autoincrement().primaryKey(),
   userId: int("userId").notNull(),
   title: varchar("title", { length: 300 }).notNull(),
-  content: text("content").notNull(),
+  content: longtext("content").notNull(),
   fileType: varchar("fileType", { length: 50 }), // pdf, docx, txt
   category: varchar("category", { length: 100 }), // decisoes, teses, referencias
   tags: text("tags"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
-});
+}, (table) => ({
+  userIdIdx: index("knowledgeBase_userId_idx").on(table.userId),
+}));
 
 export type KnowledgeBase = typeof knowledgeBase.$inferSelect;
 export type InsertKnowledgeBase = typeof knowledgeBase.$inferInsert;
@@ -122,7 +131,9 @@ export const conversations = mysqlTable("conversations", {
   title: varchar("title", { length: 300 }).notNull(), // Título gerado automaticamente
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
-});
+}, (table) => ({
+  userIdIdx: index("conversations_userId_idx").on(table.userId),
+}));
 
 export type Conversation = typeof conversations.$inferSelect;
 export type InsertConversation = typeof conversations.$inferInsert;
@@ -132,9 +143,11 @@ export const messages = mysqlTable("messages", {
   id: int("id").autoincrement().primaryKey(),
   conversationId: int("conversationId").notNull(),
   role: mysqlEnum("role", ["user", "assistant", "system"]).notNull(),
-  content: text("content").notNull(),
+  content: longtext("content").notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
-});
+}, (table) => ({
+  conversationIdIdx: index("messages_conversationId_idx").on(table.conversationId),
+}));
 
 export type Message = typeof messages.$inferSelect;
 export type InsertMessage = typeof messages.$inferInsert;
@@ -145,12 +158,14 @@ export const savedPrompts = mysqlTable("savedPrompts", {
   userId: int("userId").notNull(),
   title: varchar("title", { length: 300 }).notNull(),
   category: varchar("category", { length: 100 }), // tutela, sentenca, decisao, analise
-  content: text("content").notNull(), // O prompt completo
+  content: longtext("content").notNull(), // O prompt completo
   description: text("description"), // Descrição do que o prompt faz
   isDefault: int("isDefault").default(0).notNull(), // Se é um prompt padrão do sistema
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
-});
+}, (table) => ({
+  userIdIdx: index("savedPrompts_userId_idx").on(table.userId),
+}));
 
 export type SavedPrompt = typeof savedPrompts.$inferSelect;
 export type InsertSavedPrompt = typeof savedPrompts.$inferInsert;
@@ -159,7 +174,7 @@ export type InsertSavedPrompt = typeof savedPrompts.$inferInsert;
 export const davidConfig = mysqlTable("davidConfig", {
   id: int("id").autoincrement().primaryKey(),
   userId: int("userId").notNull().unique(),
-  systemPrompt: text("systemPrompt"), // System prompt customizado
+  systemPrompt: longtext("systemPrompt"), // System prompt customizado
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });

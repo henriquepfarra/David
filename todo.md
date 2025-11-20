@@ -216,3 +216,10 @@
 - [x] Adicionar botão "Parar Geração" para interromper resposta
 - [x] Implementar lógica de cancelamento de stream (AbortController)
 - [ ] Testar streaming end-to-end com conversa real
+
+
+## Melhorias Críticas (Análise Gemini)
+
+- [x] Alterar campos `text` para `longtext` em conteúdos grandes (drafts, messages, knowledgeBase)
+- [x] Adicionar índices em `userId` em todas as tabelas para performance (8 índices criados)
+- [x] Forçar `json_schema` no processExtractor para garantir JSON válido da IA
