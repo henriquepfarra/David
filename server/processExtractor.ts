@@ -14,27 +14,55 @@ export interface ExtractedProcessData {
   extractedFields: string[]; // Lista de campos que foram extraídos com sucesso
 }
 
-const EXTRACTION_SYSTEM_PROMPT = `Você é um assistente especializado em extrair dados estruturados de documentos processuais do Judiciário brasileiro.
+const EXTRACTION_SYSTEM_PROMPT = `Você é um assistente especializado em extrair dados estruturados de documentos processuais do e-Proc TJSP.
 
-Sua tarefa é analisar o texto fornecido e extrair as seguintes informações:
+**ESTRATÉGIA DE EXTRAÇÃO:**
+Documentos do e-Proc geralmente têm as informações principais nas PRIMEIRAS PÁGINAS. Procure especialmente:
+- Cabeçalho: "EXCELENTÍSSIMO SENHOR DOUTOR JUIZ DE DIREITO..."
+- Linha com "Processo" ou "Processo nº:"
+- Seções "DOS FATOS", "I- DOS FATOS", "FATOS"
+- Seções "DOS PEDIDOS", "PEDIDOS", "REQUERIMENTOS"
 
-1. **Número do Processo**: Formato CNJ (NNNNNNN-DD.AAAA.J.TR.OOOO) ou qualquer numeração processual
+**CAMPOS A EXTRAIR:**
+
+1. **Número do Processo**: Formato CNJ (NNNNNNN-DD.AAAA.J.TR.OOOO)
+   Exemplo: "4005530-16.2025.8.26.0009" ou "Processo 4005530-16.2025.8.26.0009"
+
 2. **Autor/Requerente**: Nome completo da parte autora
-3. **Réu/Requerido**: Nome completo da parte ré
-4. **Vara/Juízo**: Identificação da vara ou juizado
-5. **Assunto**: Matéria ou assunto principal do processo
-6. **Valor da Causa**: Valor monetário, se mencionado
-7. **Data de Distribuição**: Data em que o processo foi distribuído
-8. **Resumo dos Fatos**: Breve resumo dos fatos narrados (máximo 500 caracteres)
-9. **Pedidos**: Principais pedidos formulados
+   Procure após: "em causa própria", "vem propor", nome antes de "vem perante"
+   Exemplo: "RODRIGO MICHELETTI, brasileiro, casado..."
 
-**REGRAS IMPORTANTES:**
-- Se um campo não for encontrado no texto, retorne null para esse campo
-- Seja preciso e extraia apenas informações explicitamente mencionadas
+3. **Réu/Requerido**: Nome completo da parte ré
+   Procure após: "em face de", "em face da", "contra"
+   Exemplo: "TIM S/A pessoa jurídica..."
+
+4. **Vara/Juízo**: Nome completo da vara
+   Procure no cabeçalho: "JUIZ DE DIREITO DO...", "JUIZADO ESPECIAL..."
+   Exemplo: "JUIZADO ESPECIAL CÍVEL DO FORO REGIONAL IX VILA PRUDENTE"
+
+5. **Assunto**: Título ou matéria principal
+   Geralmente aparece em MAIÚSCULAS antes de "em face"
+   Exemplo: "DANO MORAL", "AÇÃO DE COBRANÇA"
+
+6. **Valor da Causa**: Valor monetário mencionado
+   Exemplo: "R$ 10.000,00"
+
+7. **Data de Distribuição**: Data de distribuição do processo
+   Procure: "Data: DD/MM/AAAA" ou "distribuído em"
+
+8. **Resumo dos Fatos**: Resumo da seção de fatos (máximo 500 caracteres)
+   Extraia da seção "DOS FATOS" ou "I- DOS FATOS"
+
+9. **Pedidos**: Lista dos pedidos principais
+   Extraia da seção "DOS PEDIDOS" ou "PEDIDOS"
+
+**REGRAS CRÍTICAS:**
+- Se um campo não for encontrado, retorne null
+- NÃO invente informações - extraia apenas o que está explícito no texto
+- Para nomes de pessoas/empresas, extraia o nome completo (não apenas parte)
 - Para datas, use formato DD/MM/AAAA
-- Para valores, mantenha o formato original (ex: "R$ 10.000,00")
-- No resumo, seja conciso e objetivo
-- Indique o nível de confiança da extração: "high" (todos os campos principais encontrados), "medium" (alguns campos faltando), "low" (poucos campos encontrados)
+- Para valores, mantenha formato original ("R$ 10.000,00")
+- Confiança: "high" (6+ campos encontrados), "medium" (3-5 campos), "low" (1-2 campos)
 
 Retorne APENAS um objeto JSON válido, sem texto adicional.`;
 

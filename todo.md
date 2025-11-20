@@ -145,3 +145,9 @@
 - [x] Corrigir erro 404 ao clicar em "Ver Detalhes" do processo (criar página de detalhes)
 - [x] Corrigir extração automática que não está preenchendo os campos do formulário
 - [x] Investigar por que dados extraídos ainda não preenchem campos (toast aparece mas campos vazios) - RESOLVIDO: Problema era mapeamento de campos PT vs camelCase
+
+## CRÍTICO - Extração ainda não funciona com PDF real do usuário
+
+- [x] Testar extração com PDF real fornecido pelo usuário (40055301620258260009_2b017720bc79dfdcf151566e902840b4.pdf)
+- [x] Identificar causa raiz do problema (prompt genérico não eficaz para PDFs longos)
+- [x] Implementar correção definitiva e validar com PDF real - RESOLVIDO: Prompt melhorado com instruções específicas para e-Proc TJSP
