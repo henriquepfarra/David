@@ -181,3 +181,46 @@ export const davidConfig = mysqlTable("davidConfig", {
 
 export type DavidConfig = typeof davidConfig.$inferSelect;
 export type InsertDavidConfig = typeof davidConfig.$inferInsert;
+
+// Minutas aprovadas pelo usuário (para aprendizado)
+export const approvedDrafts = mysqlTable("approvedDrafts", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(),
+  processId: int("processId"), // Processo vinculado (opcional)
+  conversationId: int("conversationId"), // Conversa onde foi gerada
+  messageId: int("messageId"), // Mensagem original do DAVID
+  originalDraft: longtext("originalDraft").notNull(), // Minuta original gerada pelo DAVID
+  editedDraft: longtext("editedDraft"), // Versão editada pelo usuário (se houver)
+  draftType: mysqlEnum("draftType", ["sentenca", "decisao", "despacho", "acordao", "outro"]).notNull(),
+  approvalStatus: mysqlEnum("approvalStatus", ["approved", "edited_approved", "rejected"]).notNull(),
+  userNotes: text("userNotes"), // Comentários do usuário sobre a decisão
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+}, (table) => ({
+  userIdIdx: index("approvedDrafts_userId_idx").on(table.userId),
+  processIdIdx: index("approvedDrafts_processId_idx").on(table.processId),
+}));
+
+export type ApprovedDraft = typeof approvedDrafts.$inferSelect;
+export type InsertApprovedDraft = typeof approvedDrafts.$inferInsert;
+
+// Teses jurídicas aprendidas a partir de minutas aprovadas
+export const learnedTheses = mysqlTable("learnedTheses", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(),
+  approvedDraftId: int("approvedDraftId").notNull(), // Minuta de origem
+  processId: int("processId"), // Processo vinculado
+  thesis: longtext("thesis").notNull(), // Tese firmada (ratio decidendi)
+  legalFoundations: longtext("legalFoundations"), // Fundamentos jurídicos (artigos, súmulas)
+  keywords: text("keywords"), // Palavras-chave para busca
+  decisionPattern: longtext("decisionPattern"), // Padrão de redação identificado
+  isObsolete: int("isObsolete").default(0).notNull(), // Marca se a tese foi superada
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+}, (table) => ({
+  userIdIdx: index("learnedTheses_userId_idx").on(table.userId),
+  approvedDraftIdIdx: index("learnedTheses_approvedDraftId_idx").on(table.approvedDraftId),
+}));
+
+export type LearnedThesis = typeof learnedTheses.$inferSelect;
+export type InsertLearnedThesis = typeof learnedTheses.$inferInsert;

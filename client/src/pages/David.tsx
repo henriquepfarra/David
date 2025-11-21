@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/select";
 import { Card } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Loader2, Send, Plus, Trash2, FileText, Settings, BookMarked, X } from "lucide-react";
+import { Loader2, Send, Plus, Trash2, FileText, Settings, BookMarked, X, Check, Edit, XCircle } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -20,6 +20,14 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { Streamdown } from "streamdown";
 import { useLocation } from "wouter";
@@ -33,6 +41,12 @@ export default function David() {
   const [streamingMessage, setStreamingMessage] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
+  
+  // Estados para edição de minuta
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [editingMessageId, setEditingMessageId] = useState<number | null>(null);
+  const [editedDraft, setEditedDraft] = useState("");
+  const [draftType, setDraftType] = useState<"sentenca" | "decisao" | "despacho" | "acordao" | "outro">("decisao");
 
   // Carregar prompts salvos
   const { data: savedPrompts } = trpc.david.savedPrompts.list.useQuery();
@@ -51,6 +65,15 @@ export default function David() {
       setSelectedConversationId(data.id);
       refetchConversations();
       toast.success("Nova conversa criada");
+    },
+  });
+  
+  const approveDraftMutation = trpc.david.approvedDrafts.create.useMutation({
+    onSuccess: () => {
+      toast.success("✅ Minuta aprovada e salva para aprendizado!");
+    },
+    onError: (error) => {
+      toast.error("Erro ao salvar minuta: " + error.message);
     },
   });
 
@@ -130,6 +153,52 @@ export default function David() {
     }
   };
 
+  // Funções de aprovação de minuta
+  const handleApproveDraft = async (messageId: number, content: string, status: "approved" | "rejected") => {
+    if (!selectedConversationId) return;
+    
+    try {
+      await approveDraftMutation.mutateAsync({
+        processId: selectedProcessId,
+        conversationId: selectedConversationId,
+        messageId,
+        originalDraft: content,
+        draftType,
+        approvalStatus: status,
+      });
+    } catch (error) {
+      console.error("Erro ao aprovar minuta:", error);
+    }
+  };
+  
+  const handleEditAndApprove = (messageId: number, content: string) => {
+    setEditingMessageId(messageId);
+    setEditedDraft(content);
+    setIsEditDialogOpen(true);
+  };
+  
+  const handleSaveEditedDraft = async () => {
+    if (!editingMessageId || !selectedConversationId) return;
+    
+    try {
+      await approveDraftMutation.mutateAsync({
+        processId: selectedProcessId,
+        conversationId: selectedConversationId,
+        messageId: editingMessageId,
+        originalDraft: conversationData?.messages.find(m => m.id === editingMessageId)?.content || "",
+        editedDraft,
+        draftType,
+        approvalStatus: "edited_approved",
+      });
+      
+      setIsEditDialogOpen(false);
+      setEditingMessageId(null);
+      setEditedDraft("");
+    } catch (error) {
+      console.error("Erro ao salvar minuta editada:", error);
+    }
+  };
+  
   // Função para parar a geração
   const stopGeneration = () => {
     if (abortControllerRef.current) {
@@ -287,13 +356,42 @@ export default function David() {
                       }`}
                     >
                       {message.role === "assistant" ? (
-                        <Streamdown>{message.content}</Streamdown>
+                        <>
+                          <Streamdown>{message.content}</Streamdown>
+                          
+                          {/* Botões de aprovação (apenas para mensagens do assistente) */}
+                          <div className="flex items-center gap-2 mt-4 pt-3 border-t border-border">
+                            <p className="text-xs opacity-70 flex-1">
+                              {new Date(message.createdAt).toLocaleTimeString("pt-BR")}
+                            </p>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-8 gap-1.5"
+                              onClick={() => handleApproveDraft(message.id, message.content, "approved")}
+                            >
+                              <Check className="h-3.5 w-3.5" />
+                              Aprovar
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-8 gap-1.5"
+                              onClick={() => handleEditAndApprove(message.id, message.content)}
+                            >
+                              <Edit className="h-3.5 w-3.5" />
+                              Editar e Aprovar
+                            </Button>
+                          </div>
+                        </>
                       ) : (
-                        <p className="whitespace-pre-wrap">{message.content}</p>
+                        <>
+                          <p className="whitespace-pre-wrap">{message.content}</p>
+                          <p className="text-xs opacity-70 mt-2">
+                            {new Date(message.createdAt).toLocaleTimeString("pt-BR")}
+                          </p>
+                        </>
                       )}
-                      <p className="text-xs opacity-70 mt-2">
-                        {new Date(message.createdAt).toLocaleTimeString("pt-BR")}
-                      </p>
                     </Card>
                   </div>
                 ))}
@@ -411,6 +509,67 @@ export default function David() {
           </div>
         )}
       </div>
+      
+      {/* Modal de Edição de Minuta */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="max-w-4xl max-h-[80vh]">
+          <DialogHeader>
+            <DialogTitle>Editar Minuta</DialogTitle>
+            <DialogDescription>
+              Revise e edite a minuta gerada pelo DAVID antes de aprovar
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="draftType">Tipo de Minuta</Label>
+              <Select value={draftType} onValueChange={(value: any) => setDraftType(value)}>
+                <SelectTrigger id="draftType">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="sentenca">Sentença</SelectItem>
+                  <SelectItem value="decisao">Decisão Interlocutória</SelectItem>
+                  <SelectItem value="despacho">Despacho</SelectItem>
+                  <SelectItem value="acordao">Acórdão</SelectItem>
+                  <SelectItem value="outro">Outro</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div>
+              <Label htmlFor="editedDraft">Conteúdo da Minuta</Label>
+              <Textarea
+                id="editedDraft"
+                value={editedDraft}
+                onChange={(e) => setEditedDraft(e.target.value)}
+                className="min-h-[400px] font-mono text-sm"
+                placeholder="Edite a minuta aqui..."
+              />
+            </div>
+            
+            <div className="flex gap-2 justify-end">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setIsEditDialogOpen(false);
+                  setEditingMessageId(null);
+                  setEditedDraft("");
+                }}
+              >
+                Cancelar
+              </Button>
+              <Button
+                onClick={handleSaveEditedDraft}
+                disabled={!editedDraft.trim()}
+              >
+                <Check className="h-4 w-4 mr-2" />
+                Salvar e Aprovar
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -228,3 +228,57 @@
 ## Correção Urgente - Configurações
 
 - [x] Corrigir salvamento de chave de API vazia (não salva quando usuário apaga a key para usar API nativa)
+
+
+## 🧠 SISTEMA DE APRENDIZADO DO DAVID (PRIORIDADE MÁXIMA)
+
+### Objetivo: DAVID aprende com minutas aprovadas e teses firmadas
+
+### CAMADA 1: Salvamento de Minutas Aprovadas
+- [x] Criar tabela `approved_drafts` no banco de dados
+  - [x] Campos: id, userId, processId, conversationId, messageId, originalDraft, editedDraft, draftType, approvalStatus, createdAt
+- [x] Adicionar botões de ação nas mensagens do DAVID no chat:
+  - [x] Botão "✅ Aprovar Minuta" (salva como está)
+  - [x] Botão "✏️ Editar e Aprovar" (abre modal de edição)
+  - [ ] Botão "❌ Rejeitar" (marca como exemplo negativo - opcional)
+- [x] Criar rotas tRPC para salvar minutas aprovadas
+- [x] Interface de edição de minuta (modal com textarea)
+- [ ] Página de "Minutas Aprovadas" para visualizar histórico
+
+### CAMADA 2: Extração Automática de Teses
+- [x] Criar tabela `learned_theses` no banco de dados
+  - [x] Campos: id, userId, approvedDraftId, processId, thesis, legalFoundations, keywords, decisionPattern, createdAt
+- [x] Implementar extrator automático de teses usando LLM
+  - [x] Prompt especializado para extrair ratio decidendi
+  - [x] Identificar fundamentos jurídicos (artigos, súmulas)
+  - [x] Gerar palavras-chave para indexação
+  - [x] Capturar padrão de redação
+- [x] Trigger automático: ao aprovar minuta → extrair tese
+- [x] Rota tRPC para listar teses aprendidas
+- [ ] Interface para visualizar teses extraídas
+
+### CAMADA 3: Memória Contextual e Busca de Precedentes
+- [x] Implementar busca semântica de casos similares
+  - [x] Comparar assunto/fatos do processo atual com histórico
+  - [x] Ranquear por similaridade
+- [x] Integrar memória no contexto do DAVID
+  - [x] Ao iniciar conversa sobre processo, buscar casos similares
+  - [x] Injetar teses relevantes no prompt do DAVID
+  - [x] Sugestão automática: "Encontrei X decisões suas similares"
+- [ ] Interface de sugestões de precedentes no chat
+- [ ] Comando especial `/precedentes` para busca manual
+
+### CAMADA 4: Feedback Loop e Melhoria Contínua
+- [ ] Dashboard de aprendizado
+  - [ ] Estatísticas: quantas minutas aprovadas, teses extraídas
+  - [ ] Taxa de reuso de teses
+  - [ ] Temas mais recorrentes
+- [ ] Sistema de refinamento de teses
+  - [ ] Editar tese extraída manualmente se necessário
+  - [ ] Marcar teses como "obsoletas" se mudou entendimento
+
+### Testes
+- [x] Teste de salvamento de minuta aprovada
+- [x] Teste de extração automática de tese
+- [ ] Teste de busca de casos similares
+- [ ] Teste de injeção de memória no contexto do DAVID

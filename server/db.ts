@@ -411,3 +411,126 @@ export async function upsertDavidConfig(userId: number, systemPrompt: string) {
     });
   }
 }
+
+
+// ===== Aprendizado: Minutas Aprovadas e Teses =====
+
+import {
+  approvedDrafts,
+  learnedTheses,
+  type InsertApprovedDraft,
+  type InsertLearnedThesis,
+  type ApprovedDraft,
+  type LearnedThesis
+} from "../drizzle/schema";
+
+// Minutas Aprovadas
+export async function createApprovedDraft(data: InsertApprovedDraft) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  const [draft] = await db.insert(approvedDrafts).values(data).$returningId();
+  return draft.id;
+}
+
+export async function getUserApprovedDrafts(userId: number): Promise<ApprovedDraft[]> {
+  const db = await getDb();
+  if (!db) return [];
+  
+  return await db
+    .select()
+    .from(approvedDrafts)
+    .where(eq(approvedDrafts.userId, userId))
+    .orderBy(desc(approvedDrafts.createdAt));
+}
+
+export async function getApprovedDraftById(id: number): Promise<ApprovedDraft | undefined> {
+  const db = await getDb();
+  if (!db) return undefined;
+  
+  const result = await db.select().from(approvedDrafts).where(eq(approvedDrafts.id, id)).limit(1);
+  return result[0];
+}
+
+export async function updateApprovedDraft(id: number, data: Partial<InsertApprovedDraft>) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  await db.update(approvedDrafts).set(data).where(eq(approvedDrafts.id, id));
+}
+
+export async function deleteApprovedDraft(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  await db.delete(approvedDrafts).where(eq(approvedDrafts.id, id));
+}
+
+// Teses Aprendidas
+export async function createLearnedThesis(data: InsertLearnedThesis) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  const [thesis] = await db.insert(learnedTheses).values(data).$returningId();
+  return thesis.id;
+}
+
+export async function getUserLearnedTheses(userId: number): Promise<LearnedThesis[]> {
+  const db = await getDb();
+  if (!db) return [];
+  
+  return await db
+    .select()
+    .from(learnedTheses)
+    .where(eq(learnedTheses.userId, userId))
+    .orderBy(desc(learnedTheses.createdAt));
+}
+
+export async function getLearnedThesisByDraftId(approvedDraftId: number): Promise<LearnedThesis | undefined> {
+  const db = await getDb();
+  if (!db) return undefined;
+  
+  const result = await db.select().from(learnedTheses).where(eq(learnedTheses.approvedDraftId, approvedDraftId)).limit(1);
+  return result[0];
+}
+
+export async function updateLearnedThesis(id: number, data: Partial<InsertLearnedThesis>) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  await db.update(learnedTheses).set(data).where(eq(learnedTheses.id, id));
+}
+
+export async function deleteLearnedThesis(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  await db.delete(learnedTheses).where(eq(learnedTheses.id, id));
+}
+
+// Buscar teses similares por palavras-chave
+export async function searchSimilarTheses(userId: number, keywords: string[]): Promise<LearnedThesis[]> {
+  const db = await getDb();
+  if (!db) return [];
+  
+  // Busca simples por palavras-chave (pode ser melhorada com busca semântica futuramente)
+  const { and, or, like } = await import("drizzle-orm");
+  
+  const conditions = keywords.map(keyword => 
+    or(
+      like(learnedTheses.keywords, `%${keyword}%`),
+      like(learnedTheses.thesis, `%${keyword}%`)
+    )
+  );
+  
+  return await db
+    .select()
+    .from(learnedTheses)
+    .where(and(
+      eq(learnedTheses.userId, userId),
+      eq(learnedTheses.isObsolete, 0),
+      or(...conditions)
+    ))
+    .orderBy(desc(learnedTheses.createdAt))
+    .limit(10);
+}

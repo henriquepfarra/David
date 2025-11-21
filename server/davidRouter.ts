@@ -15,9 +15,21 @@ import {
   getProcessForContext,
   getDavidConfig,
   upsertDavidConfig,
+  createApprovedDraft,
+  getUserApprovedDrafts,
+  getApprovedDraftById,
+  updateApprovedDraft,
+  deleteApprovedDraft,
+  createLearnedThesis,
+  getUserLearnedTheses,
+  getLearnedThesisByDraftId,
+  updateLearnedThesis,
+  deleteLearnedThesis,
+  searchSimilarTheses,
 } from "./db";
 import { invokeLLM, invokeLLMStream } from "./_core/llm";
 import { observable } from "@trpc/server/observable";
+import { extractThesisFromDraft } from "./thesisExtractor";
 
 // System prompt padrão do DAVID
 const DEFAULT_DAVID_SYSTEM_PROMPT = `Você é DAVID, um assistente jurídico especializado em processos judiciais brasileiros.
@@ -131,17 +143,39 @@ export const davidRouter = router({
 
       // Montar contexto do processo se houver
       let processContext = "";
+      let similarCasesContext = "";
+      
       if (conversation.processId) {
         const process = await getProcessForContext(conversation.processId);
         if (process) {
           processContext = `\n\n## PROCESSO SELECIONADO\n\n**Número:** ${process.processNumber}\n**Autor:** ${process.plaintiff}\n**Réu:** ${process.defendant}\n**Vara:** ${process.court}\n**Assunto:** ${process.subject}\n**Fatos:** ${process.facts}\n**Pedidos:** ${process.requests}\n**Status:** ${process.status}\n`;
+          
+          // Buscar casos similares baseados no assunto
+          if (process.subject) {
+            const keywords = process.subject.split(" ").filter(w => w.length > 3).slice(0, 5);
+            const similarTheses = await searchSimilarTheses(ctx.user.id, keywords);
+            
+            if (similarTheses.length > 0) {
+              similarCasesContext = `\n\n## MEMÓRIA: CASOS SIMILARES JÁ DECIDIDOS POR VOCÊ\n\n`;
+              similarCasesContext += `Encontrei ${similarTheses.length} decisões suas anteriores sobre temas relacionados. Use-as como referência:\n\n`;
+              
+              similarTheses.forEach((thesis, index) => {
+                similarCasesContext += `### Precedente ${index + 1}\n`;
+                similarCasesContext += `**Tese Firmada:** ${thesis.thesis}\n`;
+                similarCasesContext += `**Fundamentos:** ${thesis.legalFoundations}\n`;
+                similarCasesContext += `**Palavras-chave:** ${thesis.keywords}\n\n`;
+              });
+              
+              similarCasesContext += `\n**INSTRUÇÃO:** Ao gerar minutas, considere essas decisões anteriores para manter consistência e aplicar teses já firmadas. Se houver divergência, mencione ao usuário.\n`;
+            }
+          }
         }
       }
 
       // Montar mensagens para a IA
       const systemPrompt = input.systemPromptOverride || DEFAULT_DAVID_SYSTEM_PROMPT;
       const llmMessages: Array<{ role: "system" | "user" | "assistant"; content: string }> = [
-        { role: "system", content: systemPrompt + processContext },
+        { role: "system", content: systemPrompt + processContext + similarCasesContext },
       ];
 
       // Adicionar histórico (últimas 10 mensagens para não estourar contexto)
@@ -203,17 +237,39 @@ export const davidRouter = router({
 
       // Montar contexto do processo se houver
       let processContext = "";
+      let similarCasesContext = "";
+      
       if (conversation.processId) {
         const process = await getProcessForContext(conversation.processId);
         if (process) {
           processContext = `\n\n## PROCESSO SELECIONADO\n\n**Número:** ${process.processNumber}\n**Autor:** ${process.plaintiff}\n**Réu:** ${process.defendant}\n**Vara:** ${process.court}\n**Assunto:** ${process.subject}\n**Fatos:** ${process.facts}\n**Pedidos:** ${process.requests}\n**Status:** ${process.status}\n`;
+          
+          // Buscar casos similares baseados no assunto
+          if (process.subject) {
+            const keywords = process.subject.split(" ").filter(w => w.length > 3).slice(0, 5);
+            const similarTheses = await searchSimilarTheses(ctx.user.id, keywords);
+            
+            if (similarTheses.length > 0) {
+              similarCasesContext = `\n\n## MEMÓRIA: CASOS SIMILARES JÁ DECIDIDOS POR VOCÊ\n\n`;
+              similarCasesContext += `Encontrei ${similarTheses.length} decisões suas anteriores sobre temas relacionados. Use-as como referência:\n\n`;
+              
+              similarTheses.forEach((thesis, index) => {
+                similarCasesContext += `### Precedente ${index + 1}\n`;
+                similarCasesContext += `**Tese Firmada:** ${thesis.thesis}\n`;
+                similarCasesContext += `**Fundamentos:** ${thesis.legalFoundations}\n`;
+                similarCasesContext += `**Palavras-chave:** ${thesis.keywords}\n\n`;
+              });
+              
+              similarCasesContext += `\n**INSTRUÇÃO:** Ao gerar minutas, considere essas decisões anteriores para manter consistência e aplicar teses já firmadas. Se houver divergência, mencione ao usuário.\n`;
+            }
+          }
         }
       }
 
       // Montar mensagens para a IA
       const systemPrompt = input.systemPromptOverride || DEFAULT_DAVID_SYSTEM_PROMPT;
       const llmMessages: Array<{ role: "system" | "user" | "assistant"; content: string }> = [
-        { role: "system", content: systemPrompt + processContext },
+        { role: "system", content: systemPrompt + processContext + similarCasesContext },
       ];
 
       // Adicionar histórico (últimas 10 mensagens)
@@ -390,6 +446,155 @@ Diretrizes de Execução:
         }
 
         await deleteSavedPrompt(input.id);
+        return { success: true };
+      }),
+  }),
+
+  // Minutas Aprovadas (Aprendizado)
+  approvedDrafts: router({
+    create: protectedProcedure
+      .input(
+        z.object({
+          processId: z.number().optional(),
+          conversationId: z.number().optional(),
+          messageId: z.number().optional(),
+          originalDraft: z.string(),
+          editedDraft: z.string().optional(),
+          draftType: z.enum(["sentenca", "decisao", "despacho", "acordao", "outro"]),
+          approvalStatus: z.enum(["approved", "edited_approved", "rejected"]),
+          userNotes: z.string().optional(),
+        })
+      )
+      .mutation(async ({ ctx, input }) => {
+        // Salvar minuta aprovada
+        const draftId = await createApprovedDraft({
+          userId: ctx.user.id,
+          ...input,
+        });
+        
+        // Se foi aprovada (não rejeitada), extrair tese automaticamente
+        if (input.approvalStatus !== "rejected") {
+          try {
+            const draftContent = input.editedDraft || input.originalDraft;
+            const extracted = await extractThesisFromDraft(draftContent, input.draftType);
+            
+            // Salvar tese extraída
+            await createLearnedThesis({
+              userId: ctx.user.id,
+              approvedDraftId: draftId,
+              processId: input.processId,
+              thesis: extracted.thesis,
+              legalFoundations: extracted.legalFoundations,
+              keywords: extracted.keywords,
+              decisionPattern: extracted.decisionPattern,
+            });
+          } catch (error) {
+            console.error("Erro ao extrair tese automaticamente:", error);
+            // Não falhar a aprovação se a extração falhar
+          }
+        }
+        
+        return { id: draftId };
+      }),
+
+    list: protectedProcedure.query(async ({ ctx }) => {
+      return await getUserApprovedDrafts(ctx.user.id);
+    }),
+
+    get: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .query(async ({ ctx, input }) => {
+        const draft = await getApprovedDraftById(input.id);
+        if (!draft || draft.userId !== ctx.user.id) {
+          throw new Error("Minuta não encontrada");
+        }
+        return draft;
+      }),
+
+    update: protectedProcedure
+      .input(
+        z.object({
+          id: z.number(),
+          editedDraft: z.string().optional(),
+          userNotes: z.string().optional(),
+        })
+      )
+      .mutation(async ({ ctx, input }) => {
+        const { id, ...data } = input;
+        const draft = await getApprovedDraftById(id);
+        if (!draft || draft.userId !== ctx.user.id) {
+          throw new Error("Minuta não encontrada");
+        }
+
+        await updateApprovedDraft(id, data);
+        return { success: true };
+      }),
+
+    delete: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ ctx, input }) => {
+        const draft = await getApprovedDraftById(input.id);
+        if (!draft || draft.userId !== ctx.user.id) {
+          throw new Error("Minuta não encontrada");
+        }
+
+        await deleteApprovedDraft(input.id);
+        return { success: true };
+      }),
+  }),
+
+  // Teses Aprendidas
+  learnedTheses: router({
+    create: protectedProcedure
+      .input(
+        z.object({
+          approvedDraftId: z.number(),
+          processId: z.number().optional(),
+          thesis: z.string(),
+          legalFoundations: z.string().optional(),
+          keywords: z.string().optional(),
+          decisionPattern: z.string().optional(),
+        })
+      )
+      .mutation(async ({ ctx, input }) => {
+        const id = await createLearnedThesis({
+          userId: ctx.user.id,
+          ...input,
+        });
+        return { id };
+      }),
+
+    list: protectedProcedure.query(async ({ ctx }) => {
+      return await getUserLearnedTheses(ctx.user.id);
+    }),
+
+    searchSimilar: protectedProcedure
+      .input(z.object({ keywords: z.array(z.string()) }))
+      .query(async ({ ctx, input }) => {
+        return await searchSimilarTheses(ctx.user.id, input.keywords);
+      }),
+
+    update: protectedProcedure
+      .input(
+        z.object({
+          id: z.number(),
+          thesis: z.string().optional(),
+          legalFoundations: z.string().optional(),
+          keywords: z.string().optional(),
+          decisionPattern: z.string().optional(),
+          isObsolete: z.number().optional(),
+        })
+      )
+      .mutation(async ({ ctx, input }) => {
+        const { id, ...data } = input;
+        await updateLearnedThesis(id, data);
+        return { success: true };
+      }),
+
+    delete: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ ctx, input }) => {
+        await deleteLearnedThesis(input.id);
         return { success: true };
       }),
   }),
