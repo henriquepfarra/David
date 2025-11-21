@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/select";
 import { Card } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Loader2, Send, Plus, Trash2, FileText, Settings, BookMarked, X, Check, Edit, XCircle, ArrowLeft } from "lucide-react";
+import { Loader2, Send, Plus, Trash2, FileText, Settings, BookMarked, X, Check, Edit, XCircle, ArrowLeft, Pencil } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -47,6 +47,13 @@ export default function David() {
   const [editingMessageId, setEditingMessageId] = useState<number | null>(null);
   const [editedDraft, setEditedDraft] = useState("");
   const [draftType, setDraftType] = useState<"sentenca" | "decisao" | "despacho" | "acordao" | "outro">("decisao");
+  
+  // Estados para gerenciar conversas
+  const [isRenameDialogOpen, setIsRenameDialogOpen] = useState(false);
+  const [renamingConversationId, setRenamingConversationId] = useState<number | null>(null);
+  const [newConversationTitle, setNewConversationTitle] = useState("");
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [deletingConversationId, setDeletingConversationId] = useState<number | null>(null);
 
   // Carregar prompts salvos
   const { data: savedPrompts } = trpc.david.savedPrompts.list.useQuery();
@@ -220,11 +227,29 @@ export default function David() {
     }
   };
 
+  const renameConversationMutation = trpc.david.renameConversation.useMutation({
+    onSuccess: () => {
+      refetchConversations();
+      setIsRenameDialogOpen(false);
+      setRenamingConversationId(null);
+      setNewConversationTitle("");
+      toast.success("✏️ Conversa renomeada");
+    },
+    onError: (error) => {
+      toast.error("Erro ao renomear: " + error.message);
+    },
+  });
+  
   const deleteConversationMutation = trpc.david.deleteConversation.useMutation({
     onSuccess: () => {
       refetchConversations();
       setSelectedConversationId(null);
-      toast.success("Conversa deletada");
+      setIsDeleteDialogOpen(false);
+      setDeletingConversationId(null);
+      toast.success("🗑️ Conversa deletada");
+    },
+    onError: (error) => {
+      toast.error("Erro ao deletar: " + error.message);
     },
   });
 
@@ -303,26 +328,42 @@ export default function David() {
               }`}
               onClick={() => setSelectedConversationId(conv.id)}
             >
-              <div className="flex items-start justify-between">
+              <div className="flex items-start justify-between gap-2">
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium truncate">{conv.title}</p>
                   <p className="text-xs text-muted-foreground">
                     {new Date(conv.updatedAt).toLocaleDateString("pt-BR")}
                   </p>
                 </div>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  className="h-6 w-6 p-0 ml-2"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (confirm("Deseja deletar esta conversa?")) {
-                      deleteConversationMutation.mutate({ id: conv.id });
-                    }
-                  }}
-                >
-                  <Trash2 className="h-3 w-3" />
-                </Button>
+                <div className="flex gap-1">
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-6 w-6 p-0"
+                    title="Renomear conversa"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setRenamingConversationId(conv.id);
+                      setNewConversationTitle(conv.title);
+                      setIsRenameDialogOpen(true);
+                    }}
+                  >
+                    <Pencil className="h-3 w-3" />
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-6 w-6 p-0 text-destructive hover:text-destructive"
+                    title="Deletar conversa"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setDeletingConversationId(conv.id);
+                      setIsDeleteDialogOpen(true);
+                    }}
+                  >
+                    <Trash2 className="h-3 w-3" />
+                  </Button>
+                </div>
               </div>
             </Card>
           ))}
@@ -597,6 +638,94 @@ export default function David() {
                 Salvar e Aprovar
               </Button>
             </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog de Renomear Conversa */}
+      <Dialog open={isRenameDialogOpen} onOpenChange={setIsRenameDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>✏️ Renomear Conversa</DialogTitle>
+            <DialogDescription>
+              Escolha um novo nome para esta conversa
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="conversationTitle">Título da Conversa</Label>
+              <Textarea
+                id="conversationTitle"
+                value={newConversationTitle}
+                onChange={(e) => setNewConversationTitle(e.target.value)}
+                className="min-h-[80px]"
+                placeholder="Digite o novo título..."
+                maxLength={200}
+              />
+            </div>
+            
+            <div className="flex gap-2 justify-end">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setIsRenameDialogOpen(false);
+                  setRenamingConversationId(null);
+                  setNewConversationTitle("");
+                }}
+              >
+                Cancelar
+              </Button>
+              <Button
+                onClick={() => {
+                  if (renamingConversationId && newConversationTitle.trim()) {
+                    renameConversationMutation.mutate({
+                      conversationId: renamingConversationId,
+                      title: newConversationTitle.trim(),
+                    });
+                  }
+                }}
+                disabled={!newConversationTitle.trim()}
+              >
+                <Check className="h-4 w-4 mr-2" />
+                Salvar
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog de Confirmação de Deletar */}
+      <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>🗑️ Deletar Conversa</DialogTitle>
+            <DialogDescription>
+              Tem certeza que deseja deletar esta conversa? Esta ação não pode ser desfeita.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="flex gap-2 justify-end">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setIsDeleteDialogOpen(false);
+                setDeletingConversationId(null);
+              }}
+            >
+              Cancelar
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => {
+                if (deletingConversationId) {
+                  deleteConversationMutation.mutate({ id: deletingConversationId });
+                }
+              }}
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              Deletar
+            </Button>
           </div>
         </DialogContent>
       </Dialog>

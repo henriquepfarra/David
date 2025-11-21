@@ -288,3 +288,13 @@
 
 - [x] Adicionar botão "Voltar" no cabeçalho do chat do DAVID
 - [x] Corrigir seleção de processo no chat do DAVID (não atualiza visualmente e não associa à conversa)
+
+## Gerenciamento de Conversas no DAVID
+
+- [x] Implementar renomear conversa
+  - [x] Criar rota tRPC para atualizar título
+  - [x] Adicionar botão de edição no histórico
+  - [x] Modal ou input inline para renomear
+- [x] Melhorar interface de deletar conversa
+  - [x] Adicionar botão de deletar no histórico
+  - [x] Dialog de confirmação antes de deletar

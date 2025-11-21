@@ -306,6 +306,19 @@ export async function updateConversationProcess(conversationId: number, processI
     .where(eq(conversations.id, conversationId));
 }
 
+export async function updateConversationTitle(conversationId: number, title: string) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  await db
+    .update(conversations)
+    .set({ 
+      title: title,
+      updatedAt: new Date() 
+    })
+    .where(eq(conversations.id, conversationId));
+}
+
 export async function deleteConversation(id: number) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
