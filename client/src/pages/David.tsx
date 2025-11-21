@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/select";
 import { Card } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Loader2, Send, Plus, Trash2, FileText, Settings, BookMarked, X, Check, Edit, XCircle } from "lucide-react";
+import { Loader2, Send, Plus, Trash2, FileText, Settings, BookMarked, X, Check, Edit, XCircle, ArrowLeft } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -65,6 +65,18 @@ export default function David() {
       setSelectedConversationId(data.id);
       refetchConversations();
       toast.success("Nova conversa criada");
+    },
+  });
+  
+  const utils = trpc.useUtils();
+  
+  const updateProcessMutation = trpc.david.updateConversationProcess.useMutation({
+    onSuccess: () => {
+      refetchMessages();
+      toast.success("Processo vinculado à conversa");
+    },
+    onError: (error) => {
+      toast.error("Erro ao vincular processo: " + error.message);
     },
   });
   
@@ -255,7 +267,18 @@ export default function David() {
       <div className="w-80 border-r flex flex-col">
         <div className="p-4 border-b">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold">DAVID</h2>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setLocation("/")}
+                title="Voltar para início"
+                className="h-8 w-8"
+              >
+                <ArrowLeft className="h-4 w-4" />
+              </Button>
+              <h2 className="text-lg font-semibold">DAVID</h2>
+            </div>
             <Button
               size="sm"
               variant="ghost"
@@ -316,9 +339,16 @@ export default function David() {
               <Select
                 value={conversationData?.conversation.processId?.toString() || "none"}
                 onValueChange={(value) => {
-                  const processId = value === "none" ? undefined : parseInt(value);
-                  setSelectedProcessId(processId);
-                  // TODO: Atualizar processo da conversa
+                  const processId = value === "none" ? null : parseInt(value);
+                  setSelectedProcessId(processId || undefined);
+                  
+                  // Atualizar processo da conversa no backend
+                  if (selectedConversationId) {
+                    updateProcessMutation.mutate({
+                      conversationId: selectedConversationId,
+                      processId,
+                    });
+                  }
                 }}
               >
                 <SelectTrigger className="w-[400px]">

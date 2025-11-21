@@ -293,6 +293,19 @@ export async function getConversationById(id: number): Promise<Conversation | un
   return result[0];
 }
 
+export async function updateConversationProcess(conversationId: number, processId: number | null) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  await db
+    .update(conversations)
+    .set({ 
+      processId: processId,
+      updatedAt: new Date() 
+    })
+    .where(eq(conversations.id, conversationId));
+}
+
 export async function deleteConversation(id: number) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");

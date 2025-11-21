@@ -282,3 +282,9 @@
 - [x] Teste de extração automática de tese
 - [ ] Teste de busca de casos similares
 - [ ] Teste de injeção de memória no contexto do DAVID
+
+
+## Melhorias de UX - Chat do DAVID
+
+- [x] Adicionar botão "Voltar" no cabeçalho do chat do DAVID
+- [x] Corrigir seleção de processo no chat do DAVID (não atualiza visualmente e não associa à conversa)

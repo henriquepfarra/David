@@ -4,6 +4,7 @@ import {
   createConversation,
   getUserConversations,
   getConversationById,
+  updateConversationProcess,
   deleteConversation,
   createMessage,
   getConversationMessages,
@@ -101,6 +102,24 @@ export const davidRouter = router({
         messages,
         processData,
       };
+    }),
+
+  // Atualizar processo da conversa
+  updateConversationProcess: protectedProcedure
+    .input(
+      z.object({
+        conversationId: z.number(),
+        processId: z.number().nullable(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const conversation = await getConversationById(input.conversationId);
+      if (!conversation || conversation.userId !== ctx.user.id) {
+        throw new Error("Conversa não encontrada");
+      }
+
+      await updateConversationProcess(input.conversationId, input.processId);
+      return { success: true };
     }),
 
   // Deletar conversa
