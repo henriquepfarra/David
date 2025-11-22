@@ -1,0 +1,9 @@
+{
+  "query": "CREATE TABLE IF NOT EXISTS approved_drafts (\n  id INT AUTO_INCREMENT PRIMARY KEY,\n  userId INT NOT NULL,\n  processId INT,\n  conversationId INT,\n  messageId INT,\n  originalDraft TEXT NOT NULL,\n  editedDraft TEXT,\n  draftType VARCHAR(50),\n  approvalStatus VARCHAR(50),\n  feedback TEXT,\n  createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,\n  updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP\n)",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 7gDrDqW7jwFKyJS.c06df48d9daf --database BtzVqJQrEpT2bFpeKB5YVk --execute CREATE TABLE IF NOT EXISTS approved_drafts (\n  id INT AUTO_INCREMENT PRIMARY KEY,\n  userId INT NOT NULL,\n  processId INT,\n  conversationId INT,\n  messageId INT,\n  originalDraft TEXT NOT NULL,\n  editedDraft TEXT,\n  draftType VARCHAR(50),\n  approvalStatus VARCHAR(50),\n  feedback TEXT,\n  createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,\n  updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP\n)",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 164
+}

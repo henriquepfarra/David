@@ -1,0 +1,9 @@
+{
+  "query": "CREATE TABLE IF NOT EXISTS learned_theses (\n  id INT AUTO_INCREMENT PRIMARY KEY,\n  userId INT NOT NULL,\n  approvedDraftId INT,\n  processId INT,\n  thesis TEXT,\n  legalFoundations TEXT,\n  keywords TEXT,\n  decisionPattern TEXT,\n  confidence DECIMAL(3,2),\n  usageCount INT DEFAULT 0,\n  createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP\n)",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 7gDrDqW7jwFKyJS.c06df48d9daf --database BtzVqJQrEpT2bFpeKB5YVk --execute CREATE TABLE IF NOT EXISTS learned_theses (\n  id INT AUTO_INCREMENT PRIMARY KEY,\n  userId INT NOT NULL,\n  approvedDraftId INT,\n  processId INT,\n  thesis TEXT,\n  legalFoundations TEXT,\n  keywords TEXT,\n  decisionPattern TEXT,\n  confidence DECIMAL(3,2),\n  usageCount INT DEFAULT 0,\n  createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP\n)",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 168
+}
