@@ -32,6 +32,7 @@ import {
 import { invokeLLM, invokeLLMStream } from "./_core/llm";
 import { observable } from "@trpc/server/observable";
 import { extractThesisFromDraft } from "./thesisExtractor";
+import { generateConversationTitle } from "./titleGenerator";
 
 // System prompt padrão do DAVID
 const DEFAULT_DAVID_SYSTEM_PROMPT = `Você é DAVID, um assistente jurídico especializado em processos judiciais brasileiros.
@@ -178,6 +179,35 @@ export const davidRouter = router({
 
       // Buscar histórico de mensagens
       const history = await getConversationMessages(input.conversationId);
+      
+      // Gerar título automaticamente se for a primeira mensagem
+      const isFirstMessage = history.length === 1; // Apenas a mensagem do usuário que acabou de ser salva
+      
+      if (isFirstMessage) {
+        // Buscar informações do processo se houver
+        let processInfo;
+        if (conversation.processId) {
+          const process = await getProcessForContext(conversation.processId);
+          if (process) {
+            processInfo = {
+              processNumber: process.processNumber || undefined,
+              subject: process.subject || undefined,
+              plaintiff: process.plaintiff || undefined,
+              defendant: process.defendant || undefined,
+            };
+          }
+        }
+        
+        // Gerar título em background (não bloqueia resposta)
+        generateConversationTitle(input.content, processInfo)
+          .then(async (title) => {
+            await updateConversationTitle(input.conversationId, title);
+            console.log(`[DAVID] Título gerado automaticamente: "${title}"`);
+          })
+          .catch((error) => {
+            console.error('[DAVID] Erro ao gerar título:', error);
+          });
+      }
 
       // Montar contexto do processo se houver
       let processContext = "";
@@ -272,6 +302,35 @@ export const davidRouter = router({
 
       // Buscar histórico de mensagens
       const history = await getConversationMessages(input.conversationId);
+      
+      // Gerar título automaticamente se for a primeira mensagem
+      const isFirstMessage = history.length === 1; // Apenas a mensagem do usuário que acabou de ser salva
+      
+      if (isFirstMessage) {
+        // Buscar informações do processo se houver
+        let processInfo;
+        if (conversation.processId) {
+          const process = await getProcessForContext(conversation.processId);
+          if (process) {
+            processInfo = {
+              processNumber: process.processNumber || undefined,
+              subject: process.subject || undefined,
+              plaintiff: process.plaintiff || undefined,
+              defendant: process.defendant || undefined,
+            };
+          }
+        }
+        
+        // Gerar título em background (não bloqueia resposta)
+        generateConversationTitle(input.content, processInfo)
+          .then(async (title) => {
+            await updateConversationTitle(input.conversationId, title);
+            console.log(`[DAVID] Título gerado automaticamente: "${title}"`);
+          })
+          .catch((error) => {
+            console.error('[DAVID] Erro ao gerar título:', error);
+          });
+      }
 
       // Montar contexto do processo se houver
       let processContext = "";

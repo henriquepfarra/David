@@ -298,3 +298,11 @@
 - [x] Melhorar interface de deletar conversa
   - [x] Adicionar botão de deletar no histórico
   - [x] Dialog de confirmação antes de deletar
+
+
+## Auto-Título de Conversas
+
+- [x] Criar helper para gerar título usando LLM baseado na primeira mensagem
+- [x] Integrar geração automática no fluxo de envio de mensagem
+- [x] Atualizar conversa com título gerado automaticamente
+- [x] Teste de geração de título
