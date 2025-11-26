@@ -306,3 +306,17 @@
 - [x] Integrar geração automática no fluxo de envio de mensagem
 - [x] Atualizar conversa com título gerado automaticamente
 - [x] Teste de geração de título
+
+
+## Página "Memória do DAVID"
+
+- [x] Criar componente MemoriaDavid.tsx
+- [x] Seção de estatísticas (total de teses, minutas aprovadas, temas mais recorrentes)
+- [x] Listagem de teses aprendidas com filtros (tema, data, processo)
+- [x] Listagem de minutas aprovadas com busca
+- [x] Visualização detalhada de tese (modal)
+- [x] Visualização detalhada de minuta (modal)
+- [ ] Opção de editar tese manualmente
+- [ ] Opção de marcar tese como obsoleta
+- [x] Adicionar rota no App.tsx
+- [x] Adicionar link no menu lateral
