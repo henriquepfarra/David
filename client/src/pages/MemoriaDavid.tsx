@@ -5,24 +5,101 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Brain, FileText, TrendingUp, Calendar, Search, Eye, Edit, Archive } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Brain, FileText, TrendingUp, Calendar, Search, Eye, Edit, Archive, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 export default function MemoriaDavid() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedThesis, setSelectedThesis] = useState<any>(null);
   const [selectedDraft, setSelectedDraft] = useState<any>(null);
+  const [editingThesis, setEditingThesis] = useState<any>(null);
+  const [thesisToDelete, setThesisToDelete] = useState<number | null>(null);
+  const [editForm, setEditForm] = useState({
+    thesis: "",
+    legalFoundations: "",
+    keywords: "",
+    decisionPattern: "",
+  });
 
   // Queries
+  const utils = trpc.useUtils();
   const thesesQuery = trpc.david.learnedTheses.list.useQuery();
   const draftsQuery = trpc.david.approvedDrafts.list.useQuery();
+
+  // Mutations
+  const updateThesisMutation = trpc.david.learnedTheses.update.useMutation({
+    onSuccess: () => {
+      toast.success("Tese atualizada com sucesso!");
+      utils.david.learnedTheses.list.invalidate();
+      setEditingThesis(null);
+    },
+    onError: (error) => {
+      toast.error("Erro ao atualizar tese: " + error.message);
+    },
+  });
+
+  const deleteThesisMutation = trpc.david.learnedTheses.delete.useMutation({
+    onSuccess: () => {
+      toast.success("Tese deletada com sucesso!");
+      utils.david.learnedTheses.list.invalidate();
+      setThesisToDelete(null);
+    },
+    onError: (error) => {
+      toast.error("Erro ao deletar tese: " + error.message);
+    },
+  });
+
+  // Funções
+  const handleEditThesis = (thesis: any) => {
+    setEditingThesis(thesis);
+    setEditForm({
+      thesis: thesis.thesis || "",
+      legalFoundations: thesis.legalFoundations || "",
+      keywords: thesis.keywords || "",
+      decisionPattern: thesis.decisionPattern || "",
+    });
+  };
+
+  const handleSaveEdit = () => {
+    if (!editingThesis) return;
+    updateThesisMutation.mutate({
+      id: editingThesis.id,
+      ...editForm,
+    });
+  };
+
+  const handleToggleObsolete = (thesis: any) => {
+    const newObsoleteValue = thesis.isObsolete ? 0 : 1;
+    updateThesisMutation.mutate({
+      id: thesis.id,
+      isObsolete: newObsoleteValue,
+    });
+  };
+
+  const handleDeleteThesis = () => {
+    if (!thesisToDelete) return;
+    deleteThesisMutation.mutate({ id: thesisToDelete });
+  };
 
   const theses = thesesQuery.data || [];
   const drafts = draftsQuery.data || [];
@@ -184,7 +261,14 @@ export default function MemoriaDavid() {
                 <CardHeader>
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
-                      <CardTitle className="text-lg">{thesis.thesis}</CardTitle>
+                      <div className="flex items-start gap-2">
+                        <CardTitle className="text-lg flex-1">{thesis.thesis}</CardTitle>
+                        {thesis.isObsolete === 1 && (
+                          <Badge variant="secondary" className="bg-orange-100 text-orange-700 border-orange-300">
+                            Obsoleta
+                          </Badge>
+                        )}
+                      </div>
                       <CardDescription className="mt-2">
                         <div className="flex items-center gap-2 text-xs">
                           <Calendar className="h-3 w-3" />
@@ -192,13 +276,42 @@ export default function MemoriaDavid() {
                         </div>
                       </CardDescription>
                     </div>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setSelectedThesis(thesis)}
-                    >
-                      <Eye className="h-4 w-4" />
-                    </Button>
+                    <div className="flex gap-1">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setSelectedThesis(thesis)}
+                        title="Visualizar detalhes"
+                      >
+                        <Eye className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleEditThesis(thesis)}
+                        title="Editar tese"
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleToggleObsolete(thesis)}
+                        title={thesis.isObsolete ? "Marcar como atual" : "Marcar como obsoleta"}
+                        className={thesis.isObsolete ? "text-orange-500" : ""}
+                      >
+                        <Archive className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setThesisToDelete(thesis.id)}
+                        title="Deletar tese"
+                        className="text-red-500 hover:text-red-700"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-3">
@@ -358,6 +471,90 @@ export default function MemoriaDavid() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Dialog: Editar Tese */}
+      <Dialog open={!!editingThesis} onOpenChange={() => setEditingThesis(null)}>
+        <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Editar Tese</DialogTitle>
+            <DialogDescription>
+              Refine a tese extraída automaticamente ou atualize fundamentos legais
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="thesis">Tese Firmada (Ratio Decidendi)</Label>
+              <Textarea
+                id="thesis"
+                value={editForm.thesis}
+                onChange={(e) => setEditForm({ ...editForm, thesis: e.target.value })}
+                rows={4}
+                className="mt-1"
+              />
+            </div>
+            <div>
+              <Label htmlFor="legalFoundations">Fundamentos Jurídicos</Label>
+              <Textarea
+                id="legalFoundations"
+                value={editForm.legalFoundations}
+                onChange={(e) => setEditForm({ ...editForm, legalFoundations: e.target.value })}
+                rows={3}
+                className="mt-1"
+                placeholder="Art. 300 CPC, Art. 14 CDC, etc."
+              />
+            </div>
+            <div>
+              <Label htmlFor="keywords">Palavras-chave (separadas por vírgula)</Label>
+              <Input
+                id="keywords"
+                value={editForm.keywords}
+                onChange={(e) => setEditForm({ ...editForm, keywords: e.target.value })}
+                className="mt-1"
+                placeholder="tutela de urgência, gravame, leasing"
+              />
+            </div>
+            <div>
+              <Label htmlFor="decisionPattern">Padrão de Redação</Label>
+              <Textarea
+                id="decisionPattern"
+                value={editForm.decisionPattern}
+                onChange={(e) => setEditForm({ ...editForm, decisionPattern: e.target.value })}
+                rows={3}
+                className="mt-1"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditingThesis(null)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleSaveEdit} disabled={updateThesisMutation.isPending}>
+              {updateThesisMutation.isPending ? "Salvando..." : "Salvar Alterações"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* AlertDialog: Confirmar Exclusão */}
+      <AlertDialog open={!!thesisToDelete} onOpenChange={() => setThesisToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Tem certeza?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta ação não pode ser desfeita. A tese será permanentemente removida da memória do DAVID.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteThesis}
+              className="bg-red-500 hover:bg-red-600"
+            >
+              {deleteThesisMutation.isPending ? "Deletando..." : "Deletar Tese"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

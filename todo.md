@@ -316,7 +316,7 @@
 - [x] Listagem de minutas aprovadas com busca
 - [x] Visualização detalhada de tese (modal)
 - [x] Visualização detalhada de minuta (modal)
-- [ ] Opção de editar tese manualmente
-- [ ] Opção de marcar tese como obsoleta
+- [x] Opção de editar tese manualmente
+- [x] Opção de marcar tese como obsoleta
 - [x] Adicionar rota no App.tsx
 - [x] Adicionar link no menu lateral
