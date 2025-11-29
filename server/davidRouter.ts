@@ -545,6 +545,29 @@ Diretrizes de Execução:
         await deleteSavedPrompt(input.id);
         return { success: true };
       }),
+
+    applyToConversation: protectedProcedure
+      .input(
+        z.object({
+          conversationId: z.number(),
+          promptId: z.number(),
+        })
+      )
+      .mutation(async ({ ctx, input }) => {
+        const prompt = await getSavedPromptById(input.promptId);
+        if (!prompt || prompt.userId !== ctx.user.id) {
+          throw new Error("Prompt não encontrado");
+        }
+
+        // Adicionar mensagem do usuário com o conteúdo do prompt
+        const messageId = await createMessage({
+          conversationId: input.conversationId,
+          role: "user",
+          content: prompt.content,
+        });
+
+        return { success: true, messageId };
+      }),
   }),
 
   // Minutas Aprovadas (Aprendizado)

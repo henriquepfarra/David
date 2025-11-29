@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/select";
 import { Card } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Loader2, Send, Plus, Trash2, FileText, Settings, BookMarked, X, Check, Edit, XCircle, ArrowLeft, Pencil } from "lucide-react";
+import { Loader2, Send, Plus, Trash2, FileText, Settings, BookMarked, X, Check, Edit, XCircle, ArrowLeft, Pencil, Upload, MessageSquare, ChevronRight } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -31,6 +31,7 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { Streamdown } from "streamdown";
 import { useLocation } from "wouter";
+import { ToolsMenu } from "@/components/ToolsMenu";
 
 export default function David() {
   const [, setLocation] = useLocation();
@@ -54,6 +55,12 @@ export default function David() {
   const [newConversationTitle, setNewConversationTitle] = useState("");
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [deletingConversationId, setDeletingConversationId] = useState<number | null>(null);
+  
+  // Estados para funcionalidades do menu de ferramentas
+  const [isProcessSelectorOpen, setIsProcessSelectorOpen] = useState(false);
+  const [isProcessDataOpen, setIsProcessDataOpen] = useState(false);
+  const [isUploadDocsOpen, setIsUploadDocsOpen] = useState(false);
+  const [isPromptSelectorOpen, setIsPromptSelectorOpen] = useState(false);
 
   // Carregar prompts salvos
   const { data: savedPrompts } = trpc.david.savedPrompts.list.useQuery();
@@ -93,6 +100,16 @@ export default function David() {
     },
     onError: (error) => {
       toast.error("Erro ao salvar minuta: " + error.message);
+    },
+  });
+  
+  const applyPromptMutation = trpc.david.savedPrompts.applyToConversation.useMutation({
+    onSuccess: () => {
+      refetchMessages();
+      toast.success("📝 Prompt aplicado com sucesso!");
+    },
+    onError: (error) => {
+      toast.error("Erro ao aplicar prompt: " + error.message);
     },
   });
 
@@ -542,25 +559,67 @@ export default function David() {
                   rows={3}
                   disabled={isStreaming}
                 />
-                {isStreaming ? (
-                  <Button
-                    onClick={stopGeneration}
-                    size="icon"
-                    variant="destructive"
-                    className="h-full"
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
-                ) : (
-                  <Button
-                    onClick={handleSendMessage}
-                    disabled={!messageInput.trim()}
-                    size="icon"
-                    className="h-full"
-                  >
-                    <Send className="h-4 w-4" />
-                  </Button>
-                )}
+                <div className="flex flex-col gap-2">
+                  <ToolsMenu
+                    onSelectProcess={() => {
+                      setIsProcessSelectorOpen(true);
+                    }}
+                    onViewProcessData={() => {
+                      if (!selectedProcessId) {
+                        toast.error("Nenhum processo selecionado");
+                        return;
+                      }
+                      setIsProcessDataOpen(true);
+                    }}
+                    onUploadDocuments={() => {
+                      if (!selectedProcessId) {
+                        toast.error("Selecione um processo primeiro");
+                        return;
+                      }
+                      setIsUploadDocsOpen(true);
+                    }}
+                    onSelectPrompt={() => {
+                      setIsPromptSelectorOpen(true);
+                    }}
+                    onSearchPrecedents={() => {
+                      if (!selectedProcessId) {
+                        toast.error("Selecione um processo primeiro");
+                        return;
+                      }
+                      // Redirecionar para página de Memória com filtro do processo atual
+                      setLocation("/memoria");
+                      toast.info("🔍 Buscando casos similares ao processo atual...");
+                    }}
+                    onViewMemory={() => {
+                      setLocation("/memoria");
+                    }}
+                    onUploadKnowledge={() => {
+                      setLocation("/base-conhecimento");
+                    }}
+                    onManageKnowledge={() => {
+                      setLocation("/base-conhecimento");
+                    }}
+                  />
+                  {isStreaming ? (
+                    <Button
+                      onClick={stopGeneration}
+                      size="icon"
+                      variant="destructive"
+                      className="h-9 w-9"
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  ) : (
+                    <Button
+                      onClick={handleSendMessage}
+                      disabled={!messageInput.trim()}
+                      size="icon"
+                      className="h-9 w-9"
+                    >
+                      <Send className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
               </div>
             </div>
           </div>
@@ -691,6 +750,281 @@ export default function David() {
                 Salvar
               </Button>
             </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog de Seleção de Processo */}
+      <Dialog open={isProcessSelectorOpen} onOpenChange={setIsProcessSelectorOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>⚖️ Selecionar Processo Ativo</DialogTitle>
+            <DialogDescription>
+              Selecione o processo que deseja vincular a esta conversa. O contexto do processo será injetado automaticamente.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            {processes && processes.length > 0 ? (
+              <div className="grid gap-2 max-h-[400px] overflow-y-auto">
+                {processes.map((process: any) => (
+                  <Card
+                    key={process.id}
+                    className={`p-4 cursor-pointer transition-colors ${
+                      selectedProcessId === process.id
+                        ? "border-primary bg-primary/5"
+                        : "hover:border-primary/50"
+                    }`}
+                    onClick={() => {
+                      setSelectedProcessId(process.id);
+                      if (selectedConversationId) {
+                        updateProcessMutation.mutate({
+                          conversationId: selectedConversationId,
+                          processId: process.id,
+                        });
+                      }
+                      setIsProcessSelectorOpen(false);
+                    }}
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="space-y-1">
+                        <div className="font-mono text-sm font-semibold">
+                          {process.processNumber}
+                        </div>
+                        <div className="text-sm">
+                          <span className="text-muted-foreground">Autor:</span> {process.plaintiff}
+                        </div>
+                        <div className="text-sm">
+                          <span className="text-muted-foreground">Réu:</span> {process.defendant}
+                        </div>
+                        {process.subject && (
+                          <div className="text-xs text-muted-foreground mt-1">
+                            {process.subject}
+                          </div>
+                        )}
+                      </div>
+                      {selectedProcessId === process.id && (
+                        <Check className="h-5 w-5 text-primary" />
+                      )}
+                    </div>
+                  </Card>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8 text-muted-foreground">
+                <FileText className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                <p>Nenhum processo cadastrado</p>
+                <Button
+                  variant="link"
+                  onClick={() => {
+                    setIsProcessSelectorOpen(false);
+                    setLocation("/processos");
+                  }}
+                  className="mt-2"
+                >
+                  Cadastrar primeiro processo
+                </Button>
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog de Visualização de Dados do Processo */}
+      <Dialog open={isProcessDataOpen} onOpenChange={setIsProcessDataOpen}>
+        <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>📋 Dados do Processo</DialogTitle>
+          </DialogHeader>
+          
+          {selectedProcessId && processes && (() => {
+            const currentProcess = processes.find((p: any) => p.id === selectedProcessId);
+            if (!currentProcess) return <p>Processo não encontrado</p>;
+            
+            return (
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-muted-foreground">Número do Processo</Label>
+                    <p className="font-mono font-semibold">{currentProcess.processNumber}</p>
+                  </div>
+                  <div>
+                    <Label className="text-muted-foreground">Data de Distribuição</Label>
+                    <p>{currentProcess.distributionDate ? new Date(currentProcess.distributionDate).toLocaleDateString('pt-BR') : '-'}</p>
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-muted-foreground">Autor/Requerente</Label>
+                    <p>{currentProcess.plaintiff}</p>
+                  </div>
+                  <div>
+                    <Label className="text-muted-foreground">Réu/Requerido</Label>
+                    <p>{currentProcess.defendant}</p>
+                  </div>
+                </div>
+                
+                {currentProcess.court && (
+                  <div>
+                    <Label className="text-muted-foreground">Vara/Juizado</Label>
+                    <p>{currentProcess.court}</p>
+                  </div>
+                )}
+                
+                {currentProcess.subject && (
+                  <div>
+                    <Label className="text-muted-foreground">Assunto</Label>
+                    <p>{currentProcess.subject}</p>
+                  </div>
+                )}
+                
+
+                
+                {currentProcess.facts && (
+                  <div>
+                    <Label className="text-muted-foreground">Fatos</Label>
+                    <p className="text-sm whitespace-pre-wrap">{currentProcess.facts}</p>
+                  </div>
+                )}
+                
+                {currentProcess.requests && (
+                  <div>
+                    <Label className="text-muted-foreground">Pedidos</Label>
+                    <p className="text-sm whitespace-pre-wrap">{currentProcess.requests}</p>
+                  </div>
+                )}
+                
+                {currentProcess.evidence && (
+                  <div>
+                    <Label className="text-muted-foreground">Provas</Label>
+                    <p className="text-sm whitespace-pre-wrap">{currentProcess.evidence}</p>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog de Upload de Documentos */}
+      <Dialog open={isUploadDocsOpen} onOpenChange={setIsUploadDocsOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>📎 Upload de Documentos do Processo</DialogTitle>
+            <DialogDescription>
+              Adicione documentos relacionados ao processo atual para enriquecer o contexto do DAVID.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            <div className="border-2 border-dashed border-border rounded-lg p-8 text-center">
+              <Upload className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+              <p className="text-sm text-muted-foreground mb-2">
+                Arraste arquivos aqui ou clique para selecionar
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Formatos aceitos: PDF, DOCX, TXT
+              </p>
+              <input
+                type="file"
+                multiple
+                accept=".pdf,.docx,.txt"
+                className="hidden"
+                id="process-docs-upload"
+                onChange={(e) => {
+                  // TODO: Implementar upload de documentos
+                  const files = e.target.files;
+                  if (files && files.length > 0) {
+                    toast.info(`${files.length} arquivo(s) selecionado(s). Upload em desenvolvimento.`);
+                  }
+                }}
+              />
+              <Button
+                variant="outline"
+                className="mt-4"
+                onClick={() => document.getElementById('process-docs-upload')?.click()}
+              >
+                <Upload className="h-4 w-4 mr-2" />
+                Selecionar Arquivos
+              </Button>
+            </div>
+            
+            <div className="text-xs text-muted-foreground">
+              💡 <strong>Dica:</strong> Os documentos serão processados e seu conteúdo será disponibilizado para o DAVID usar como referência durante as conversas.
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog de Seleção de Prompt */}
+      <Dialog open={isPromptSelectorOpen} onOpenChange={setIsPromptSelectorOpen}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>📝 Aplicar Prompt Especializado</DialogTitle>
+            <DialogDescription>
+              Selecione um prompt salvo para aplicar na conversa atual.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-3">
+            {!savedPrompts || savedPrompts.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <MessageSquare className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                <p>Nenhum prompt salvo encontrado.</p>
+                <Button
+                  variant="outline"
+                  className="mt-4"
+                  onClick={() => {
+                    setIsPromptSelectorOpen(false);
+                    setLocation("/prompts");
+                  }}
+                >
+                  Criar Primeiro Prompt
+                </Button>
+              </div>
+            ) : (
+              savedPrompts.map((prompt) => (
+                <div
+                  key={prompt.id}
+                  className="border rounded-lg p-4 hover:bg-accent cursor-pointer transition-colors"
+                  onClick={() => {
+                    applyPromptMutation.mutate({
+                      conversationId: selectedConversationId!,
+                      promptId: prompt.id,
+                    });
+                    setIsPromptSelectorOpen(false);
+                  }}
+                >
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex-1">
+                      <h4 className="font-semibold">{prompt.title}</h4>
+                      {prompt.category && (
+                        <span className="text-xs text-muted-foreground">
+                          {prompt.category}
+                        </span>
+                      )}
+                      <p className="text-sm text-muted-foreground mt-2 line-clamp-2">
+                        {prompt.content}
+                      </p>
+                    </div>
+                    <ChevronRight className="h-5 w-5 text-muted-foreground flex-shrink-0" />
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+          
+          <div className="flex gap-2 justify-end mt-4 pt-4 border-t">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setIsPromptSelectorOpen(false);
+                setLocation("/prompts");
+              }}
+            >
+              Gerenciar Prompts
+            </Button>
           </div>
         </DialogContent>
       </Dialog>

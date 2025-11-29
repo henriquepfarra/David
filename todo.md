@@ -320,3 +320,28 @@
 - [x] Opção de marcar tese como obsoleta
 - [x] Adicionar rota no App.tsx
 - [x] Adicionar link no menu lateral
+
+
+## Menu de Ferramentas no Chat do DAVID
+
+- [x] Criar componente ToolsMenu com Popover
+- [x] Adicionar botão de ferramentas ao lado do input de mensagem
+- [x] Categoria "Processos":
+  - [x] Selecionar processo ativo
+  - [x] Ver dados do processo atual
+  - [x] Upload de documentos do processo
+- [x] Categoria "Prompts Especializados":
+  - [x] Listar prompts salvos
+  - [x] Aplicar prompt selecionado
+  - [x] Criar novo prompt (redireciona para /prompts)
+  - [x] Ir para página de prompts
+- [x] Categoria "Memória do DAVID":
+  - [x] Buscar precedentes similares (redireciona para /memoria)
+  - [x] Ver teses aprendidas (redireciona para /memoria)
+  - [x] Consultar minutas aprovadas (redireciona para /memoria)
+  - [x] Ir para página Memória
+- [x] Categoria "Base de Conhecimento":
+  - [x] Upload de jurisprudência (redireciona para /base-conhecimento)
+  - [x] Upload de modelo de minuta (redireciona para /base-conhecimento)
+  - [x] Gerenciar documentos (redireciona para /base-conhecimento)
+  - [x] Ver arquivos disponíveis (redireciona para /base-conhecimento)
