@@ -345,3 +345,54 @@
   - [x] Upload de modelo de minuta (redireciona para /base-conhecimento)
   - [x] Gerenciar documentos (redireciona para /base-conhecimento)
   - [x] Ver arquivos disponíveis (redireciona para /base-conhecimento)
+
+
+## Refatoração da Base de Conhecimento (Separação de Contextos)
+
+### Problema Identificado
+- [x] Base de Conhecimento está misturando documentos de referência com documentos de processos
+- [x] Necessário separar claramente os dois contextos
+
+### Arquitetura Correta
+
+**📚 Base de Conhecimento (Referência Global)**
+- [ ] Minutas antigas de referência (modelos aprovados)
+- [ ] Decisões históricas aprovadas
+- [ ] Teses jurídicas consolidadas
+- [ ] Jurisprudências relevantes
+- [ ] Material de estudo e referência
+
+**📂 Documentos do Processo (Específicos por Caso)**
+- [ ] PDFs extraídos do e-Proc
+- [ ] Documentos anexados ao processo
+- [ ] Provas e petições
+- [ ] Arquivos relacionados ao caso específico
+
+### Tarefas de Implementação
+
+#### 1. Schema do Banco de Dados
+- [x] Criar tabela `process_documents` separada de `knowledge_base`
+- [x] Adicionar campo `documentType` em knowledge_base (minuta, decisao, tese, jurisprudencia)
+- [x] Migrar dados existentes se necessário
+
+#### 2. Rotas tRPC
+- [ ] Criar router `processDocuments` separado
+- [ ] Manter router `knowledgeBase` apenas para referências globais
+- [ ] Atualizar rotas de upload para diferenciar contextos
+
+#### 3. Interface
+- [x] Atualizar página Base de Conhecimento para focar em referências
+- [ ] Criar seção de documentos na página de detalhes do Processo (futuro)
+- [x] Atualizar Menu de Ferramentas do DAVID para refletir separação
+- [x] Remover confusão entre "Upload de documentos" (processo) e "Upload de referências" (base)
+
+#### 4. Carga Inicial
+- [x] Receber minutas antigas do usuário
+- [x] Processar e carregar na Base de Conhecimento
+- [x] Categorizar por tipo (sentença, decisão, despacho, tutela)
+- [x] Extrair metadados relevantes
+
+#### 5. Integração com DAVID
+- [ ] DAVID deve acessar Base de Conhecimento como referência global
+- [ ] DAVID deve acessar Documentos do Processo apenas do processo ativo
+- [ ] Atualizar system prompt para refletir essa separação

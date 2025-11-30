@@ -105,13 +105,14 @@ export const userSettings = mysqlTable("userSettings", {
 export type UserSettings = typeof userSettings.$inferSelect;
 export type InsertUserSettings = typeof userSettings.$inferInsert;
 
-// Base de conhecimento - Documentos de referência
+// Base de conhecimento - Documentos de referência GLOBAIS (minutas modelo, teses, enunciados)
 export const knowledgeBase = mysqlTable("knowledgeBase", {
   id: int("id").autoincrement().primaryKey(),
   userId: int("userId").notNull(),
   title: varchar("title", { length: 300 }).notNull(),
   content: longtext("content").notNull(),
   fileType: varchar("fileType", { length: 50 }), // pdf, docx, txt
+  documentType: mysqlEnum("documentType", ["minuta_modelo", "decisao_referencia", "tese", "enunciado", "jurisprudencia", "outro"]).notNull().default("outro"), // Tipo específico do documento
   category: varchar("category", { length: 100 }), // decisoes, teses, referencias
   tags: text("tags"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
@@ -122,6 +123,26 @@ export const knowledgeBase = mysqlTable("knowledgeBase", {
 
 export type KnowledgeBase = typeof knowledgeBase.$inferSelect;
 export type InsertKnowledgeBase = typeof knowledgeBase.$inferInsert;
+
+// Documentos específicos de processos (PDFs do e-Proc, provas, petições)
+export const processDocuments = mysqlTable("processDocuments", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(),
+  processId: int("processId").notNull(), // Vinculado ao processo
+  title: varchar("title", { length: 300 }).notNull(),
+  content: longtext("content").notNull(), // Texto extraído do documento
+  fileType: varchar("fileType", { length: 50 }), // pdf, docx, txt, jpg
+  fileUrl: varchar("fileUrl", { length: 500 }), // URL do arquivo no S3 (se aplicável)
+  documentType: mysqlEnum("documentType", ["inicial", "prova", "peticao", "sentenca", "recurso", "outro"]).notNull().default("outro"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+}, (table) => ({
+  userIdIdx: index("processDocuments_userId_idx").on(table.userId),
+  processIdIdx: index("processDocuments_processId_idx").on(table.processId),
+}));
+
+export type ProcessDocument = typeof processDocuments.$inferSelect;
+export type InsertProcessDocument = typeof processDocuments.$inferInsert;
 
 // Conversas do DAVID (chat conversacional)
 export const conversations = mysqlTable("conversations", {

@@ -64,6 +64,13 @@
       "when": 1763744081709,
       "tag": "0008_giant_magneto",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "5",
+      "when": 1764510251114,
+      "tag": "0009_clean_the_renegades",
+      "breakpoints": true
     }
   ]
 }

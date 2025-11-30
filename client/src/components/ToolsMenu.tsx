@@ -83,7 +83,7 @@ export function ToolsMenu({
                 onClick={() => handleAction(onUploadDocuments)}
                 className="flex items-center justify-between w-full px-2 py-1.5 text-sm text-muted-foreground hover:text-foreground hover:bg-accent rounded-md transition-colors"
               >
-                <span>Upload de documentos</span>
+                <span>Upload docs do processo</span>
                 <ChevronRight className="h-4 w-4" />
               </button>
             </div>
@@ -147,14 +147,14 @@ export function ToolsMenu({
                 onClick={() => handleAction(onUploadKnowledge)}
                 className="flex items-center justify-between w-full px-2 py-1.5 text-sm text-muted-foreground hover:text-foreground hover:bg-accent rounded-md transition-colors"
               >
-                <span>Upload de documentos</span>
+                <span>Upload de referências</span>
                 <ChevronRight className="h-4 w-4" />
               </button>
               <button
                 onClick={() => handleAction(onManageKnowledge)}
                 className="flex items-center justify-between w-full px-2 py-1.5 text-sm text-muted-foreground hover:text-foreground hover:bg-accent rounded-md transition-colors"
               >
-                <span>Gerenciar documentos</span>
+                <span>Gerenciar base</span>
                 <ChevronRight className="h-4 w-4" />
               </button>
             </div>
