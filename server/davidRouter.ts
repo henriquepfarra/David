@@ -28,7 +28,9 @@ import {
   updateLearnedThesis,
   deleteLearnedThesis,
   searchSimilarTheses,
+  getUserKnowledgeBase,
 } from "./db";
+import { searchSimilarDocuments } from "./_core/textSearch";
 import { invokeLLM, invokeLLMStream } from "./_core/llm";
 import { observable } from "@trpc/server/observable";
 import { extractThesisFromDraft } from "./thesisExtractor";
@@ -209,6 +211,62 @@ export const davidRouter = router({
           });
       }
 
+      // Buscar documentos relevantes na Base de Conhecimento (RAG)
+      let knowledgeBaseContext = "";
+      try {
+        const allDocs = await getUserKnowledgeBase(ctx.user.id);
+        if (allDocs.length > 0) {
+          // Buscar documentos similares à mensagem do usuário
+          const relevantDocs = searchSimilarDocuments(
+            allDocs.map(doc => ({
+              id: doc.id,
+              title: doc.title,
+              content: doc.content,
+              documentType: doc.documentType || undefined,
+            })),
+            input.content,
+            {
+              limit: 3, // Top 3 documentos mais relevantes
+              minSimilarity: 0.10, // Threshold mínimo de similaridade
+            }
+          );
+
+          if (relevantDocs.length > 0) {
+            // Separar documentos citáveis (enunciados) de não-citáveis (minutas/teses/decisões)
+            const citableDocs = relevantDocs.filter(d => d.documentType === 'enunciado');
+            const referenceDocs = relevantDocs.filter(d => d.documentType !== 'enunciado');
+
+            knowledgeBaseContext = `\n\n## BASE DE CONHECIMENTO\n\n`;
+
+            // Enunciados (CITÁVEIS)
+            if (citableDocs.length > 0) {
+              knowledgeBaseContext += `### Enunciados Aplicáveis\n\n`;
+              citableDocs.forEach((doc) => {
+                const contentPreview = doc.content.length > 3000 
+                  ? doc.content.substring(0, 3000) + "..." 
+                  : doc.content;
+                knowledgeBaseContext += `**${doc.title}**\n${contentPreview}\n\n`;
+              });
+              knowledgeBaseContext += `**INSTRUÇÃO:** Cite esses enunciados EXPLICITAMENTE quando aplicável (ex: "Conforme Enunciado X do FONAJE..."). Eles são fontes oficiais e devem ser mencionados.\n\n`;
+            }
+
+            // Minutas/Teses/Decisões (NÃO-CITÁVEIS - apenas referência interna)
+            if (referenceDocs.length > 0) {
+              knowledgeBaseContext += `### Referências Internas (Uso Implícito)\n\n`;
+              referenceDocs.forEach((doc) => {
+                const contentPreview = doc.content.length > 2000 
+                  ? doc.content.substring(0, 2000) + "..." 
+                  : doc.content;
+                knowledgeBaseContext += `${contentPreview}\n\n`;
+              });
+              knowledgeBaseContext += `**INSTRUÇÃO:** Use o conhecimento acima para enriquecer sua resposta, MAS NÃO cite a fonte (minutas/teses/decisões são repositórios internos). Apresente como seu próprio conhecimento jurídico.\n`;
+            }
+          }
+        }
+      } catch (error) {
+        console.error("[RAG] Erro ao buscar documentos:", error);
+      }
+
       // Montar contexto do processo se houver
       let processContext = "";
       let similarCasesContext = "";
@@ -243,7 +301,7 @@ export const davidRouter = router({
       // Montar mensagens para a IA
       const systemPrompt = input.systemPromptOverride || DEFAULT_DAVID_SYSTEM_PROMPT;
       const llmMessages: Array<{ role: "system" | "user" | "assistant"; content: string }> = [
-        { role: "system", content: systemPrompt + processContext + similarCasesContext },
+        { role: "system", content: systemPrompt + knowledgeBaseContext + processContext + similarCasesContext },
       ];
 
       // Adicionar histórico (últimas 10 mensagens para não estourar contexto)
@@ -332,6 +390,62 @@ export const davidRouter = router({
           });
       }
 
+      // Buscar documentos relevantes na Base de Conhecimento (RAG)
+      let knowledgeBaseContext = "";
+      try {
+        const allDocs = await getUserKnowledgeBase(ctx.user.id);
+        if (allDocs.length > 0) {
+          // Buscar documentos similares à mensagem do usuário
+          const relevantDocs = searchSimilarDocuments(
+            allDocs.map(doc => ({
+              id: doc.id,
+              title: doc.title,
+              content: doc.content,
+              documentType: doc.documentType || undefined,
+            })),
+            input.content,
+            {
+              limit: 3, // Top 3 documentos mais relevantes
+              minSimilarity: 0.10, // Threshold mínimo de similaridade
+            }
+          );
+
+          if (relevantDocs.length > 0) {
+            // Separar documentos citáveis (enunciados) de não-citáveis (minutas/teses/decisões)
+            const citableDocs = relevantDocs.filter(d => d.documentType === 'enunciado');
+            const referenceDocs = relevantDocs.filter(d => d.documentType !== 'enunciado');
+
+            knowledgeBaseContext = `\n\n## BASE DE CONHECIMENTO\n\n`;
+
+            // Enunciados (CITÁVEIS)
+            if (citableDocs.length > 0) {
+              knowledgeBaseContext += `### Enunciados Aplicáveis\n\n`;
+              citableDocs.forEach((doc) => {
+                const contentPreview = doc.content.length > 3000 
+                  ? doc.content.substring(0, 3000) + "..." 
+                  : doc.content;
+                knowledgeBaseContext += `**${doc.title}**\n${contentPreview}\n\n`;
+              });
+              knowledgeBaseContext += `**INSTRUÇÃO:** Cite esses enunciados EXPLICITAMENTE quando aplicável (ex: "Conforme Enunciado X do FONAJE..."). Eles são fontes oficiais e devem ser mencionados.\n\n`;
+            }
+
+            // Minutas/Teses/Decisões (NÃO-CITÁVEIS - apenas referência interna)
+            if (referenceDocs.length > 0) {
+              knowledgeBaseContext += `### Referências Internas (Uso Implícito)\n\n`;
+              referenceDocs.forEach((doc) => {
+                const contentPreview = doc.content.length > 2000 
+                  ? doc.content.substring(0, 2000) + "..." 
+                  : doc.content;
+                knowledgeBaseContext += `${contentPreview}\n\n`;
+              });
+              knowledgeBaseContext += `**INSTRUÇÃO:** Use o conhecimento acima para enriquecer sua resposta, MAS NÃO cite a fonte (minutas/teses/decisões são repositórios internos). Apresente como seu próprio conhecimento jurídico.\n`;
+            }
+          }
+        }
+      } catch (error) {
+        console.error("[RAG] Erro ao buscar documentos:", error);
+      }
+
       // Montar contexto do processo se houver
       let processContext = "";
       let similarCasesContext = "";
@@ -366,7 +480,7 @@ export const davidRouter = router({
       // Montar mensagens para a IA
       const systemPrompt = input.systemPromptOverride || DEFAULT_DAVID_SYSTEM_PROMPT;
       const llmMessages: Array<{ role: "system" | "user" | "assistant"; content: string }> = [
-        { role: "system", content: systemPrompt + processContext + similarCasesContext },
+        { role: "system", content: systemPrompt + knowledgeBaseContext + processContext + similarCasesContext },
       ];
 
       // Adicionar histórico (últimas 10 mensagens)

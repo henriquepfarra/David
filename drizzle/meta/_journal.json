@@ -71,6 +71,13 @@
       "when": 1764510251114,
       "tag": "0009_clean_the_renegades",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "5",
+      "when": 1764589693505,
+      "tag": "0010_bored_typhoid_mary",
+      "breakpoints": true
     }
   ]
 }

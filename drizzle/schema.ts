@@ -115,6 +115,7 @@ export const knowledgeBase = mysqlTable("knowledgeBase", {
   documentType: mysqlEnum("documentType", ["minuta_modelo", "decisao_referencia", "tese", "enunciado", "jurisprudencia", "outro"]).notNull().default("outro"), // Tipo específico do documento
   category: varchar("category", { length: 100 }), // decisoes, teses, referencias
   tags: text("tags"),
+  embedding: text("embedding"), // Vetor de embedding para busca semântica (JSON array)
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 }, (table) => ({

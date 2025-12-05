@@ -396,3 +396,45 @@
 - [ ] DAVID deve acessar Base de Conhecimento como referência global
 - [ ] DAVID deve acessar Documentos do Processo apenas do processo ativo
 - [ ] Atualizar system prompt para refletir essa separação
+
+
+## Implementação RAG (Retrieval-Augmented Generation)
+
+### Objetivo
+Fazer o DAVID usar automaticamente documentos da Base de Conhecimento ao gerar decisões, fundamentando com enunciados, teses e minutas modelo relevantes.
+
+### Arquitetura RAG
+
+**Fluxo:**
+1. Usuário pede uma decisão sobre "dano moral por negativação indevida"
+2. Sistema gera embedding da consulta
+3. Busca documentos similares na Base de Conhecimento (top 3-5)
+4. Injeta documentos relevantes no contexto do DAVID
+5. DAVID gera decisão fundamentada nos precedentes
+
+### Tarefas de Implementação
+
+#### 1. Schema e Embeddings
+- [ ] Adicionar campo `embedding` (JSON) na tabela `knowledgeBase`
+- [ ] Criar função `generateEmbedding()` usando API de embeddings
+- [ ] Gerar embeddings para todos os documentos existentes
+
+#### 2. Busca Semântica
+- [ ] Criar função `searchSimilarDocuments(query, limit)` 
+- [ ] Implementar cálculo de similaridade por cosseno
+- [ ] Criar rota tRPC `knowledgeBase.search`
+
+#### 3. Integração com DAVID
+- [ ] Modificar fluxo de geração para buscar documentos relevantes
+- [ ] Injetar documentos encontrados no system prompt
+- [ ] Formatar contexto: "Fundamente-se nos seguintes documentos: [docs]"
+
+#### 4. Otimizações
+- [ ] Cachear embeddings para evitar recálculo
+- [ ] Adicionar filtro por tipo de documento (enunciados, teses, minutas)
+- [ ] Limitar tamanho do contexto injetado (max tokens)
+
+#### 5. Testes
+- [ ] Testar busca com query sobre "dano moral"
+- [ ] Verificar se DAVID cita Enunciado FONAJE relevante
+- [ ] Validar qualidade das decisões geradas
