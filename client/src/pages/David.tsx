@@ -60,10 +60,15 @@ export default function David() {
   const [isProcessSelectorOpen, setIsProcessSelectorOpen] = useState(false);
   const [isProcessDataOpen, setIsProcessDataOpen] = useState(false);
   const [isUploadDocsOpen, setIsUploadDocsOpen] = useState(false);
+  const [uploadingFiles, setUploadingFiles] = useState<File[]>([]);
+  const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({});
   const [isPromptSelectorOpen, setIsPromptSelectorOpen] = useState(false);
 
   // Carregar prompts salvos
   const { data: savedPrompts } = trpc.david.savedPrompts.list.useQuery();
+  
+  // Mutation para upload de documentos
+  const uploadDocMutation = trpc.processDocuments.upload.useMutation();
 
   // Queries
   const { data: conversations, refetch: refetchConversations } = trpc.david.listConversations.useQuery();
@@ -933,10 +938,9 @@ export default function David() {
                 className="hidden"
                 id="process-docs-upload"
                 onChange={(e) => {
-                  // TODO: Implementar upload de documentos
-                  const files = e.target.files;
-                  if (files && files.length > 0) {
-                    toast.info(`${files.length} arquivo(s) selecionado(s). Upload em desenvolvimento.`);
+                  const files = Array.from(e.target.files || []);
+                  if (files.length > 0) {
+                    setUploadingFiles(files);
                   }
                 }}
               />
@@ -949,6 +953,88 @@ export default function David() {
                 Selecionar Arquivos
               </Button>
             </div>
+            
+            {/* Preview de arquivos selecionados */}
+            {uploadingFiles.length > 0 && (
+              <div className="space-y-2">
+                <h4 className="text-sm font-medium">Arquivos selecionados:</h4>
+                {uploadingFiles.map((file, idx) => (
+                  <div key={idx} className="flex items-center justify-between p-2 bg-muted rounded">
+                    <div className="flex items-center gap-2">
+                      <FileText className="h-4 w-4" />
+                      <span className="text-sm">{file.name}</span>
+                      <span className="text-xs text-muted-foreground">({(file.size / 1024).toFixed(1)} KB)</span>
+                    </div>
+                    {uploadProgress[file.name] !== undefined && (
+                      <span className="text-xs text-muted-foreground">{uploadProgress[file.name]}%</span>
+                    )}
+                  </div>
+                ))}
+                <div className="flex gap-2">
+                  <Button
+                    onClick={async () => {
+                      if (!selectedProcessId) {
+                        toast.error("Nenhum processo selecionado");
+                        return;
+                      }
+
+                      for (const file of uploadingFiles) {
+                        try {
+                          setUploadProgress(prev => ({ ...prev, [file.name]: 0 }));
+                          
+                          // Ler arquivo como base64
+                          const reader = new FileReader();
+                          const fileData = await new Promise<string>((resolve, reject) => {
+                            reader.onload = () => {
+                              const base64 = reader.result as string;
+                              resolve(base64.split(',')[1]); // Remove "data:...;base64,"
+                            };
+                            reader.onerror = reject;
+                            reader.readAsDataURL(file);
+                          });
+
+                          setUploadProgress(prev => ({ ...prev, [file.name]: 50 }));
+
+                          // Upload via tRPC
+                          const fileType = file.name.split('.').pop() || 'txt';
+                          await uploadDocMutation.mutateAsync({
+                            processId: selectedProcessId,
+                            fileName: file.name,
+                            fileData,
+                            fileType,
+                            documentType: 'outro',
+                          });
+
+                          setUploadProgress(prev => ({ ...prev, [file.name]: 100 }));
+                          toast.success(`${file.name} enviado com sucesso!`);
+                        } catch (error) {
+                          console.error('Erro no upload:', error);
+                          toast.error(`Erro ao enviar ${file.name}`);
+                        }
+                      }
+
+                      // Limpar estado
+                      setUploadingFiles([]);
+                      setUploadProgress({});
+                      setIsUploadDocsOpen(false);
+                    }}
+                    className="flex-1"
+                  >
+                    <Upload className="h-4 w-4 mr-2" />
+                    Enviar Arquivos
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setUploadingFiles([]);
+                      setUploadProgress({});
+                    }}
+                  >
+                    Cancelar
+                  </Button>
+                </div>
+              </div>
+            )}
             
             <div className="text-xs text-muted-foreground">
               💡 <strong>Dica:</strong> Os documentos serão processados e seu conteúdo será disponibilizado para o DAVID usar como referência durante as conversas.

@@ -560,3 +560,72 @@ export async function searchSimilarTheses(userId: number, keywords: string[]): P
     .orderBy(desc(learnedTheses.createdAt))
     .limit(10);
 }
+
+// ===== Process Documents =====
+
+export async function createProcessDocument(doc: {
+  userId: number;
+  processId: number;
+  title: string;
+  content: string;
+  fileType?: string;
+  fileUrl?: string;
+  documentType?: "inicial" | "prova" | "peticao" | "sentenca" | "recurso" | "outro";
+}) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  const { processDocuments } = await import("../drizzle/schema");
+  
+  const result = await db.insert(processDocuments).values({
+    userId: doc.userId,
+    processId: doc.processId,
+    title: doc.title,
+    content: doc.content,
+    fileType: doc.fileType || null,
+    fileUrl: doc.fileUrl || null,
+    documentType: doc.documentType || "outro",
+  });
+
+  return result;
+}
+
+export async function getProcessDocuments(processId: number, userId: number) {
+  const db = await getDb();
+  if (!db) return [];
+
+  const { processDocuments } = await import("../drizzle/schema");
+  const { eq, and } = await import("drizzle-orm");
+
+  const docs = await db
+    .select()
+    .from(processDocuments)
+    .where(
+      and(
+        eq(processDocuments.processId, processId),
+        eq(processDocuments.userId, userId)
+      )
+    )
+    .orderBy(processDocuments.createdAt);
+
+  return docs;
+}
+
+export async function deleteProcessDocument(id: number, userId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  const { processDocuments } = await import("../drizzle/schema");
+  const { eq, and } = await import("drizzle-orm");
+
+  await db
+    .delete(processDocuments)
+    .where(
+      and(
+        eq(processDocuments.id, id),
+        eq(processDocuments.userId, userId)
+      )
+    );
+
+  return { success: true };
+}

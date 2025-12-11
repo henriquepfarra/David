@@ -438,3 +438,41 @@ Fazer o DAVID usar automaticamente documentos da Base de Conhecimento ao gerar d
 - [ ] Testar busca com query sobre "dano moral"
 - [ ] Verificar se DAVID cita Enunciado FONAJE relevante
 - [ ] Validar qualidade das decisões geradas
+
+
+## Upload Real de Documentos do Processo
+
+### Objetivo
+Implementar upload funcional de documentos (PDFs, DOCX, imagens) vinculados a processos específicos, com armazenamento em S3 e extração de conteúdo para enriquecer o contexto do DAVID.
+
+### Tarefas
+
+#### 1. Schema e Backend
+- [ ] Verificar se tabela `processDocuments` existe (já criada na refatoração anterior)
+- [ ] Criar rotas tRPC para upload de documentos do processo
+  - [ ] `uploadDocument` - Upload de arquivo com S3
+  - [ ] `listDocuments` - Listar documentos de um processo
+  - [ ] `deleteDocument` - Remover documento
+- [ ] Implementar extração de texto de PDFs e DOCX
+- [ ] Salvar metadados (nome, tipo, tamanho, URL S3, texto extraído)
+
+#### 2. Interface
+- [ ] Atualizar dialog de upload no ToolsMenu (David.tsx)
+- [ ] Implementar componente de upload com drag & drop
+- [ ] Adicionar preview de arquivos selecionados
+- [ ] Mostrar progresso de upload
+- [ ] Listar documentos já enviados do processo atual
+- [ ] Permitir deletar documentos
+
+#### 3. Integração com DAVID
+- [ ] Injetar conteúdo dos documentos do processo no contexto do chat
+- [ ] Adicionar seção "Documentos do Processo" no system prompt
+- [ ] Permitir que DAVID cite documentos específicos quando relevante
+
+#### 4. Testes
+- [ ] Testar upload de PDF
+- [ ] Testar upload de DOCX
+- [ ] Testar extração de texto
+- [ ] Testar listagem de documentos
+- [ ] Testar deleção de documentos
+- [ ] Testar integração com contexto do DAVID

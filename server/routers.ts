@@ -8,10 +8,12 @@ import { generateDraft } from "./ghostwriter";
 import { fetchDriveContentCached } from "./driveHelper";
 import { listAvailableModels } from "./llmModels";
 import { davidRouter } from "./davidRouter";
+import { processDocumentsRouter } from "./processDocumentsRouter";
 
 export const appRouter = router({
   system: systemRouter,
   david: davidRouter,
+  processDocuments: processDocumentsRouter,
   auth: router({
     me: publicProcedure.query(opts => opts.ctx.user),
     logout: publicProcedure.mutation(({ ctx }) => {

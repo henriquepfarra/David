@@ -29,6 +29,7 @@ import {
   deleteLearnedThesis,
   searchSimilarTheses,
   getUserKnowledgeBase,
+  getProcessDocuments,
 } from "./db";
 import { searchSimilarDocuments } from "./_core/textSearch";
 import { invokeLLM, invokeLLMStream } from "./_core/llm";
@@ -270,11 +271,32 @@ export const davidRouter = router({
       // Montar contexto do processo se houver
       let processContext = "";
       let similarCasesContext = "";
+      let processDocsContext = "";
       
       if (conversation.processId) {
         const process = await getProcessForContext(conversation.processId);
         if (process) {
           processContext = `\n\n## PROCESSO SELECIONADO\n\n**Número:** ${process.processNumber}\n**Autor:** ${process.plaintiff}\n**Réu:** ${process.defendant}\n**Vara:** ${process.court}\n**Assunto:** ${process.subject}\n**Fatos:** ${process.facts}\n**Pedidos:** ${process.requests}\n**Status:** ${process.status}\n`;
+          
+          // Buscar documentos do processo
+          try {
+            console.log(`[ProcessDocs] Buscando documentos para processId=${conversation.processId}, userId=${ctx.user.id}`);
+            const processDocs = await getProcessDocuments(conversation.processId, ctx.user.id);
+            console.log(`[ProcessDocs] Encontrados ${processDocs.length} documentos`);
+            if (processDocs.length > 0) {
+              processDocsContext = `\n\n### DOCUMENTOS DO PROCESSO\n\n`;
+              processDocs.forEach((doc: any) => {
+                const contentPreview = doc.content.length > 2000 
+                  ? doc.content.substring(0, 2000) + "..." 
+                  : doc.content;
+                processDocsContext += `**${doc.title}** (${doc.documentType})\n${contentPreview}\n\n`;
+              });
+              processDocsContext += `**INSTRUÇÃO:** Use o conteúdo dos documentos acima como referência para suas respostas. Eles contêm informações importantes do processo.\n`;
+            }
+          } catch (error) {
+            console.error("[ProcessDocs] Erro ao buscar documentos:", error);
+          }
+          console.log(`[ProcessDocs] processDocsContext length: ${processDocsContext.length}`);
           
           // Buscar casos similares baseados no assunto
           if (process.subject) {
@@ -301,7 +323,7 @@ export const davidRouter = router({
       // Montar mensagens para a IA
       const systemPrompt = input.systemPromptOverride || DEFAULT_DAVID_SYSTEM_PROMPT;
       const llmMessages: Array<{ role: "system" | "user" | "assistant"; content: string }> = [
-        { role: "system", content: systemPrompt + knowledgeBaseContext + processContext + similarCasesContext },
+        { role: "system", content: systemPrompt + knowledgeBaseContext + processContext + processDocsContext + similarCasesContext },
       ];
 
       // Adicionar histórico (últimas 10 mensagens para não estourar contexto)
@@ -449,11 +471,32 @@ export const davidRouter = router({
       // Montar contexto do processo se houver
       let processContext = "";
       let similarCasesContext = "";
+      let processDocsContext = "";
       
       if (conversation.processId) {
         const process = await getProcessForContext(conversation.processId);
         if (process) {
           processContext = `\n\n## PROCESSO SELECIONADO\n\n**Número:** ${process.processNumber}\n**Autor:** ${process.plaintiff}\n**Réu:** ${process.defendant}\n**Vara:** ${process.court}\n**Assunto:** ${process.subject}\n**Fatos:** ${process.facts}\n**Pedidos:** ${process.requests}\n**Status:** ${process.status}\n`;
+          
+          // Buscar documentos do processo
+          try {
+            console.log(`[ProcessDocs] Buscando documentos para processId=${conversation.processId}, userId=${ctx.user.id}`);
+            const processDocs = await getProcessDocuments(conversation.processId, ctx.user.id);
+            console.log(`[ProcessDocs] Encontrados ${processDocs.length} documentos`);
+            if (processDocs.length > 0) {
+              processDocsContext = `\n\n### DOCUMENTOS DO PROCESSO\n\n`;
+              processDocs.forEach((doc: any) => {
+                const contentPreview = doc.content.length > 2000 
+                  ? doc.content.substring(0, 2000) + "..." 
+                  : doc.content;
+                processDocsContext += `**${doc.title}** (${doc.documentType})\n${contentPreview}\n\n`;
+              });
+              processDocsContext += `**INSTRUÇÃO:** Use o conteúdo dos documentos acima como referência para suas respostas. Eles contêm informações importantes do processo.\n`;
+            }
+          } catch (error) {
+            console.error("[ProcessDocs] Erro ao buscar documentos:", error);
+          }
+          console.log(`[ProcessDocs] processDocsContext length: ${processDocsContext.length}`);
           
           // Buscar casos similares baseados no assunto
           if (process.subject) {
@@ -480,7 +523,7 @@ export const davidRouter = router({
       // Montar mensagens para a IA
       const systemPrompt = input.systemPromptOverride || DEFAULT_DAVID_SYSTEM_PROMPT;
       const llmMessages: Array<{ role: "system" | "user" | "assistant"; content: string }> = [
-        { role: "system", content: systemPrompt + knowledgeBaseContext + processContext + similarCasesContext },
+        { role: "system", content: systemPrompt + knowledgeBaseContext + processContext + processDocsContext + similarCasesContext },
       ];
 
       // Adicionar histórico (últimas 10 mensagens)
