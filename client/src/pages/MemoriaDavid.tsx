@@ -26,10 +26,12 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Brain, FileText, Tag, Search, Eye, Edit, Archive, Trash2, CheckSquare } from "lucide-react";
+import { Brain, FileText, Tag, Search, Eye, Edit, Archive, Trash2, CheckSquare, ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
+import { useLocation } from "wouter";
 
 export default function MemoriaDavid() {
+  const [, setLocation] = useLocation();
   const [activeTab, setActiveTab] = useState("teses");
   const [searchTerm, setSearchTerm] = useState("");
   
@@ -195,11 +197,21 @@ export default function MemoriaDavid() {
 
   return (
     <div className="container mx-auto py-6 space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">Memória do DAVID</h1>
-        <p className="text-muted-foreground">
-          Gerencie teses aprendidas, minutas aprovadas e temas recorrentes
-        </p>
+      <div className="flex items-center gap-4">
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => setLocation("/")}
+          className="shrink-0"
+        >
+          <ArrowLeft className="h-5 w-5" />
+        </Button>
+        <div>
+          <h1 className="text-3xl font-bold">Memória do DAVID</h1>
+          <p className="text-muted-foreground">
+            Gerencie teses aprendidas, minutas aprovadas e temas recorrentes
+          </p>
+        </div>
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
