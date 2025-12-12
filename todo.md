@@ -518,3 +518,19 @@ Reorganizar página Memória com abas separadas, seleção múltipla e ações e
 - [ ] Rota tRPC para deletar múltiplas minutas
 - [ ] Rota tRPC para marcar múltiplas teses como obsoletas
 - [ ] Otimizar queries para performance
+
+
+## Correção de Extração de PDF no Cadastro de Processo
+
+### Problema
+- [x] Erro "API não retornou resposta válida" ao extrair dados de PDF
+- [x] Schema JSON com `strict: true` não aceita `type: ["string", "null"]`
+
+### Tarefas
+- [x] Investigar código de extração de PDF
+- [x] Verificar chamada à API LLM
+- [x] Corrigir tratamento de resposta (schema JSON)
+- [x] Testar com PDF real
+
+### Resultado
+✅ **RESOLVIDO!** Extração funcionando perfeitamente. Todos os campos preenchidos automaticamente.

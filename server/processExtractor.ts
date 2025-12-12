@@ -117,17 +117,17 @@ export async function extractProcessData(
           schema: {
             type: "object",
             properties: {
-              numeroProcesso: { type: ["string", "null"], description: "Número do processo no formato CNJ" },
-              autor: { type: ["string", "null"], description: "Nome completo do autor/requerente" },
-              reu: { type: ["string", "null"], description: "Nome completo do réu/requerido" },
-              vara: { type: ["string", "null"], description: "Nome da vara ou juízo" },
-              assunto: { type: ["string", "null"], description: "Assunto principal do processo" },
-              valorCausa: { type: ["string", "null"], description: "Valor da causa" },
-              dataDistribuicao: { type: ["string", "null"], description: "Data de distribuição" },
-              resumoFatos: { type: ["string", "null"], description: "Resumo dos fatos" },
-              pedidos: { type: ["string", "null"], description: "Pedidos principais" },
+              numeroProcesso: { type: "string", description: "Número do processo no formato CNJ" },
+              autor: { type: "string", description: "Nome completo do autor/requerente" },
+              reu: { type: "string", description: "Nome completo do réu/requerido" },
+              vara: { type: "string", description: "Nome da vara ou juízo" },
+              assunto: { type: "string", description: "Assunto principal do processo" },
+              valorCausa: { type: "string", description: "Valor da causa" },
+              dataDistribuicao: { type: "string", description: "Data de distribuição" },
+              resumoFatos: { type: "string", description: "Resumo dos fatos" },
+              pedidos: { type: "string", description: "Pedidos principais" },
             },
-            required: ["numeroProcesso", "autor", "reu", "vara", "assunto", "valorCausa", "dataDistribuicao", "resumoFatos", "pedidos"],
+            required: [],
             additionalProperties: false,
           },
         },
@@ -153,17 +153,17 @@ export async function extractProcessData(
     // Validar e limpar dados - aceitar tanto camelCase quanto português
     const data = extractedData as any;
     const cleanedData = {
-      numeroProcesso: data.numeroProcesso || data['Número do Processo'] || undefined,
-      autor: data.autor || data['Autor/Requerente'] || data.Autor || undefined,
-      reu: data.reu || data['Réu/Requerido'] || data.Réu || undefined,
-      vara: data.vara || data['Vara/Juízo'] || data.Vara || undefined,
-      assunto: data.assunto || data.Assunto || undefined,
-      valorCausa: data.valorCausa || data['Valor da Causa'] || undefined,
-      dataDistribuicao: data.dataDistribuicao || data['Data de Distribuição'] || undefined,
-      resumoFatos: data.resumoFatos || data['Resumo dos Fatos'] || undefined,
+      numeroProcesso: data.numeroProcesso || data['Número do Processo'] || null,
+      autor: data.autor || data['Autor/Requerente'] || data.Autor || null,
+      reu: data.reu || data['Réu/Requerido'] || data.Réu || null,
+      vara: data.vara || data['Vara/Juízo'] || data.Vara || null,
+      assunto: data.assunto || data.Assunto || null,
+      valorCausa: data.valorCausa || data['Valor da Causa'] || null,
+      dataDistribuicao: data.dataDistribuicao || data['Data de Distribuição'] || null,
+      resumoFatos: data.resumoFatos || data['Resumo dos Fatos'] || null,
       pedidos: Array.isArray(data.pedidos || data.Pedidos) 
         ? (data.pedidos || data.Pedidos).join('\n') 
-        : (data.pedidos || data.Pedidos || undefined),
+        : (data.pedidos || data.Pedidos || null),
     };
     console.log('[extractProcessData] cleanedData:', JSON.stringify(cleanedData, null, 2));
 
@@ -236,17 +236,17 @@ export async function extractProcessDataFromImages(
           schema: {
             type: "object",
             properties: {
-              numeroProcesso: { type: ["string", "null"], description: "Número do processo no formato CNJ" },
-              autor: { type: ["string", "null"], description: "Nome completo do autor/requerente" },
-              reu: { type: ["string", "null"], description: "Nome completo do réu/requerido" },
-              vara: { type: ["string", "null"], description: "Nome da vara ou juízo" },
-              assunto: { type: ["string", "null"], description: "Assunto principal do processo" },
-              valorCausa: { type: ["string", "null"], description: "Valor da causa" },
-              dataDistribuicao: { type: ["string", "null"], description: "Data de distribuição" },
-              resumoFatos: { type: ["string", "null"], description: "Resumo dos fatos" },
-              pedidos: { type: ["string", "null"], description: "Pedidos principais" },
+              numeroProcesso: { type: "string", description: "Número do processo no formato CNJ" },
+              autor: { type: "string", description: "Nome completo do autor/requerente" },
+              reu: { type: "string", description: "Nome completo do réu/requerido" },
+              vara: { type: "string", description: "Nome da vara ou juízo" },
+              assunto: { type: "string", description: "Assunto principal do processo" },
+              valorCausa: { type: "string", description: "Valor da causa" },
+              dataDistribuicao: { type: "string", description: "Data de distribuição" },
+              resumoFatos: { type: "string", description: "Resumo dos fatos" },
+              pedidos: { type: "string", description: "Pedidos principais" },
             },
-            required: ["numeroProcesso", "autor", "reu", "vara", "assunto", "valorCausa", "dataDistribuicao", "resumoFatos", "pedidos"],
+            required: [],
             additionalProperties: false,
           },
         },
@@ -272,17 +272,17 @@ export async function extractProcessDataFromImages(
     // Validar e limpar dados - aceitar tanto camelCase quanto português
     const data = extractedData as any;
     const cleanedData = {
-      numeroProcesso: data.numeroProcesso || data['Número do Processo'] || undefined,
-      autor: data.autor || data['Autor/Requerente'] || data.Autor || undefined,
-      reu: data.reu || data['Réu/Requerido'] || data.Réu || undefined,
-      vara: data.vara || data['Vara/Juízo'] || data.Vara || undefined,
-      assunto: data.assunto || data.Assunto || undefined,
-      valorCausa: data.valorCausa || data['Valor da Causa'] || undefined,
-      dataDistribuicao: data.dataDistribuicao || data['Data de Distribuição'] || undefined,
-      resumoFatos: data.resumoFatos || data['Resumo dos Fatos'] || undefined,
+      numeroProcesso: data.numeroProcesso || data['Número do Processo'] || null,
+      autor: data.autor || data['Autor/Requerente'] || data.Autor || null,
+      reu: data.reu || data['Réu/Requerido'] || data.Réu || null,
+      vara: data.vara || data['Vara/Juízo'] || data.Vara || null,
+      assunto: data.assunto || data.Assunto || null,
+      valorCausa: data.valorCausa || data['Valor da Causa'] || null,
+      dataDistribuicao: data.dataDistribuicao || data['Data de Distribuição'] || null,
+      resumoFatos: data.resumoFatos || data['Resumo dos Fatos'] || null,
       pedidos: Array.isArray(data.pedidos || data.Pedidos) 
         ? (data.pedidos || data.Pedidos).join('\n') 
-        : (data.pedidos || data.Pedidos || undefined),
+        : (data.pedidos || data.Pedidos || null),
     };
     console.log('[extractProcessData] cleanedData:', JSON.stringify(cleanedData, null, 2));
 
