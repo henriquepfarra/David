@@ -476,3 +476,45 @@ Implementar upload funcional de documentos (PDFs, DOCX, imagens) vinculados a pr
 - [ ] Testar listagem de documentos
 - [ ] Testar deleção de documentos
 - [ ] Testar integração com contexto do DAVID
+
+
+## Refatoração da Memória do DAVID
+
+### Objetivo
+Reorganizar página Memória com abas separadas, seleção múltipla e ações em massa para melhor gerenciamento.
+
+### Nova Estrutura
+- [ ] Criar sistema de abas (Teses | Minutas Aprovadas | Temas)
+- [ ] Remover dashboard de estatísticas (simplificar interface)
+- [ ] Cada aba com sua própria listagem e filtros
+
+### Aba "Teses Aprendidas"
+- [ ] Listagem de teses com checkboxes de seleção
+- [ ] Seleção múltipla (checkbox "Selecionar Todos")
+- [ ] Ações em massa: Deletar selecionadas, Marcar como obsoletas
+- [ ] Filtros: por tema, data, status (ativa/obsoleta)
+- [ ] Busca por palavras-chave
+- [ ] Visualização detalhada (modal)
+- [ ] Edição inline ou modal
+
+### Aba "Minutas Aprovadas"
+- [ ] Listagem de minutas com checkboxes
+- [ ] Seleção múltipla
+- [ ] Ações em massa: Deletar selecionadas
+- [ ] Filtros: por tipo de minuta, data, processo
+- [ ] Busca por conteúdo
+- [ ] Visualização detalhada (modal)
+- [ ] Link para processo relacionado
+
+### Aba "Temas"
+- [ ] Agrupamento automático de teses por palavras-chave
+- [ ] Contagem de teses por tema
+- [ ] Clicar no tema → filtra teses relacionadas
+- [ ] Visualização de nuvem de palavras ou lista
+- [ ] Estatísticas: temas mais recorrentes
+
+### Backend
+- [ ] Rota tRPC para deletar múltiplas teses
+- [ ] Rota tRPC para deletar múltiplas minutas
+- [ ] Rota tRPC para marcar múltiplas teses como obsoletas
+- [ ] Otimizar queries para performance
