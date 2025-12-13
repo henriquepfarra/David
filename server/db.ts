@@ -288,11 +288,12 @@ export async function getUserConversations(userId: number): Promise<Conversation
   const db = await getDb();
   if (!db) return [];
   
+  // Ordenar: fixadas primeiro (isPinned DESC), depois por data de atualização (updatedAt DESC)
   return await db
     .select()
     .from(conversations)
     .where(eq(conversations.userId, userId))
-    .orderBy(desc(conversations.updatedAt));
+    .orderBy(desc(conversations.isPinned), desc(conversations.updatedAt));
 }
 
 export async function getConversationById(id: number): Promise<Conversation | undefined> {
@@ -327,6 +328,28 @@ export async function updateConversationTitle(conversationId: number, title: str
       updatedAt: new Date() 
     })
     .where(eq(conversations.id, conversationId));
+}
+
+export async function toggleConversationPin(id: number) {
+  const db = await getDb();
+  if (!db) {
+    console.warn("[Database] Cannot toggle pin: database not available");
+    return;
+  }
+
+  // Buscar estado atual
+  const conversation = await getConversationById(id);
+  if (!conversation) {
+    throw new Error("Conversa não encontrada");
+  }
+
+  // Inverter estado de isPinned (0 -> 1, 1 -> 0)
+  const newPinnedState = conversation.isPinned === 1 ? 0 : 1;
+
+  await db
+    .update(conversations)
+    .set({ isPinned: newPinnedState })
+    .where(eq(conversations.id, id));
 }
 
 export async function deleteConversation(id: number) {

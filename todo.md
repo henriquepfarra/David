@@ -605,3 +605,18 @@ Criar interface com abas separadas (System Prompt, API Keys, Base de Conheciment
 
 - [x] Garantir que o menu lateral NÃO feche ao clicar em itens de navegação (DAVID, Memória devem manter sidebar aberta)
 - [x] Envolver páginas DAVID e Memória do DAVID com DashboardLayout para manter sidebar principal visível
+
+## Melhorias de Interface - DAVID
+
+- [x] Adicionar campo `isPinned` na tabela de conversas (schema + migration)
+- [x] Criar rota tRPC para fixar/desafixar conversa
+- [x] Implementar menu de contexto (botão direito) nas conversas com opções:
+  - [x] Fixar/Desafixar
+  - [x] Renomear
+  - [x] Excluir
+- [x] Implementar modo de seleção múltipla:
+  - [x] Botão para ativar/desativar modo de seleção
+  - [x] Checkboxes nas conversas
+  - [x] Botão "Deletar Selecionadas"
+- [x] Ordenar conversas: fixadas primeiro, depois por data
+- [x] Escrever testes automatizados para novas funcionalidades (5 testes, 100% passando)

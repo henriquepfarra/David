@@ -152,6 +152,7 @@ export const conversations = mysqlTable("conversations", {
   userId: int("userId").notNull(),
   processId: int("processId"), // Processo associado (opcional)
   title: varchar("title", { length: 300 }).notNull(), // Título gerado automaticamente
+  isPinned: int("isPinned").default(0).notNull(), // 0 = não fixada, 1 = fixada
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 }, (table) => ({

@@ -7,6 +7,7 @@ import {
   updateConversationProcess,
   updateConversationTitle,
   deleteConversation,
+  toggleConversationPin,
   createMessage,
   getConversationMessages,
   createSavedPrompt,
@@ -135,6 +136,39 @@ export const davidRouter = router({
 
       await deleteConversation(input.id);
       return { success: true };
+    }),
+
+  // Fixar/desafixar conversa
+  togglePin: protectedProcedure
+    .input(z.object({ id: z.number() }))
+    .mutation(async ({ ctx, input }) => {
+      const conversation = await getConversationById(input.id);
+      if (!conversation || conversation.userId !== ctx.user.id) {
+        throw new Error("Conversa não encontrada");
+      }
+
+      await toggleConversationPin(input.id);
+      return { success: true };
+    }),
+
+  // Deletar múltiplas conversas
+  deleteMultiple: protectedProcedure
+    .input(z.object({ ids: z.array(z.number()) }))
+    .mutation(async ({ ctx, input }) => {
+      // Verificar se todas as conversas pertencem ao usuário
+      for (const id of input.ids) {
+        const conversation = await getConversationById(id);
+        if (!conversation || conversation.userId !== ctx.user.id) {
+          throw new Error(`Conversa ${id} não encontrada ou não pertence ao usuário`);
+        }
+      }
+
+      // Deletar todas as conversas
+      for (const id of input.ids) {
+        await deleteConversation(id);
+      }
+      
+      return { success: true, deletedCount: input.ids.length };
     }),
 
   // Enviar mensagem e receber resposta do DAVID

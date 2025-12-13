@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/select";
 import { Card } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Loader2, Send, Plus, Trash2, FileText, Settings, BookMarked, X, Check, Edit, XCircle, ArrowLeft, Pencil, Upload, MessageSquare, ChevronRight } from "lucide-react";
+import { Loader2, Send, Plus, Trash2, FileText, Settings, BookMarked, X, Check, Edit, XCircle, ArrowLeft, Pencil, Upload, MessageSquare, ChevronRight, Pin, PinOff } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -27,6 +27,14 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuTrigger,
+  ContextMenuSeparator,
+} from "@/components/ui/context-menu";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { Streamdown } from "streamdown";
@@ -43,6 +51,10 @@ export default function David() {
   const [streamingMessage, setStreamingMessage] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
+  
+  // Estados para seleção múltipla
+  const [isSelectionMode, setIsSelectionMode] = useState(false);
+  const [selectedConversations, setSelectedConversations] = useState<Set<number>>(new Set());
   
   // Estados para edição de minuta
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -275,6 +287,28 @@ export default function David() {
       toast.error("Erro ao deletar: " + error.message);
     },
   });
+  
+  const togglePinMutation = trpc.david.togglePin.useMutation({
+    onSuccess: () => {
+      refetchConversations();
+      toast.success("📌 Status de fixação alterado");
+    },
+    onError: (error) => {
+      toast.error("Erro ao fixar: " + error.message);
+    },
+  });
+  
+  const deleteMultipleMutation = trpc.david.deleteMultiple.useMutation({
+    onSuccess: (data) => {
+      refetchConversations();
+      setSelectedConversations(new Set());
+      setIsSelectionMode(false);
+      toast.success(`🗑️ ${data.deletedCount} conversa(s) deletada(s)`);
+    },
+    onError: (error) => {
+      toast.error("Erro ao deletar conversas: " + error.message);
+    },
+  });
 
   // Auto-scroll ao receber novas mensagens ou durante streaming
   useEffect(() => {
@@ -308,6 +342,36 @@ export default function David() {
       handleSendMessage();
     }
   };
+  
+  // Funções para seleção múltipla
+  const toggleConversationSelection = (id: number) => {
+    setSelectedConversations(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(id)) {
+        newSet.delete(id);
+      } else {
+        newSet.add(id);
+      }
+      return newSet;
+    });
+  };
+  
+  const toggleSelectAll = () => {
+    if (selectedConversations.size === conversations?.length) {
+      setSelectedConversations(new Set());
+    } else {
+      setSelectedConversations(new Set(conversations?.map(c => c.id) || []));
+    }
+  };
+  
+  const handleDeleteSelected = () => {
+    if (selectedConversations.size === 0) {
+      toast.error("Nenhuma conversa selecionada");
+      return;
+    }
+    
+    deleteMultipleMutation.mutate({ ids: Array.from(selectedConversations) });
+  };
 
   return (
     <DashboardLayout>
@@ -337,59 +401,162 @@ export default function David() {
               <Settings className="h-4 w-4" />
             </Button>
           </div>
-          <Button onClick={handleNewConversation} className="w-full" size="sm">
+          <Button onClick={handleNewConversation} className="w-full" size="sm" disabled={isSelectionMode}>
             <Plus className="h-4 w-4 mr-2" />
             Nova Conversa
           </Button>
+          
+          {/* Botões de seleção múltipla */}
+          <div className="flex gap-2 mt-2">
+            <Button 
+              onClick={() => {
+                setIsSelectionMode(!isSelectionMode);
+                setSelectedConversations(new Set());
+              }} 
+              variant="outline" 
+              size="sm"
+              className="flex-1"
+            >
+              {isSelectionMode ? "Cancelar" : "Selecionar"}
+            </Button>
+            
+            {isSelectionMode && (
+              <>
+                <Button 
+                  onClick={toggleSelectAll} 
+                  variant="outline" 
+                  size="sm"
+                  className="flex-1"
+                >
+                  {selectedConversations.size === conversations?.length ? "Desmarcar" : "Todas"}
+                </Button>
+                <Button 
+                  onClick={handleDeleteSelected} 
+                  variant="destructive" 
+                  size="sm"
+                  disabled={selectedConversations.size === 0}
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </>
+            )}
+          </div>
         </div>
 
         <ScrollArea className="flex-1 p-2">
           {conversations?.map((conv) => (
-            <Card
-              key={conv.id}
-              className={`p-3 mb-2 cursor-pointer hover:bg-accent transition-colors ${
-                selectedConversationId === conv.id ? "bg-accent" : ""
-              }`}
-              onClick={() => setSelectedConversationId(conv.id)}
-            >
-              <div className="flex items-start justify-between gap-2">
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium truncate">{conv.title}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {new Date(conv.updatedAt).toLocaleDateString("pt-BR")}
-                  </p>
-                </div>
-                <div className="flex gap-1">
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="h-6 w-6 p-0"
-                    title="Renomear conversa"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setRenamingConversationId(conv.id);
-                      setNewConversationTitle(conv.title);
-                      setIsRenameDialogOpen(true);
-                    }}
-                  >
-                    <Pencil className="h-3 w-3" />
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="h-6 w-6 p-0 text-destructive hover:text-destructive"
-                    title="Deletar conversa"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setDeletingConversationId(conv.id);
-                      setIsDeleteDialogOpen(true);
-                    }}
-                  >
-                    <Trash2 className="h-3 w-3" />
-                  </Button>
-                </div>
-              </div>
-            </Card>
+            <ContextMenu key={conv.id}>
+              <ContextMenuTrigger asChild>
+                <Card
+                  className={`p-3 mb-2 cursor-pointer hover:bg-accent transition-colors ${
+                    selectedConversationId === conv.id ? "bg-accent" : ""
+                  } ${selectedConversations.has(conv.id) ? "ring-2 ring-primary" : ""}`}
+                  onClick={() => {
+                    if (isSelectionMode) {
+                      toggleConversationSelection(conv.id);
+                    } else {
+                      setSelectedConversationId(conv.id);
+                    }
+                  }}
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    {isSelectionMode && (
+                      <Checkbox 
+                        checked={selectedConversations.has(conv.id)}
+                        onCheckedChange={() => toggleConversationSelection(conv.id)}
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                    )}
+                    
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1">
+                        {conv.isPinned === 1 && (
+                          <Pin className="h-3 w-3 text-primary" />
+                        )}
+                        <p className="text-sm font-medium truncate">{conv.title}</p>
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        {new Date(conv.updatedAt).toLocaleDateString("pt-BR")}
+                      </p>
+                    </div>
+                    
+                    {!isSelectionMode && (
+                      <div className="flex gap-1">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-6 w-6 p-0"
+                          title="Renomear conversa"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setRenamingConversationId(conv.id);
+                            setNewConversationTitle(conv.title);
+                            setIsRenameDialogOpen(true);
+                          }}
+                        >
+                          <Pencil className="h-3 w-3" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-6 w-6 p-0 text-destructive hover:text-destructive"
+                          title="Deletar conversa"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setDeletingConversationId(conv.id);
+                            setIsDeleteDialogOpen(true);
+                          }}
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                </Card>
+              </ContextMenuTrigger>
+              
+              <ContextMenuContent>
+                <ContextMenuItem
+                  onClick={() => togglePinMutation.mutate({ id: conv.id })}
+                >
+                  {conv.isPinned === 1 ? (
+                    <>
+                      <PinOff className="h-4 w-4 mr-2" />
+                      Desafixar
+                    </>
+                  ) : (
+                    <>
+                      <Pin className="h-4 w-4 mr-2" />
+                      Fixar
+                    </>
+                  )}
+                </ContextMenuItem>
+                
+                <ContextMenuItem
+                  onClick={() => {
+                    setRenamingConversationId(conv.id);
+                    setNewConversationTitle(conv.title);
+                    setIsRenameDialogOpen(true);
+                  }}
+                >
+                  <Pencil className="h-4 w-4 mr-2" />
+                  Renomear
+                </ContextMenuItem>
+                
+                <ContextMenuSeparator />
+                
+                <ContextMenuItem
+                  onClick={() => {
+                    setDeletingConversationId(conv.id);
+                    setIsDeleteDialogOpen(true);
+                  }}
+                  className="text-destructive focus:text-destructive"
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Excluir
+                </ContextMenuItem>
+              </ContextMenuContent>
+            </ContextMenu>
           ))}
         </ScrollArea>
       </div>
