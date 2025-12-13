@@ -587,3 +587,16 @@ Criar interface com abas separadas (System Prompt, API Keys, Base de Conheciment
 - [x] Implementar rotas tRPC: knowledgeBase.update e knowledgeBase.delete
 - [x] Implementar funções no db.ts: updateKnowledgeBase e deleteKnowledgeBase
 - [x] Adicionar validação de segurança (userId) nas operações de edição/deleção
+
+## Correções Urgentes - Página de Configurações
+
+- [x] Restaurar interface completa de API Keys (campos para Google/OpenAI/Anthropic + seleção de modelo)
+- [x] Verificar se System Prompt padrão do DAVID está sendo carregado corretamente - CONFIRMADO: Prompt padrão está intacto e funcionando
+- [ ] Corrigir exibição de badges "Sistema" vs "Usuário" na Base de Conhecimento - AGUARDANDO DECISÃO DO USUÁRIO
+
+## Melhorias de Interface - Configurações
+
+- [x] Adicionar cores aos badges de documentos (vermelho para "Sistema", verde para "Usuário")
+- [x] Permitir edição do System Prompt padrão do DAVID (carregar prompt padrão no textarea)
+- [x] Salvar System Prompt editado no banco de dados
+- [x] Atualizar documentos originais no banco para source = "sistema"

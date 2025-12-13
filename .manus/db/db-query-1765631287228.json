@@ -1,0 +1,9 @@
+{
+  "query": "UPDATE knowledgeBase \nSET source = 'sistema' \nWHERE title IN (\n  'Enunciados FONAJE - Fórum Nacional de Juizados Especiais',\n  'Enunciados FOJESP - Fórum Permanente de Juízes Coordenadores dos Juizados Especiais Cíveis e Criminais do Estado de São Paulo',\n  'Decisões Relevantes 2025 - TJSP',\n  'Minutas Modelo - Referências Antigas',\n  'Teses e Diretrizes - DAVID'\n)",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 7gDrDqW7jwFKyJS.c06df48d9daf --database BtzVqJQrEpT2bFpeKB5YVk --execute UPDATE knowledgeBase \nSET source = 'sistema' \nWHERE title IN (\n  'Enunciados FONAJE - Fórum Nacional de Juizados Especiais',\n  'Enunciados FOJESP - Fórum Permanente de Juízes Coordenadores dos Juizados Especiais Cíveis e Criminais do Estado de São Paulo',\n  'Decisões Relevantes 2025 - TJSP',\n  'Minutas Modelo - Referências Antigas',\n  'Teses e Diretrizes - DAVID'\n)",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 1146
+}
