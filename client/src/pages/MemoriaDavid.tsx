@@ -29,6 +29,7 @@ import {
 import { Brain, FileText, Tag, Search, Eye, Edit, Archive, Trash2, CheckSquare, ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
 import { useLocation } from "wouter";
+import DashboardLayout from "@/components/DashboardLayout";
 
 export default function MemoriaDavid() {
   const [, setLocation] = useLocation();
@@ -196,16 +197,17 @@ export default function MemoriaDavid() {
     .sort((a, b) => b.count - a.count);
 
   return (
-    <div className="container mx-auto py-6 space-y-6">
-      <div className="flex items-center gap-4">
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => setLocation("/")}
-          className="shrink-0"
-        >
-          <ArrowLeft className="h-5 w-5" />
-        </Button>
+    <DashboardLayout>
+      <div className="container mx-auto py-6 space-y-6">
+        <div className="flex items-center gap-4">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setLocation("/")}
+            className="shrink-0"
+          >
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
         <div>
           <h1 className="text-3xl font-bold">Memória do DAVID</h1>
           <p className="text-muted-foreground">
@@ -594,6 +596,7 @@ export default function MemoriaDavid() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
+      </div>
+    </DashboardLayout>
   );
 }

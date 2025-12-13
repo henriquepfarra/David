@@ -32,6 +32,7 @@ import { toast } from "sonner";
 import { Streamdown } from "streamdown";
 import { useLocation } from "wouter";
 import { ToolsMenu } from "@/components/ToolsMenu";
+import DashboardLayout from "@/components/DashboardLayout";
 
 export default function David() {
   const [, setLocation] = useLocation();
@@ -309,7 +310,8 @@ export default function David() {
   };
 
   return (
-    <div className="flex h-screen bg-background">
+    <DashboardLayout>
+      <div className="flex h-full bg-background">
       {/* Sidebar - Histórico de Conversas */}
       <div className="w-80 border-r flex flex-col">
         <div className="p-4 border-b">
@@ -1149,6 +1151,7 @@ export default function David() {
           </div>
         </DialogContent>
       </Dialog>
-    </div>
+      </div>
+    </DashboardLayout>
   );
 }

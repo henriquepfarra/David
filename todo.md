@@ -600,3 +600,8 @@ Criar interface com abas separadas (System Prompt, API Keys, Base de Conheciment
 - [x] Permitir edição do System Prompt padrão do DAVID (carregar prompt padrão no textarea)
 - [x] Salvar System Prompt editado no banco de dados
 - [x] Atualizar documentos originais no banco para source = "sistema"
+
+## Correção de UX - Menu Lateral
+
+- [x] Garantir que o menu lateral NÃO feche ao clicar em itens de navegação (DAVID, Memória devem manter sidebar aberta)
+- [x] Envolver páginas DAVID e Memória do DAVID com DashboardLayout para manter sidebar principal visível
