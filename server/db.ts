@@ -241,6 +241,16 @@ export async function getUserKnowledgeBase(userId: number) {
   return db.select().from(knowledgeBase).where(eq(knowledgeBase.userId, userId)).orderBy(knowledgeBase.createdAt);
 }
 
+export async function updateKnowledgeBase(id: number, userId: number, data: { content: string }) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const { knowledgeBase } = await import("../drizzle/schema");
+  const { and } = await import("drizzle-orm");
+  await db.update(knowledgeBase)
+    .set({ content: data.content, updatedAt: new Date() })
+    .where(and(eq(knowledgeBase.id, id), eq(knowledgeBase.userId, userId)));
+}
+
 export async function deleteKnowledgeBase(id: number, userId: number) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");

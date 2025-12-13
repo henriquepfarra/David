@@ -534,3 +534,56 @@ Reorganizar página Memória com abas separadas, seleção múltipla e ações e
 
 ### Resultado
 ✅ **RESOLVIDO!** Extração funcionando perfeitamente. Todos os campos preenchidos automaticamente.
+
+## Correção de Erros tRPC na Página Inicial
+
+### Problema
+- [ ] Erro "Unexpected token '<', "<!doctype "... is not valid JSON" na página inicial
+- [ ] tRPC retornando HTML em vez de JSON (indica erro 404/500 no backend)
+
+### Tarefas
+- [ ] Verificar logs do servidor para identificar rotas falhando
+- [ ] Corrigir rotas problemáticas
+- [ ] Testar página inicial sem erros
+
+
+## Refatoração da Página de Configurações
+
+### Objetivo
+Criar interface com abas separadas (System Prompt, API Keys, Base de Conhecimento) e permitir edição completa de todos os documentos da base.
+
+### Tarefas
+
+#### 1. Schema do Banco
+- [ ] Adicionar campo `source` em knowledgeBase ('sistema' | 'usuario')
+- [ ] Migrar documentos existentes marcando como 'sistema'
+
+#### 2. Interface com Abas
+- [ ] Criar componente de abas na página Configurações
+- [ ] Aba "System Prompt" - Editor de instruções do DAVID
+- [ ] Aba "API Keys" - Configuração de chaves de API  
+- [ ] Aba "Base de Conhecimento" - Gerenciar documentos
+
+#### 3. Funcionalidades da Base de Conhecimento
+- [ ] Listar documentos com badge "Sistema" ou "Usuário"
+- [ ] Upload de novos documentos
+- [ ] Editar conteúdo de documento existente (modal com textarea)
+- [ ] Substituir arquivo (upload novo arquivo mantendo metadados)
+- [ ] Deletar documento (com confirmação)
+
+#### 4. Rotas tRPC
+- [ ] Rota para atualizar conteúdo de documento
+- [ ] Rota para substituir arquivo de documento
+- [ ] Rota para deletar documento da base
+
+## Refatoração da Página de Configurações
+
+- [x] Criar interface com 3 abas separadas (System Prompt, API Keys, Base de Conhecimento)
+- [x] Implementar aba System Prompt com editor de instruções
+- [x] Implementar aba Base de Conhecimento com visualização de documentos
+- [x] Adicionar botões de ação por documento (visualizar, editar, deletar)
+- [x] Criar dialog de edição de documentos com textarea
+- [x] Criar dialog de confirmação de deleção
+- [x] Implementar rotas tRPC: knowledgeBase.update e knowledgeBase.delete
+- [x] Implementar funções no db.ts: updateKnowledgeBase e deleteKnowledgeBase
+- [x] Adicionar validação de segurança (userId) nas operações de edição/deleção

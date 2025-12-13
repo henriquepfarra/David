@@ -1,0 +1,1 @@
+ALTER TABLE `knowledgeBase` ADD `source` enum('sistema','usuario') DEFAULT 'usuario' NOT NULL;

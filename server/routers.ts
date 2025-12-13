@@ -256,6 +256,16 @@ export const appRouter = router({
         return { success: true };
       }),
 
+    update: protectedProcedure
+      .input(z.object({
+        id: z.number(),
+        content: z.string(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        await db.updateKnowledgeBase(input.id, ctx.user.id, { content: input.content });
+        return { success: true };
+      }),
+
     delete: protectedProcedure
       .input(z.object({ id: z.number() }))
       .mutation(async ({ ctx, input }) => {

@@ -4,271 +4,312 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { trpc } from "@/lib/trpc";
-import { AlertCircle, CheckCircle2, FileText, Loader2, RefreshCw, RotateCcw, Save, Settings } from "lucide-react";
+import { FileText, Loader2, Save, Upload, Edit, Trash2, RefreshCw, Key, Brain, BookOpen } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 export default function Configuracoes() {
-  const [llmApiKey, setLlmApiKey] = useState("");
-  const [llmProvider, setLlmProvider] = useState("google");
-  const [llmModel, setLlmModel] = useState("");
   const [customSystemPrompt, setCustomSystemPrompt] = useState("");
-  const [isLoadingModels, setIsLoadingModels] = useState(false);
-  const [availableModels, setAvailableModels] = useState<any[]>([]);
-  const [modelsError, setModelsError] = useState("");
+  const [editingDoc, setEditingDoc] = useState<any>(null);
+  const [editedContent, setEditedContent] = useState("");
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [docToDelete, setDocToDelete] = useState<any>(null);
 
-  const { data: settings, isLoading } = trpc.settings.get.useQuery();
+  const { data: settings, isLoading: settingsLoading } = trpc.settings.get.useQuery();
+  const { data: knowledgeDocs, isLoading: docsLoading } = trpc.knowledgeBase.list.useQuery();
   const utils = trpc.useUtils();
-  
-  const updateMutation = trpc.settings.update.useMutation({
+
+  const updateSettingsMutation = trpc.settings.update.useMutation({
     onSuccess: () => {
       utils.settings.get.invalidate();
-      toast.success("Configurações salvas com sucesso!");
+      toast.success("System Prompt salvo com sucesso!");
     },
-    onError: (error) => {
-      toast.error("Erro ao salvar configurações: " + error.message);
+    onError: (error: any) => {
+      toast.error("Erro ao salvar: " + error.message);
+    },
+  });
+
+  const updateDocMutation = trpc.knowledgeBase.update.useMutation({
+    onSuccess: () => {
+      utils.knowledgeBase.list.invalidate();
+      toast.success("Documento atualizado com sucesso!");
+      setIsEditDialogOpen(false);
+      setEditingDoc(null);
+    },
+    onError: (error: any) => {
+      toast.error("Erro ao atualizar documento: " + error.message);
+    },
+  });
+
+  const deleteDocMutation = trpc.knowledgeBase.delete.useMutation({
+    onSuccess: () => {
+      utils.knowledgeBase.list.invalidate();
+      toast.success("Documento deletado com sucesso!");
+      setIsDeleteDialogOpen(false);
+      setDocToDelete(null);
+    },
+    onError: (error: any) => {
+      toast.error("Erro ao deletar documento: " + error.message);
     },
   });
 
   useEffect(() => {
     if (settings) {
-      setLlmApiKey(settings.llmApiKey || "");
-      setLlmProvider(settings.llmProvider || "google");
-      setLlmModel(settings.llmModel || "");
       setCustomSystemPrompt(settings.customSystemPrompt || "");
-      
-      // Carregar modelos se já tiver API key
-      if (settings.llmApiKey && settings.llmProvider) {
-        loadModels(settings.llmProvider, settings.llmApiKey);
-      }
     }
   }, [settings]);
 
-  const loadModels = async (provider: string, apiKey: string) => {
-    if (!apiKey || apiKey.length < 10) {
-      setModelsError("Insira uma chave de API válida");
-      return;
-    }
-
-    setIsLoadingModels(true);
-    setModelsError("");
-    
-    try {
-      const models = await utils.client.settings.listModels.query({
-        provider,
-        apiKey,
-      });
-      
-      setAvailableModels(models);
-      
-      if (models.length === 0) {
-        setModelsError("Nenhum modelo disponível");
-      } else {
-        toast.success(`${models.length} modelos carregados`);
-      }
-    } catch (error: any) {
-      setModelsError("Falha ao carregar modelos. Usando lista padrão.");
-      console.error("Erro ao carregar modelos:", error);
-    } finally {
-      setIsLoadingModels(false);
-    }
-  };
-
-  const handleProviderChange = (newProvider: string) => {
-    setLlmProvider(newProvider);
-    setLlmModel("");
-    setAvailableModels([]);
-    setModelsError("");
-  };
-
-  const handleApiKeyChange = (newApiKey: string) => {
-    setLlmApiKey(newApiKey);
-    setAvailableModels([]);
-    setModelsError("");
-  };
-
-  const handleLoadModels = () => {
-    if (!llmApiKey) {
-      toast.error("Insira a chave de API primeiro");
-      return;
-    }
-    loadModels(llmProvider, llmApiKey);
-  };
-
-  const handleResetSystemPrompt = () => {
-    setCustomSystemPrompt("");
-    toast.success("System Prompt resetado. Salve para aplicar.");
-  };
-
-  const handleSave = (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    // Se tem API key, precisa ter modelo selecionado
-    if (llmApiKey && llmApiKey.length >= 10) {
-      if (!llmModel) {
-        toast.error("Selecione um modelo");
-        return;
-      }
-    }
-    
-    // Permitir salvar com API key vazia (para usar LLM nativa)
-    updateMutation.mutate({
-      llmApiKey: llmApiKey || undefined,
-      llmProvider,
-      llmModel: llmModel || undefined,
-      customSystemPrompt: customSystemPrompt || undefined,
+  const handleSaveSystemPrompt = () => {
+    updateSettingsMutation.mutate({
+      customSystemPrompt,
     });
   };
 
-  if (isLoading) {
-    return (
-      <DashboardLayout>
-        <div className="flex items-center justify-center py-12">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        </div>
-      </DashboardLayout>
-    );
-  }
+  const handleEditDoc = (doc: any) => {
+    setEditingDoc(doc);
+    setEditedContent(doc.content);
+    setIsEditDialogOpen(true);
+  };
+
+  const handleSaveEdit = () => {
+    if (!editingDoc) return;
+    updateDocMutation.mutate({
+      id: editingDoc.id,
+      content: editedContent,
+    });
+  };
+
+  const handleDeleteDoc = (doc: any) => {
+    setDocToDelete(doc);
+    setIsDeleteDialogOpen(true);
+  };
+
+  const confirmDelete = () => {
+    if (!docToDelete) return;
+    deleteDocMutation.mutate({ id: docToDelete.id });
+  };
 
   return (
     <DashboardLayout>
-      <div className="space-y-6 max-w-4xl">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight text-foreground flex items-center gap-2">
-            <Settings className="h-8 w-8" />
-            Configurações
-          </h1>
-          <p className="mt-2 text-muted-foreground">
-            Configure sua chave de API, modelo de IA e personalize o System Prompt do David
+      <div className="container mx-auto py-8 max-w-6xl">
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold">Configurações</h1>
+          <p className="text-muted-foreground mt-2">
+            Gerencie as configurações do sistema e da base de conhecimento
           </p>
         </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Configuração de IA</CardTitle>
-            <CardDescription className="space-y-2">
-              <p>Configure o provedor, modelo e chave de API para geração de minutas</p>
-              {!llmApiKey || llmApiKey.length < 10 ? (
-                <div className="flex items-center gap-2 text-sm bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-300 px-3 py-2 rounded-md">
-                  <CheckCircle2 className="h-4 w-4" />
-                  <span>Usando LLM nativa da Manus (sem configuração necessária)</span>
-                </div>
-              ) : (
-                <div className="flex items-center gap-2 text-sm bg-green-50 dark:bg-green-950 text-green-700 dark:text-green-300 px-3 py-2 rounded-md">
-                  <CheckCircle2 className="h-4 w-4" />
-                  <span>Usando API externa configurada ({llmProvider})</span>
-                </div>
-              )}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSave} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="provider">Provedor de IA</Label>
-                <Select value={llmProvider} onValueChange={handleProviderChange}>
-                  <SelectTrigger id="provider">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="google">Google (Gemini)</SelectItem>
-                    <SelectItem value="openai">OpenAI (GPT)</SelectItem>
-                    <SelectItem value="anthropic">Anthropic (Claude)</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+        <Tabs defaultValue="system-prompt" className="w-full">
+          <TabsList className="grid w-full grid-cols-3 mb-8">
+            <TabsTrigger value="system-prompt" className="flex items-center gap-2">
+              <Brain className="h-4 w-4" />
+              System Prompt
+            </TabsTrigger>
+            <TabsTrigger value="api-keys" className="flex items-center gap-2">
+              <Key className="h-4 w-4" />
+              API Keys
+            </TabsTrigger>
+            <TabsTrigger value="knowledge-base" className="flex items-center gap-2">
+              <BookOpen className="h-4 w-4" />
+              Base de Conhecimento
+            </TabsTrigger>
+          </TabsList>
 
-              <div className="space-y-2">
-                <Label htmlFor="apiKey">Chave de API</Label>
-                <Input
-                  id="apiKey"
-                  type="password"
-                  value={llmApiKey}
-                  onChange={(e) => handleApiKeyChange(e.target.value)}
-                  placeholder="Insira sua chave de API"
-                />
-                <p className="text-xs text-muted-foreground">
-                  Opcional: Se não configurar, o sistema usará automaticamente a LLM nativa da Manus. Sua chave é armazenada de forma segura.
-                </p>
-              </div>
+          {/* Aba System Prompt */}
+          <TabsContent value="system-prompt">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Brain className="h-5 w-5" />
+                  Instruções do DAVID
+                </CardTitle>
+                <CardDescription>
+                  Personalize o comportamento e as instruções do assistente jurídico DAVID
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="system-prompt">System Prompt Customizado</Label>
+                  <Textarea
+                    id="system-prompt"
+                    placeholder="Insira instruções customizadas para o DAVID..."
+                    value={customSystemPrompt}
+                    onChange={(e) => setCustomSystemPrompt(e.target.value)}
+                    rows={15}
+                    className="font-mono text-sm"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Estas instruções serão adicionadas ao prompt padrão do DAVID. Deixe em branco para usar apenas as instruções padrão.
+                  </p>
+                </div>
 
-              <div className="flex gap-2">
                 <Button
-                  type="button"
-                  variant="outline"
-                  onClick={handleLoadModels}
-                  disabled={isLoadingModels || !llmApiKey}
-                  className="flex-1"
+                  onClick={handleSaveSystemPrompt}
+                  disabled={updateSettingsMutation.isPending}
+                  className="w-full"
                 >
-                  {isLoadingModels ? (
+                  {updateSettingsMutation.isPending ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Carregando Modelos...
+                      Salvando...
                     </>
                   ) : (
                     <>
-                      <RefreshCw className="mr-2 h-4 w-4" />
-                      Carregar Modelos Disponíveis
+                      <Save className="mr-2 h-4 w-4" />
+                      Salvar Instruções
                     </>
                   )}
                 </Button>
-              </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
 
-              {modelsError && (
-                <div className="flex items-center gap-2 text-sm text-amber-600 dark:text-amber-400">
-                  <AlertCircle className="h-4 w-4" />
-                  {modelsError}
+          {/* Aba API Keys */}
+          <TabsContent value="api-keys">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Key className="h-5 w-5" />
+                  Chaves de API
+                </CardTitle>
+                <CardDescription>
+                  Configure suas chaves de API para integrações externas
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="text-center py-12 text-muted-foreground">
+                  <Key className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                  <p>Funcionalidade em desenvolvimento</p>
+                  <p className="text-sm mt-2">Em breve você poderá configurar suas próprias chaves de API</p>
                 </div>
-              )}
+              </CardContent>
+            </Card>
+          </TabsContent>
 
-              {availableModels.length > 0 && (
-                <div className="space-y-2">
-                  <Label htmlFor="model">Modelo</Label>
-                  <Select value={llmModel} onValueChange={setLlmModel}>
-                    <SelectTrigger id="model">
-                      <SelectValue placeholder="Selecione um modelo" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {availableModels.map((model) => (
-                        <SelectItem key={model.id} value={model.id}>
-                          <div className="flex items-center gap-2">
-                            <span>{model.name}</span>
-                            {model.supportsVision && (
-                              <span className="text-xs text-muted-foreground">(Visão)</span>
-                            )}
+          {/* Aba Base de Conhecimento */}
+          <TabsContent value="knowledge-base">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <BookOpen className="h-5 w-5" />
+                  Gerenciar Base de Conhecimento
+                </CardTitle>
+                <CardDescription>
+                  Visualize, edite e gerencie os documentos da base de conhecimento do DAVID
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex justify-between items-center">
+                  <p className="text-sm text-muted-foreground">
+                    {knowledgeDocs?.length || 0} documentos na base
+                  </p>
+                  <Button variant="outline" size="sm">
+                    <Upload className="mr-2 h-4 w-4" />
+                    Adicionar Documento
+                  </Button>
+                </div>
+
+                {docsLoading ? (
+                  <div className="text-center py-12">
+                    <Loader2 className="h-8 w-8 animate-spin mx-auto text-muted-foreground" />
+                    <p className="text-sm text-muted-foreground mt-4">Carregando documentos...</p>
+                  </div>
+                ) : knowledgeDocs && knowledgeDocs.length > 0 ? (
+                  <div className="space-y-3">
+                    {knowledgeDocs.map((doc) => (
+                      <div
+                        key={doc.id}
+                        className="border rounded-lg p-4 hover:bg-accent/50 transition-colors"
+                      >
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-2">
+                              <h3 className="font-semibold truncate">{doc.title}</h3>
+                              <Badge variant={doc.source === "sistema" ? "default" : "secondary"}>
+                                {doc.source === "sistema" ? "Sistema" : "Usuário"}
+                              </Badge>
+                              {doc.documentType && (
+                                <Badge variant="outline" className="text-xs">
+                                  {doc.documentType}
+                                </Badge>
+                              )}
+                            </div>
+                            <p className="text-sm text-muted-foreground line-clamp-2">
+                              {doc.content.substring(0, 200)}...
+                            </p>
+                            <p className="text-xs text-muted-foreground mt-2">
+                              {doc.content.length.toLocaleString()} caracteres
+                            </p>
                           </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  {llmModel && availableModels.find(m => m.id === llmModel)?.description && (
-                    <p className="text-xs text-muted-foreground">
-                      {availableModels.find(m => m.id === llmModel)?.description}
-                    </p>
-                  )}
-                </div>
-              )}
+                          <div className="flex gap-2 flex-shrink-0">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleEditDoc(doc)}
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleDeleteDoc(doc)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-12 text-muted-foreground">
+                    <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                    <p>Nenhum documento na base de conhecimento</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
 
-              {availableModels.length > 0 && llmModel && (
-                <div className="flex items-center gap-2 text-sm text-green-600 dark:text-green-400">
-                  <CheckCircle2 className="h-4 w-4" />
-                  Modelo selecionado: {availableModels.find(m => m.id === llmModel)?.name}
-                </div>
-              )}
-
-              <Button 
-                type="submit" 
-                disabled={updateMutation.isPending || !llmModel} 
-                className="w-full"
-              >
-                {updateMutation.isPending ? (
+        {/* Dialog de Edição */}
+        <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+          <DialogContent className="max-w-4xl max-h-[80vh]">
+            <DialogHeader>
+              <DialogTitle>Editar Documento</DialogTitle>
+              <DialogDescription>
+                {editingDoc?.title}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <Textarea
+                value={editedContent}
+                onChange={(e) => setEditedContent(e.target.value)}
+                rows={20}
+                className="font-mono text-sm"
+              />
+              <p className="text-xs text-muted-foreground">
+                {editedContent.length.toLocaleString()} caracteres
+              </p>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
+                Cancelar
+              </Button>
+              <Button onClick={handleSaveEdit} disabled={updateDocMutation.isPending}>
+                {updateDocMutation.isPending ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     Salvando...
@@ -276,129 +317,48 @@ export default function Configuracoes() {
                 ) : (
                   <>
                     <Save className="mr-2 h-4 w-4" />
-                    Salvar Configurações
+                    Salvar
                   </>
                 )}
               </Button>
-            </form>
-          </CardContent>
-        </Card>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
-        {/* Card de System Prompt Customizado */}
-        <Card className="border-primary/30">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <FileText className="h-5 w-5" />
-              System Prompt do David
-            </CardTitle>
-            <CardDescription>
-              Personalize o comportamento do David editando o System Prompt. Deixe em branco para usar o padrão.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label htmlFor="systemPrompt">System Prompt Customizado</Label>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={handleResetSystemPrompt}
-                  disabled={!customSystemPrompt}
-                >
-                  <RotateCcw className="mr-2 h-4 w-4" />
-                  Resetar para Padrão
-                </Button>
-              </div>
-              <Textarea
-                id="systemPrompt"
-                value={customSystemPrompt}
-                onChange={(e) => setCustomSystemPrompt(e.target.value)}
-                placeholder="Cole aqui o System Prompt customizado do David, ou deixe em branco para usar o padrão..."
-                className="min-h-[400px] font-mono text-sm"
-              />
-              <p className="text-xs text-muted-foreground">
-                {customSystemPrompt 
-                  ? `${customSystemPrompt.length} caracteres • System Prompt customizado será usado`
-                  : "Usando System Prompt padrão do David (Assessor de Magistrado JEC)"
-                }
-              </p>
-            </div>
-
-            <Button
-              onClick={handleSave}
-              disabled={updateMutation.isPending}
-              className="w-full"
-            >
-              {updateMutation.isPending ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Salvando...
-                </>
-              ) : (
-                <>
-                  <Save className="mr-2 h-4 w-4" />
-                  Salvar System Prompt
-                </>
-              )}
-            </Button>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-blue-50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-800">
-          <CardHeader>
-            <CardTitle className="text-blue-900 dark:text-blue-100">
-              Como obter uma chave de API?
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3 text-sm text-blue-800 dark:text-blue-200">
-            <div>
-              <h4 className="font-semibold mb-1">Google Gemini</h4>
-              <p>
-                Acesse{" "}
-                <a
-                  href="https://aistudio.google.com/app/apikey"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="underline hover:text-blue-600"
-                >
-                  aistudio.google.com/app/apikey
-                </a>{" "}
-                e crie uma chave de API gratuita
-              </p>
-            </div>
-            <div>
-              <h4 className="font-semibold mb-1">OpenAI (GPT-4, GPT-3.5)</h4>
-              <p>
-                Acesse{" "}
-                <a
-                  href="https://platform.openai.com/api-keys"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="underline hover:text-blue-600"
-                >
-                  platform.openai.com/api-keys
-                </a>{" "}
-                e crie uma nova chave de API
-              </p>
-            </div>
-            <div>
-              <h4 className="font-semibold mb-1">Anthropic (Claude)</h4>
-              <p>
-                Acesse{" "}
-                <a
-                  href="https://console.anthropic.com/settings/keys"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="underline hover:text-blue-600"
-                >
-                  console.anthropic.com/settings/keys
-                </a>{" "}
-                e gere sua chave
-              </p>
-            </div>
-          </CardContent>
-        </Card>
+        {/* Dialog de Confirmação de Deleção */}
+        <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Confirmar Deleção</DialogTitle>
+              <DialogDescription>
+                Tem certeza que deseja deletar o documento "{docToDelete?.title}"?
+                Esta ação não pode ser desfeita.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>
+                Cancelar
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={confirmDelete}
+                disabled={deleteDocMutation.isPending}
+              >
+                {deleteDocMutation.isPending ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Deletando...
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    Deletar
+                  </>
+                )}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </DashboardLayout>
   );
