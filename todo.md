@@ -620,3 +620,13 @@ Criar interface com abas separadas (System Prompt, API Keys, Base de Conheciment
   - [x] Botão "Deletar Selecionadas"
 - [x] Ordenar conversas: fixadas primeiro, depois por data
 - [x] Escrever testes automatizados para novas funcionalidades (5 testes, 100% passando)
+
+
+## Limpeza de Interface - Remover Funcionalidades Não Implementadas
+
+- [x] Remover item "Minutas" do menu lateral (DashboardLayout)
+- [x] Remover item "Jurisprudência" do menu lateral (DashboardLayout)
+- [x] Remover card "Minutas Salvas" da tela inicial
+- [x] Remover card "Jurisprudência" da tela inicial
+- [x] Adicionar card "Base de Conhecimento" na tela inicial
+- [x] Ajustar grid para 3 colunas (md:grid-cols-2 lg:grid-cols-3)

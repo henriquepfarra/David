@@ -1,7 +1,7 @@
 import DashboardLayout from "@/components/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { FileText, FolderOpen, Gavel, Scale } from "lucide-react";
+import { BookOpen, FolderOpen, Gavel } from "lucide-react";
 import { Link } from "wouter";
 
 export default function Home() {
@@ -21,18 +21,11 @@ export default function Home() {
       color: "text-purple-600",
     },
     {
-      icon: FileText,
-      title: "Minutas Salvas",
-      description: "Acesse e edite suas minutas geradas anteriormente",
-      href: "/minutas",
+      icon: BookOpen,
+      title: "Base de Conhecimento",
+      description: "Gerencie documentos, enunciados e jurisprudências para o DAVID",
+      href: "/base-conhecimento",
       color: "text-green-600",
-    },
-    {
-      icon: Scale,
-      title: "Jurisprudência",
-      description: "Consulte e salve jurisprudências relevantes para seus casos",
-      href: "/jurisprudencia",
-      color: "text-amber-600",
     },
   ];
 
@@ -48,7 +41,7 @@ export default function Home() {
           </p>
         </div>
 
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-2">
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {features.map((feature) => {
             const Icon = feature.icon;
             return (

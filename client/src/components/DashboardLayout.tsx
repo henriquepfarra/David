@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/sidebar";
 import { APP_LOGO, APP_TITLE, getLoginUrl } from "@/const";
 import { useIsMobile } from "@/hooks/useMobile";
-import { BookOpen, Brain, FileText, FolderOpen, Gavel, Home, LogOut, PanelLeft, Scale, Settings } from "lucide-react";
+import { BookOpen, Brain, FolderOpen, Gavel, Home, LogOut, PanelLeft, Settings } from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { DashboardLayoutSkeleton } from './DashboardLayoutSkeleton';
@@ -30,10 +30,8 @@ import { Button } from "./ui/button";
 const menuItems = [
   { icon: Home, label: "Início", path: "/" },
   { icon: FolderOpen, label: "Processos", path: "/processos" },
-  { icon: FileText, label: "Minutas", path: "/minutas" },
   { icon: Gavel, label: "DAVID", path: "/david" },
   { icon: Brain, label: "Memória do DAVID", path: "/david/memoria" },
-  { icon: Scale, label: "Jurisprudência", path: "/jurisprudencia" },
   { icon: BookOpen, label: "Base de Conhecimento", path: "/base-conhecimento" },
   { icon: Settings, label: "Configurações", path: "/configuracoes" },
 ];
