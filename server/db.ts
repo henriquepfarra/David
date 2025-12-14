@@ -11,7 +11,9 @@ export async function getDb() {
     try {
       _db = drizzle(process.env.DATABASE_URL);
     } catch (error) {
-      console.warn("[Database] Failed to connect:", error);
+      if (process.env.NODE_ENV !== "development") {
+         console.warn("[Database] Failed to connect:", error);
+      }
       _db = null;
     }
   }
@@ -25,6 +27,12 @@ export async function upsertUser(user: InsertUser): Promise<void> {
 
   const db = await getDb();
   if (!db) {
+    // If DB is not available in development, we allow upserting the dev user silently
+    // effectively doing nothing but preventing the crash.
+    if (process.env.NODE_ENV === "development" && user.openId === (ENV.ownerOpenId || "dev-user-id")) {
+      console.log("[Database] Dev mode: Mock upsert for dev user");
+      return;
+    }
     console.warn("[Database] Cannot upsert user: database not available");
     return;
   }
@@ -80,6 +88,26 @@ export async function upsertUser(user: InsertUser): Promise<void> {
 export async function getUserByOpenId(openId: string) {
   const db = await getDb();
   if (!db) {
+    // In dev mode, return a mock user if DB is down
+    if (process.env.NODE_ENV === "development" && openId === (ENV.ownerOpenId || "dev-user-id")) {
+      console.log("[Database] Dev mode: Returning mock user for", openId);
+      const { users } = await import("../drizzle/schema");
+      // Return a mock implementation of the User type
+      // We need to cast it or match the shape perfectly. 
+      // Using 'any' cast here for safety against schema changes, but manually matching fields.
+      return {
+        id: 999999,
+        openId: openId,
+        name: "Desenvolvedor Local",
+        email: "dev@local.test",
+        loginMethod: "local",
+        role: "admin",
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        lastSignedIn: new Date()
+      } as unknown as typeof users.$inferSelect;
+    }
+
     console.warn("[Database] Cannot get user: database not available");
     return undefined;
   }

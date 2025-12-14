@@ -9,6 +9,8 @@ import { fetchDriveContentCached } from "./driveHelper";
 import { listAvailableModels } from "./llmModels";
 import { davidRouter } from "./davidRouter";
 import { processDocumentsRouter } from "./processDocumentsRouter";
+import { ENV } from "./_core/env";
+import { sdk } from "./_core/sdk";
 
 export const appRouter = router({
   system: systemRouter,
@@ -23,6 +25,31 @@ export const appRouter = router({
         success: true,
       } as const;
     }),
+    localLogin: publicProcedure.mutation(async ({ ctx }) => {
+      // Create a dummy user session for local development
+      const mockUser = {
+        openId: ENV.ownerOpenId || "dev-user-id",
+        appId: ENV.appId || "dev-app-id",
+        name: "Desenvolvedor Local",
+        email: "dev@local.test",
+        loginMethod: "local",
+        role: "admin",
+      };
+
+      // Ensure user exists in DB to prevent OAuth sync failure
+      await db.upsertUser(mockUser);
+
+      const sessionToken = await sdk.signSession({
+        openId: mockUser.openId,
+        appId: mockUser.appId,
+        name: mockUser.name,
+      });
+      const cookieOptions = getSessionCookieOptions(ctx.req);
+
+      ctx.res.cookie(COOKIE_NAME, sessionToken, cookieOptions);
+
+      return { success: true };
+    }),
   }),
 
   // Processos
@@ -30,13 +57,13 @@ export const appRouter = router({
     list: protectedProcedure.query(async ({ ctx }) => {
       return db.getUserProcesses(ctx.user.id);
     }),
-    
+
     get: protectedProcedure
       .input(z.object({ id: z.number() }))
       .query(async ({ ctx, input }) => {
         return db.getProcessById(input.id, ctx.user.id);
       }),
-    
+
     create: protectedProcedure
       .input(z.object({
         processNumber: z.string(),
@@ -55,7 +82,7 @@ export const appRouter = router({
       .mutation(async ({ ctx, input }) => {
         return db.createProcess({ ...input, userId: ctx.user.id });
       }),
-    
+
     update: protectedProcedure
       .input(z.object({
         id: z.number(),
@@ -77,7 +104,7 @@ export const appRouter = router({
         await db.updateProcess(id, ctx.user.id, data);
         return { success: true };
       }),
-    
+
     extractFromPDF: protectedProcedure
       .input(z.object({
         text: z.string(),
@@ -85,26 +112,26 @@ export const appRouter = router({
       }))
       .mutation(async ({ input }) => {
         const { extractProcessData, extractProcessDataFromImages } = await import("./processExtractor");
-        
+
         console.log('[extractFromPDF] Texto recebido (primeiros 500 chars):', input.text?.substring(0, 500));
         console.log('[extractFromPDF] Tamanho do texto:', input.text?.length);
         console.log('[extractFromPDF] Número de imagens:', input.images?.length || 0);
-        
+
         // Se tiver texto, tentar extrair do texto primeiro
         if (input.text && input.text.length > 100) {
           const result = await extractProcessData(input.text);
           console.log('[extractFromPDF] Resultado da extração:', JSON.stringify(result, null, 2));
           return result;
         }
-        
+
         // Se não tiver texto suficiente mas tiver imagens, usar extração multimodal
         if (input.images && input.images.length > 0) {
           return await extractProcessDataFromImages(input.images);
         }
-        
+
         throw new Error("Nenhum conteúdo válido fornecido para extração");
       }),
-    
+
     delete: protectedProcedure
       .input(z.object({ id: z.number() }))
       .mutation(async ({ ctx, input }) => {
@@ -120,11 +147,11 @@ export const appRouter = router({
       .query(async ({ ctx, input }) => {
         return db.getProcessDrafts(input.processId, ctx.user.id);
       }),
-    
+
     listAll: protectedProcedure.query(async ({ ctx }) => {
       return db.getUserDrafts(ctx.user.id);
     }),
-    
+
     create: protectedProcedure
       .input(z.object({
         processId: z.number(),
@@ -135,7 +162,7 @@ export const appRouter = router({
       .mutation(async ({ ctx, input }) => {
         return db.createDraft({ ...input, userId: ctx.user.id });
       }),
-    
+
     update: protectedProcedure
       .input(z.object({
         id: z.number(),
@@ -147,7 +174,7 @@ export const appRouter = router({
         await db.updateDraft(id, ctx.user.id, data);
         return { success: true };
       }),
-    
+
     delete: protectedProcedure
       .input(z.object({ id: z.number() }))
       .mutation(async ({ ctx, input }) => {
@@ -161,7 +188,7 @@ export const appRouter = router({
     list: protectedProcedure.query(async ({ ctx }) => {
       return db.getUserJurisprudence(ctx.user.id);
     }),
-    
+
     create: protectedProcedure
       .input(z.object({
         court: z.string(),
@@ -177,7 +204,7 @@ export const appRouter = router({
       .mutation(async ({ ctx, input }) => {
         return db.createJurisprudence({ ...input, userId: ctx.user.id });
       }),
-    
+
     update: protectedProcedure
       .input(z.object({
         id: z.number(),
@@ -196,7 +223,7 @@ export const appRouter = router({
         await db.updateJurisprudence(id, ctx.user.id, data);
         return { success: true };
       }),
-    
+
     delete: protectedProcedure
       .input(z.object({ id: z.number() }))
       .mutation(async ({ ctx, input }) => {
@@ -210,7 +237,7 @@ export const appRouter = router({
     get: protectedProcedure.query(async ({ ctx }) => {
       return db.getUserSettings(ctx.user.id);
     }),
-    
+
     update: protectedProcedure
       .input(z.object({
         llmApiKey: z.string().optional(),

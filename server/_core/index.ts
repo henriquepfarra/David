@@ -1,3 +1,4 @@
+console.log("🚀 Server starting... (index.ts loaded)");
 import "dotenv/config";
 import express from "express";
 import { createServer } from "http";
@@ -35,8 +36,11 @@ async function startServer() {
   const app = express();
   const server = createServer(app);
 
-  // Enable CORS
-  app.use(cors());
+  // Enable CORS with credentials support
+  app.use(cors({
+    origin: true, // Allow all origins (reflects the request origin)
+    credentials: true
+  }));
 
   // Configure body parser with larger size limit for file uploads
   app.use(express.json({ limit: "50mb" }));
@@ -169,15 +173,15 @@ async function startServer() {
     serveStatic(app);
   }
 
-  const preferredPort = parseInt(process.env.PORT || "3000");
+  const preferredPort = parseInt(process.env.PORT || "3001");
   const port = await findAvailablePort(preferredPort);
 
   if (port !== preferredPort) {
     console.log(`Port ${preferredPort} is busy, using port ${port} instead`);
   }
 
-  server.listen(port, () => {
-    console.log(`Server running on http://localhost:${port}/`);
+  server.listen(port, "0.0.0.0", () => {
+    console.log(`Server running on http://localhost:${port}/ (bound to 0.0.0.0)`);
   });
 }
 

@@ -204,6 +204,7 @@ class SDKServer {
       console.warn("[Auth] Missing session cookie");
       return null;
     }
+    console.log("[Auth] Verifying session cookie:", cookieValue.substring(0, 20) + "...");
 
     try {
       const secretKey = this.getSessionSecret();
@@ -227,7 +228,7 @@ class SDKServer {
         name,
       };
     } catch (error) {
-      console.warn("[Auth] Session verification failed", String(error));
+      console.error("[Auth] Session verification failed full error:", error);
       return null;
     }
   }
@@ -260,6 +261,7 @@ class SDKServer {
     // Regular authentication flow
     const cookies = this.parseCookies(req.headers.cookie);
     const sessionCookie = cookies.get(COOKIE_NAME);
+    console.log("[Auth] Authenticating request. Cookie present:", !!sessionCookie);
     const session = await this.verifySession(sessionCookie);
 
     if (!session) {
@@ -289,6 +291,7 @@ class SDKServer {
     }
 
     if (!user) {
+      console.error("[Auth] User not found in DB after session verification. OpenID:", sessionUserId);
       throw ForbiddenError("User not found");
     }
 
@@ -296,6 +299,7 @@ class SDKServer {
       openId: user.openId,
       lastSignedIn: signedInAt,
     });
+    console.log("[Auth] Request authenticated for user:", user.name);
 
     return user;
   }

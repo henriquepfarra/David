@@ -88,6 +88,12 @@ Responda APENAS no formato JSON abaixo (sem markdown, sem explicações adiciona
       },
     });
 
+    // Validação da resposta da LLM
+    if (!response || !response.choices || !response.choices.length) {
+      console.error("❌ [ThesisExtractor] Resposta inválida da LLM:", JSON.stringify(response, null, 2));
+      throw new Error("A resposta da LLM não possui escolhas (choices) válidas.");
+    }
+
     const content = response.choices[0]?.message?.content;
     if (!content || typeof content !== "string") {
       throw new Error("Resposta vazia ou inválida da LLM");

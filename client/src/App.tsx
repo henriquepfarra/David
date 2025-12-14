@@ -16,11 +16,13 @@ import David from "./pages/David";
 import DavidConfig from "./pages/DavidConfig";
 import DavidPrompts from "./pages/DavidPrompts";
 import MemoriaDavid from "./pages/MemoriaDavid";
+import LocalAuth from "./pages/LocalAuth";
 
 function Router() {
   // make sure to consider if you need authentication for certain routes
   return (
     <Switch>
+      <Route path={"/login"} component={LocalAuth} />
       <Route path={"/"} component={Home} />
       <Route path={"/processos"} component={Processos} />
       <Route path={"/processo/:id"} component={ProcessoDetalhes} />
@@ -50,7 +52,7 @@ function App() {
     <ErrorBoundary>
       <ThemeProvider
         defaultTheme="light"
-        // switchable
+      // switchable
       >
         <TooltipProvider>
           <Toaster />
