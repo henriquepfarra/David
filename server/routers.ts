@@ -33,11 +33,12 @@ export const appRouter = router({
         name: "Desenvolvedor Local",
         email: "dev@local.test",
         loginMethod: "local",
-        role: "admin",
+        role: "admin" as const,
       };
 
       // Ensure user exists in DB to prevent OAuth sync failure
-      await db.upsertUser(mockUser);
+      const { appId, ...userForDb } = mockUser;
+      await db.upsertUser(userForDb);
 
       const sessionToken = await sdk.signSession({
         openId: mockUser.openId,
