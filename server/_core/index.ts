@@ -143,6 +143,17 @@ async function startServer() {
     }
   });
 
+
+
+  // Global error handler
+  app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+    const status = err.status || err.statusCode || 500;
+    const message = err.message || "Internal Server Error";
+
+    console.error("[Unhandled Error]", err);
+    res.status(status).json({ message });
+  });
+
   // tRPC API
   app.use(
     "/api/trpc",
