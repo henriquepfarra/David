@@ -42,9 +42,9 @@ export const processDocumentsRouter = router({
             const result = await mammoth.extractRawText({ buffer });
             extractedText = result.value;
           } else if (input.fileType === "pdf") {
-            // Para PDFs, vamos usar pdfjs-dist (já usado no frontend)
-            // Por enquanto, deixar vazio e implementar depois se necessário
-            extractedText = "[Conteúdo PDF - extração pendente]";
+            // Para PDFs, usar o novo extrator
+            const { extractTextFromPdfBuffer } = await import("./_core/pdfExtractor");
+            extractedText = await extractTextFromPdfBuffer(buffer);
           } else {
             extractedText = "[Arquivo de imagem - sem extração de texto]";
           }
