@@ -1,18 +1,28 @@
 import { eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
+import { createPool } from "mysql2/promise";
 import { InsertUser, users } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
 let _db: ReturnType<typeof drizzle> | null = null;
+export { _db as db };
 
 // Lazily create the drizzle instance so local tooling can run without a DB.
 export async function getDb() {
   if (!_db && process.env.DATABASE_URL) {
     try {
-      _db = drizzle(process.env.DATABASE_URL);
+      const connectionPool = createPool({
+        uri: process.env.DATABASE_URL,
+        connectionLimit: 10,
+        queueLimit: 0,
+        enableKeepAlive: true,
+        keepAliveInitialDelay: 0,
+        waitForConnections: true
+      });
+      _db = drizzle(connectionPool, { mode: "default" });
     } catch (error) {
       if (process.env.NODE_ENV !== "development") {
-         console.warn("[Database] Failed to connect:", error);
+        console.warn("[Database] Failed to connect:", error);
       }
       _db = null;
     }
@@ -243,13 +253,13 @@ export async function upsertUserSettings(userId: number, data: any) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
   const { userSettings } = await import("../drizzle/schema");
-  
+
   // Converter undefined para null para limpar valores no banco
   const normalizedData: any = {};
   for (const key in data) {
     normalizedData[key] = data[key] === undefined ? null : data[key];
   }
-  
+
   await db.insert(userSettings).values({ userId, ...normalizedData }).onDuplicateKeyUpdate({ set: normalizedData });
 }
 
@@ -289,9 +299,9 @@ export async function deleteKnowledgeBase(id: number, userId: number) {
 
 // ===== DAVID Chat Functions =====
 
-import { 
-  conversations, 
-  messages, 
+import {
+  conversations,
+  messages,
   savedPrompts,
   processes,
   type InsertConversation,
@@ -307,7 +317,7 @@ import { desc } from "drizzle-orm";
 export async function createConversation(data: InsertConversation) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  
+
   const [conversation] = await db.insert(conversations).values(data).$returningId();
   return conversation.id;
 }
@@ -315,7 +325,7 @@ export async function createConversation(data: InsertConversation) {
 export async function getUserConversations(userId: number): Promise<Conversation[]> {
   const db = await getDb();
   if (!db) return [];
-  
+
   // Ordenar: fixadas primeiro (isPinned DESC), depois por data de atualização (updatedAt DESC)
   return await db
     .select()
@@ -327,7 +337,7 @@ export async function getUserConversations(userId: number): Promise<Conversation
 export async function getConversationById(id: number): Promise<Conversation | undefined> {
   const db = await getDb();
   if (!db) return undefined;
-  
+
   const result = await db.select().from(conversations).where(eq(conversations.id, id)).limit(1);
   return result[0];
 }
@@ -335,12 +345,12 @@ export async function getConversationById(id: number): Promise<Conversation | un
 export async function updateConversationProcess(conversationId: number, processId: number | null) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  
+
   await db
     .update(conversations)
-    .set({ 
+    .set({
       processId: processId,
-      updatedAt: new Date() 
+      updatedAt: new Date()
     })
     .where(eq(conversations.id, conversationId));
 }
@@ -348,12 +358,12 @@ export async function updateConversationProcess(conversationId: number, processI
 export async function updateConversationTitle(conversationId: number, title: string) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  
+
   await db
     .update(conversations)
-    .set({ 
+    .set({
       title: title,
-      updatedAt: new Date() 
+      updatedAt: new Date()
     })
     .where(eq(conversations.id, conversationId));
 }
@@ -383,7 +393,7 @@ export async function toggleConversationPin(id: number) {
 export async function deleteConversation(id: number) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  
+
   // Deletar mensagens primeiro
   await db.delete(messages).where(eq(messages.conversationId, id));
   // Deletar conversa
@@ -394,9 +404,9 @@ export async function deleteConversation(id: number) {
 export async function createMessage(data: InsertMessage) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  
+
   await db.insert(messages).values(data);
-  
+
   // Atualizar updatedAt da conversa
   await db
     .update(conversations)
@@ -407,7 +417,7 @@ export async function createMessage(data: InsertMessage) {
 export async function getConversationMessages(conversationId: number): Promise<Message[]> {
   const db = await getDb();
   if (!db) return [];
-  
+
   return await db
     .select()
     .from(messages)
@@ -419,7 +429,7 @@ export async function getConversationMessages(conversationId: number): Promise<M
 export async function createSavedPrompt(data: InsertSavedPrompt) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  
+
   const [prompt] = await db.insert(savedPrompts).values(data).$returningId();
   return prompt.id;
 }
@@ -427,7 +437,7 @@ export async function createSavedPrompt(data: InsertSavedPrompt) {
 export async function getUserSavedPrompts(userId: number): Promise<SavedPrompt[]> {
   const db = await getDb();
   if (!db) return [];
-  
+
   return await db
     .select()
     .from(savedPrompts)
@@ -438,7 +448,7 @@ export async function getUserSavedPrompts(userId: number): Promise<SavedPrompt[]
 export async function getSavedPromptById(id: number): Promise<SavedPrompt | undefined> {
   const db = await getDb();
   if (!db) return undefined;
-  
+
   const result = await db.select().from(savedPrompts).where(eq(savedPrompts.id, id)).limit(1);
   return result[0];
 }
@@ -446,14 +456,14 @@ export async function getSavedPromptById(id: number): Promise<SavedPrompt | unde
 export async function updateSavedPrompt(id: number, data: Partial<InsertSavedPrompt>) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  
+
   await db.update(savedPrompts).set(data).where(eq(savedPrompts.id, id));
 }
 
 export async function deleteSavedPrompt(id: number) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  
+
   await db.delete(savedPrompts).where(eq(savedPrompts.id, id));
 }
 
@@ -461,7 +471,7 @@ export async function deleteSavedPrompt(id: number) {
 export async function getProcessForContext(processId: number) {
   const db = await getDb();
   if (!db) return null;
-  
+
   const result = await db.select().from(processes).where(eq(processes.id, processId)).limit(1);
   return result[0];
 }
@@ -471,7 +481,7 @@ export async function getProcessForContext(processId: number) {
 export async function getDavidConfig(userId: number) {
   const db = await getDb();
   if (!db) return null;
-  
+
   const { davidConfig } = await import("../drizzle/schema");
   const result = await db.select().from(davidConfig).where(eq(davidConfig.userId, userId)).limit(1);
   return result[0] || null;
@@ -480,12 +490,12 @@ export async function getDavidConfig(userId: number) {
 export async function upsertDavidConfig(userId: number, systemPrompt: string) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  
+
   const { davidConfig } = await import("../drizzle/schema");
-  
+
   // Tentar atualizar primeiro
   const existing = await getDavidConfig(userId);
-  
+
   if (existing) {
     await db
       .update(davidConfig)
@@ -515,7 +525,7 @@ import {
 export async function createApprovedDraft(data: InsertApprovedDraft) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  
+
   const [draft] = await db.insert(approvedDrafts).values(data).$returningId();
   return draft.id;
 }
@@ -523,7 +533,7 @@ export async function createApprovedDraft(data: InsertApprovedDraft) {
 export async function getUserApprovedDrafts(userId: number): Promise<ApprovedDraft[]> {
   const db = await getDb();
   if (!db) return [];
-  
+
   return await db
     .select()
     .from(approvedDrafts)
@@ -534,7 +544,7 @@ export async function getUserApprovedDrafts(userId: number): Promise<ApprovedDra
 export async function getApprovedDraftById(id: number): Promise<ApprovedDraft | undefined> {
   const db = await getDb();
   if (!db) return undefined;
-  
+
   const result = await db.select().from(approvedDrafts).where(eq(approvedDrafts.id, id)).limit(1);
   return result[0];
 }
@@ -542,14 +552,14 @@ export async function getApprovedDraftById(id: number): Promise<ApprovedDraft | 
 export async function updateApprovedDraft(id: number, data: Partial<InsertApprovedDraft>) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  
+
   await db.update(approvedDrafts).set(data).where(eq(approvedDrafts.id, id));
 }
 
 export async function deleteApprovedDraft(id: number) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  
+
   await db.delete(approvedDrafts).where(eq(approvedDrafts.id, id));
 }
 
@@ -557,7 +567,7 @@ export async function deleteApprovedDraft(id: number) {
 export async function createLearnedThesis(data: InsertLearnedThesis) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  
+
   const [thesis] = await db.insert(learnedTheses).values(data).$returningId();
   return thesis.id;
 }
@@ -565,7 +575,7 @@ export async function createLearnedThesis(data: InsertLearnedThesis) {
 export async function getUserLearnedTheses(userId: number): Promise<LearnedThesis[]> {
   const db = await getDb();
   if (!db) return [];
-  
+
   return await db
     .select()
     .from(learnedTheses)
@@ -576,7 +586,7 @@ export async function getUserLearnedTheses(userId: number): Promise<LearnedThesi
 export async function getLearnedThesisByDraftId(approvedDraftId: number): Promise<LearnedThesis | undefined> {
   const db = await getDb();
   if (!db) return undefined;
-  
+
   const result = await db.select().from(learnedTheses).where(eq(learnedTheses.approvedDraftId, approvedDraftId)).limit(1);
   return result[0];
 }
@@ -584,14 +594,14 @@ export async function getLearnedThesisByDraftId(approvedDraftId: number): Promis
 export async function updateLearnedThesis(id: number, data: Partial<InsertLearnedThesis>) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  
+
   await db.update(learnedTheses).set(data).where(eq(learnedTheses.id, id));
 }
 
 export async function deleteLearnedThesis(id: number) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  
+
   await db.delete(learnedTheses).where(eq(learnedTheses.id, id));
 }
 
@@ -599,17 +609,17 @@ export async function deleteLearnedThesis(id: number) {
 export async function searchSimilarTheses(userId: number, keywords: string[]): Promise<LearnedThesis[]> {
   const db = await getDb();
   if (!db) return [];
-  
+
   // Busca simples por palavras-chave (pode ser melhorada com busca semântica futuramente)
   const { and, or, like } = await import("drizzle-orm");
-  
-  const conditions = keywords.map(keyword => 
+
+  const conditions = keywords.map(keyword =>
     or(
       like(learnedTheses.keywords, `%${keyword}%`),
       like(learnedTheses.thesis, `%${keyword}%`)
     )
   );
-  
+
   return await db
     .select()
     .from(learnedTheses)
@@ -637,7 +647,7 @@ export async function createProcessDocument(doc: {
   if (!db) throw new Error("Database not available");
 
   const { processDocuments } = await import("../drizzle/schema");
-  
+
   const result = await db.insert(processDocuments).values({
     userId: doc.userId,
     processId: doc.processId,

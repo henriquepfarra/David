@@ -22,6 +22,13 @@ import { Label } from "@/components/ui/label";
 import { ArrowLeft, Plus, Trash2, Edit, FileText } from "lucide-react";
 import { useLocation } from "wouter";
 import { toast } from "sonner";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 export default function DavidPrompts() {
   const [, setLocation] = useLocation();
@@ -32,6 +39,7 @@ export default function DavidPrompts() {
     category: "",
     content: "",
     description: "",
+    executionMode: "chat",
   });
 
   const { data: prompts, refetch } = trpc.david.savedPrompts.list.useQuery();
@@ -82,6 +90,7 @@ export default function DavidPrompts() {
       category: "",
       content: "",
       description: "",
+      executionMode: "chat",
     });
   };
 
@@ -95,9 +104,13 @@ export default function DavidPrompts() {
       updateMutation.mutate({
         id: editingPrompt,
         ...formData,
+        executionMode: formData.executionMode as "chat" | "full_context",
       });
     } else {
-      createMutation.mutate(formData);
+      createMutation.mutate({
+        ...formData,
+        executionMode: formData.executionMode as "chat" | "full_context",
+      });
     }
   };
 
@@ -108,6 +121,7 @@ export default function DavidPrompts() {
       category: prompt.category || "",
       content: prompt.content,
       description: prompt.description || "",
+      executionMode: prompt.executionMode || "chat",
     });
     setIsDialogOpen(true);
   };
@@ -156,70 +170,90 @@ export default function DavidPrompts() {
                   Novo Prompt
                 </Button>
               </DialogTrigger>
-            <DialogContent className="max-w-2xl">
-              <DialogHeader>
-                <DialogTitle>
-                  {editingPrompt ? "Editar Prompt" : "Novo Prompt"}
-                </DialogTitle>
-                <DialogDescription>
-                  Crie um prompt especializado para usar com o DAVID
-                </DialogDescription>
-              </DialogHeader>
+              <DialogContent className="max-w-2xl">
+                <DialogHeader>
+                  <DialogTitle>
+                    {editingPrompt ? "Editar Prompt" : "Novo Prompt"}
+                  </DialogTitle>
+                  <DialogDescription>
+                    Crie um prompt especializado para usar com o DAVID
+                  </DialogDescription>
+                </DialogHeader>
 
-              <div className="space-y-4">
-                <div>
-                  <Label htmlFor="title">Título *</Label>
-                  <Input
-                    id="title"
-                    value={formData.title}
-                    onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                    placeholder="Ex: Análise de Tutela de Urgência"
-                  />
-                </div>
+                <div className="space-y-4">
+                  <div>
+                    <Label htmlFor="title">Título *</Label>
+                    <Input
+                      id="title"
+                      value={formData.title}
+                      onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                      placeholder="Ex: Análise de Tutela de Urgência"
+                    />
+                  </div>
 
-                <div>
-                  <Label htmlFor="category">Categoria</Label>
-                  <Input
-                    id="category"
-                    value={formData.category}
-                    onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                    placeholder="Ex: tutela, sentença, decisão"
-                  />
-                </div>
+                  <div>
+                    <Label htmlFor="category">Categoria</Label>
+                    <Input
+                      id="category"
+                      value={formData.category}
+                      onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                      placeholder="Ex: tutela, sentença, decisão"
+                    />
+                  </div>
 
-                <div>
-                  <Label htmlFor="description">Descrição</Label>
-                  <Textarea
-                    id="description"
-                    value={formData.description}
-                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                    placeholder="Descreva o que este prompt faz..."
-                    rows={2}
-                  />
-                </div>
+                  <div>
+                    <Label htmlFor="executionMode">Modo de Execução</Label>
+                    <Select
+                      value={formData.executionMode}
+                      onValueChange={(value) => setFormData({ ...formData, executionMode: value })}
+                    >
+                      <SelectTrigger id="executionMode">
+                        <SelectValue placeholder="Selecione o modo" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="chat">RAG (Padrão)</SelectItem>
+                        <SelectItem value="full_context">Auditoria (Leitura Integral)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      <strong>RAG:</strong> Busca trechos específicos. Ideal para dúvidas pontuais.<br />
+                      <strong>Auditoria:</strong> Lê o processo inteiro. Ideal para análises completas (/analise1).
+                    </p>
+                  </div>
 
-                <div>
-                  <Label htmlFor="content">Conteúdo do Prompt *</Label>
-                  <Textarea
-                    id="content"
-                    value={formData.content}
-                    onChange={(e) => setFormData({ ...formData, content: e.target.value })}
-                    placeholder="Digite o prompt completo..."
-                    className="min-h-[300px] font-mono text-sm"
-                  />
-                </div>
+                  <div>
+                    <Label htmlFor="description">Descrição</Label>
+                    <Textarea
+                      id="description"
+                      value={formData.description}
+                      onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                      placeholder="Descreva o que este prompt faz..."
+                      rows={2}
+                    />
+                  </div>
 
-                <div className="flex gap-2">
-                  <Button onClick={handleSubmit} disabled={createMutation.isPending || updateMutation.isPending}>
-                    {editingPrompt ? "Atualizar" : "Salvar"}
-                  </Button>
-                  <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
-                    Cancelar
-                  </Button>
+                  <div>
+                    <Label htmlFor="content">Conteúdo do Prompt *</Label>
+                    <Textarea
+                      id="content"
+                      value={formData.content}
+                      onChange={(e) => setFormData({ ...formData, content: e.target.value })}
+                      placeholder="Digite o prompt completo..."
+                      className="min-h-[300px] font-mono text-sm"
+                    />
+                  </div>
+
+                  <div className="flex gap-2">
+                    <Button onClick={handleSubmit} disabled={createMutation.isPending || updateMutation.isPending}>
+                      {editingPrompt ? "Atualizar" : "Salvar"}
+                    </Button>
+                    <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
+                      Cancelar
+                    </Button>
+                  </div>
                 </div>
-              </div>
-            </DialogContent>
-          </Dialog>
+              </DialogContent>
+            </Dialog>
           </div>
         </div>
 
@@ -236,6 +270,11 @@ export default function DavidPrompts() {
                     {prompt.category && (
                       <span className="inline-block mt-2 px-2 py-1 text-xs bg-primary/10 text-primary rounded">
                         {prompt.category}
+                      </span>
+                    )}
+                    {prompt.executionMode === 'full_context' && (
+                      <span className="inline-block mt-2 ml-2 px-2 py-1 text-xs bg-purple-100 text-purple-800 rounded font-semibold border border-purple-200">
+                        AUDITORIA
                       </span>
                     )}
                   </div>

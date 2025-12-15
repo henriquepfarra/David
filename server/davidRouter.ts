@@ -40,6 +40,7 @@ import { generateConversationTitle } from "./titleGenerator";
 
 // System prompt padrão do DAVID
 import { DEFAULT_DAVID_SYSTEM_PROMPT } from "@shared/defaultPrompts";
+import { executeSavedPrompt } from "./_core/promptExecutor";
 
 export const davidRouter = router({
   // Criar nova conversa
@@ -75,7 +76,7 @@ export const davidRouter = router({
       }
 
       const messages = await getConversationMessages(input.id);
-      
+
       // Se houver processo associado, buscar dados
       let processData = null;
       if (conversation.processId) {
@@ -167,7 +168,7 @@ export const davidRouter = router({
       for (const id of input.ids) {
         await deleteConversation(id);
       }
-      
+
       return { success: true, deletedCount: input.ids.length };
     }),
 
@@ -193,12 +194,41 @@ export const davidRouter = router({
         content: input.content,
       });
 
+      // --- MOTOR GENÉRICO DE PROMPTS (Fase 3) ---
+      // Se for um comando (ex: /analise_completa), tentar executar prompt salvo
+      if (input.content.startsWith("/")) {
+        if (conversation.processId) {
+          const process = await getProcessForContext(conversation.processId);
+          if (process) {
+            console.log(`[DavidRouter] Detectado comando: ${input.content}. Verificando prompts salvos...`);
+            const commandResult = await executeSavedPrompt({
+              userId: ctx.user.id,
+              promptCommand: input.content,
+              processId: conversation.processId,
+              processNumber: process.processNumber
+            });
+
+            if (commandResult) {
+              console.log(`[DavidRouter] Prompt executado com sucesso: ${input.content}`);
+              // Salvar resposta do assistente
+              await createMessage({
+                conversationId: input.conversationId,
+                role: "assistant", // A IA respondeu, mesmo que via prompt fixo
+                content: commandResult,
+              });
+              return { content: commandResult };
+            }
+          }
+        }
+      }
+      // ------------------------------------------
+
       // Buscar histórico de mensagens
       const history = await getConversationMessages(input.conversationId);
-      
+
       // Gerar título automaticamente se for a primeira mensagem
       const isFirstMessage = history.length === 1; // Apenas a mensagem do usuário que acabou de ser salva
-      
+
       if (isFirstMessage) {
         // Buscar informações do processo se houver
         let processInfo;
@@ -213,7 +243,7 @@ export const davidRouter = router({
             };
           }
         }
-        
+
         // Gerar título em background (não bloqueia resposta)
         generateConversationTitle(input.content, processInfo)
           .then(async (title) => {
@@ -256,8 +286,8 @@ export const davidRouter = router({
             if (citableDocs.length > 0) {
               knowledgeBaseContext += `### Enunciados Aplicáveis\n\n`;
               citableDocs.forEach((doc) => {
-                const contentPreview = doc.content.length > 3000 
-                  ? doc.content.substring(0, 3000) + "..." 
+                const contentPreview = doc.content.length > 3000
+                  ? doc.content.substring(0, 3000) + "..."
                   : doc.content;
                 knowledgeBaseContext += `**${doc.title}**\n${contentPreview}\n\n`;
               });
@@ -268,8 +298,8 @@ export const davidRouter = router({
             if (referenceDocs.length > 0) {
               knowledgeBaseContext += `### Referências Internas (Uso Implícito)\n\n`;
               referenceDocs.forEach((doc) => {
-                const contentPreview = doc.content.length > 2000 
-                  ? doc.content.substring(0, 2000) + "..." 
+                const contentPreview = doc.content.length > 2000
+                  ? doc.content.substring(0, 2000) + "..."
                   : doc.content;
                 knowledgeBaseContext += `${contentPreview}\n\n`;
               });
@@ -285,12 +315,12 @@ export const davidRouter = router({
       let processContext = "";
       let similarCasesContext = "";
       let processDocsContext = "";
-      
+
       if (conversation.processId) {
         const process = await getProcessForContext(conversation.processId);
         if (process) {
           processContext = `\n\n## PROCESSO SELECIONADO\n\n**Número:** ${process.processNumber}\n**Autor:** ${process.plaintiff}\n**Réu:** ${process.defendant}\n**Vara:** ${process.court}\n**Assunto:** ${process.subject}\n**Fatos:** ${process.facts}\n**Pedidos:** ${process.requests}\n**Status:** ${process.status}\n`;
-          
+
           // Buscar documentos do processo
           try {
             console.log(`[ProcessDocs] Buscando documentos para processId=${conversation.processId}, userId=${ctx.user.id}`);
@@ -299,8 +329,8 @@ export const davidRouter = router({
             if (processDocs.length > 0) {
               processDocsContext = `\n\n### DOCUMENTOS DO PROCESSO\n\n`;
               processDocs.forEach((doc: any) => {
-                const contentPreview = doc.content.length > 2000 
-                  ? doc.content.substring(0, 2000) + "..." 
+                const contentPreview = doc.content.length > 2000
+                  ? doc.content.substring(0, 2000) + "..."
                   : doc.content;
                 processDocsContext += `**${doc.title}** (${doc.documentType})\n${contentPreview}\n\n`;
               });
@@ -310,23 +340,23 @@ export const davidRouter = router({
             console.error("[ProcessDocs] Erro ao buscar documentos:", error);
           }
           console.log(`[ProcessDocs] processDocsContext length: ${processDocsContext.length}`);
-          
+
           // Buscar casos similares baseados no assunto
           if (process.subject) {
             const keywords = process.subject.split(" ").filter(w => w.length > 3).slice(0, 5);
             const similarTheses = await searchSimilarTheses(ctx.user.id, keywords);
-            
+
             if (similarTheses.length > 0) {
               similarCasesContext = `\n\n## MEMÓRIA: CASOS SIMILARES JÁ DECIDIDOS POR VOCÊ\n\n`;
               similarCasesContext += `Encontrei ${similarTheses.length} decisões suas anteriores sobre temas relacionados. Use-as como referência:\n\n`;
-              
+
               similarTheses.forEach((thesis, index) => {
                 similarCasesContext += `### Precedente ${index + 1}\n`;
                 similarCasesContext += `**Tese Firmada:** ${thesis.thesis}\n`;
                 similarCasesContext += `**Fundamentos:** ${thesis.legalFoundations}\n`;
                 similarCasesContext += `**Palavras-chave:** ${thesis.keywords}\n\n`;
               });
-              
+
               similarCasesContext += `\n**INSTRUÇÃO:** Ao gerar minutas, considere essas decisões anteriores para manter consistência e aplicar teses já firmadas. Se houver divergência, mencione ao usuário.\n`;
             }
           }
@@ -355,8 +385,8 @@ export const davidRouter = router({
         messages: llmMessages,
       });
 
-      const assistantMessage = typeof response.choices[0]?.message?.content === 'string' 
-        ? response.choices[0].message.content 
+      const assistantMessage = typeof response.choices[0]?.message?.content === 'string'
+        ? response.choices[0].message.content
         : "Desculpe, não consegui gerar uma resposta.";
 
       // Salvar resposta do DAVID
@@ -393,12 +423,43 @@ export const davidRouter = router({
         content: input.content,
       });
 
+      // --- MOTOR GENÉRICO DE PROMPTS (Fase 3) ---
+      if (input.content.startsWith("/")) {
+        if (conversation.processId) {
+          const process = await getProcessForContext(conversation.processId);
+          if (process) {
+            console.log(`[DavidRouter] Detectado comando (Stream): ${input.content}`);
+            const commandResult = await executeSavedPrompt({
+              userId: ctx.user.id,
+              promptCommand: input.content,
+              processId: conversation.processId,
+              processNumber: process.processNumber
+            });
+
+            if (commandResult) {
+              // Salvar resposta
+              await createMessage({
+                conversationId: input.conversationId,
+                role: "assistant",
+                content: commandResult,
+              });
+
+              // Emular stream (envia tudo de uma vez por enquanto)
+              yield { type: "chunk", content: commandResult };
+              yield { type: "done", content: commandResult };
+              return;
+            }
+          }
+        }
+      }
+      // ------------------------------------------
+
       // Buscar histórico de mensagens
       const history = await getConversationMessages(input.conversationId);
-      
+
       // Gerar título automaticamente se for a primeira mensagem
       const isFirstMessage = history.length === 1; // Apenas a mensagem do usuário que acabou de ser salva
-      
+
       if (isFirstMessage) {
         // Buscar informações do processo se houver
         let processInfo;
@@ -413,7 +474,7 @@ export const davidRouter = router({
             };
           }
         }
-        
+
         // Gerar título em background (não bloqueia resposta)
         generateConversationTitle(input.content, processInfo)
           .then(async (title) => {
@@ -456,8 +517,8 @@ export const davidRouter = router({
             if (citableDocs.length > 0) {
               knowledgeBaseContext += `### Enunciados Aplicáveis\n\n`;
               citableDocs.forEach((doc) => {
-                const contentPreview = doc.content.length > 3000 
-                  ? doc.content.substring(0, 3000) + "..." 
+                const contentPreview = doc.content.length > 3000
+                  ? doc.content.substring(0, 3000) + "..."
                   : doc.content;
                 knowledgeBaseContext += `**${doc.title}**\n${contentPreview}\n\n`;
               });
@@ -468,8 +529,8 @@ export const davidRouter = router({
             if (referenceDocs.length > 0) {
               knowledgeBaseContext += `### Referências Internas (Uso Implícito)\n\n`;
               referenceDocs.forEach((doc) => {
-                const contentPreview = doc.content.length > 2000 
-                  ? doc.content.substring(0, 2000) + "..." 
+                const contentPreview = doc.content.length > 2000
+                  ? doc.content.substring(0, 2000) + "..."
                   : doc.content;
                 knowledgeBaseContext += `${contentPreview}\n\n`;
               });
@@ -485,12 +546,12 @@ export const davidRouter = router({
       let processContext = "";
       let similarCasesContext = "";
       let processDocsContext = "";
-      
+
       if (conversation.processId) {
         const process = await getProcessForContext(conversation.processId);
         if (process) {
           processContext = `\n\n## PROCESSO SELECIONADO\n\n**Número:** ${process.processNumber}\n**Autor:** ${process.plaintiff}\n**Réu:** ${process.defendant}\n**Vara:** ${process.court}\n**Assunto:** ${process.subject}\n**Fatos:** ${process.facts}\n**Pedidos:** ${process.requests}\n**Status:** ${process.status}\n`;
-          
+
           // Buscar documentos do processo
           try {
             console.log(`[ProcessDocs] Buscando documentos para processId=${conversation.processId}, userId=${ctx.user.id}`);
@@ -499,8 +560,8 @@ export const davidRouter = router({
             if (processDocs.length > 0) {
               processDocsContext = `\n\n### DOCUMENTOS DO PROCESSO\n\n`;
               processDocs.forEach((doc: any) => {
-                const contentPreview = doc.content.length > 2000 
-                  ? doc.content.substring(0, 2000) + "..." 
+                const contentPreview = doc.content.length > 2000
+                  ? doc.content.substring(0, 2000) + "..."
                   : doc.content;
                 processDocsContext += `**${doc.title}** (${doc.documentType})\n${contentPreview}\n\n`;
               });
@@ -510,23 +571,23 @@ export const davidRouter = router({
             console.error("[ProcessDocs] Erro ao buscar documentos:", error);
           }
           console.log(`[ProcessDocs] processDocsContext length: ${processDocsContext.length}`);
-          
+
           // Buscar casos similares baseados no assunto
           if (process.subject) {
             const keywords = process.subject.split(" ").filter(w => w.length > 3).slice(0, 5);
             const similarTheses = await searchSimilarTheses(ctx.user.id, keywords);
-            
+
             if (similarTheses.length > 0) {
               similarCasesContext = `\n\n## MEMÓRIA: CASOS SIMILARES JÁ DECIDIDOS POR VOCÊ\n\n`;
               similarCasesContext += `Encontrei ${similarTheses.length} decisões suas anteriores sobre temas relacionados. Use-as como referência:\n\n`;
-              
+
               similarTheses.forEach((thesis, index) => {
                 similarCasesContext += `### Precedente ${index + 1}\n`;
                 similarCasesContext += `**Tese Firmada:** ${thesis.thesis}\n`;
                 similarCasesContext += `**Fundamentos:** ${thesis.legalFoundations}\n`;
                 similarCasesContext += `**Palavras-chave:** ${thesis.keywords}\n\n`;
               });
-              
+
               similarCasesContext += `\n**INSTRUÇÃO:** Ao gerar minutas, considere essas decisões anteriores para manter consistência e aplicar teses já firmadas. Se houver divergência, mencione ao usuário.\n`;
             }
           }
@@ -581,12 +642,14 @@ export const davidRouter = router({
           category: z.string().optional(),
           content: z.string(),
           description: z.string().optional(),
+          executionMode: z.enum(["chat", "full_context"]).optional(),
         })
       )
       .mutation(async ({ ctx, input }) => {
         const id = await createSavedPrompt({
           userId: ctx.user.id,
           ...input,
+          executionMode: input.executionMode || "chat",
         });
         return { id };
       }),
@@ -599,7 +662,7 @@ export const davidRouter = router({
       // Verifica se já existe
       const existing = await getUserSavedPrompts(ctx.user.id);
       const hasTutela = existing.some((p) => p.category === "tutela" && p.isDefault === 1);
-      
+
       if (hasTutela) {
         return { success: false, message: "Prompt padrão já existe" };
       }
@@ -691,6 +754,7 @@ Diretrizes de Execução:
           category: z.string().optional(),
           content: z.string().optional(),
           description: z.string().optional(),
+          executionMode: z.enum(["chat", "full_context"]).optional(),
         })
       )
       .mutation(async ({ ctx, input }) => {
@@ -761,13 +825,13 @@ Diretrizes de Execução:
           userId: ctx.user.id,
           ...input,
         });
-        
+
         // Se foi aprovada (não rejeitada), extrair tese automaticamente
         if (input.approvalStatus !== "rejected") {
           try {
             const draftContent = input.editedDraft || input.originalDraft;
             const extracted = await extractThesisFromDraft(draftContent, input.draftType);
-            
+
             // Salvar tese extraída
             await createLearnedThesis({
               userId: ctx.user.id,
@@ -783,7 +847,7 @@ Diretrizes de Execução:
             // Não falhar a aprovação se a extração falhar
           }
         }
-        
+
         return { id: draftId };
       }),
 

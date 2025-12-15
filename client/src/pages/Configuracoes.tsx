@@ -34,11 +34,12 @@ export default function Configuracoes() {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [docToDelete, setDocToDelete] = useState<any>(null);
-  
+
   // API Keys states
   const [llmApiKey, setLlmApiKey] = useState("");
   const [llmProvider, setLlmProvider] = useState("google");
   const [llmModel, setLlmModel] = useState("");
+  const [openaiEmbeddingsKey, setOpenaiEmbeddingsKey] = useState(""); // State para chave de embeddings
   const [availableModels, setAvailableModels] = useState<Array<{ id: string; name: string }>>([]);
   const [isLoadingModels, setIsLoadingModels] = useState(false);
   const [modelsError, setModelsError] = useState("");
@@ -88,7 +89,8 @@ export default function Configuracoes() {
       setLlmApiKey(settings.llmApiKey || "");
       setLlmProvider(settings.llmProvider || "google");
       setLlmModel(settings.llmModel || "");
-      
+      setOpenaiEmbeddingsKey(settings.openaiEmbeddingsKey || "");
+
       // Carregar modelos se já tiver API key
       if (settings.llmApiKey && settings.llmProvider) {
         loadModels(settings.llmProvider, settings.llmApiKey);
@@ -103,15 +105,15 @@ export default function Configuracoes() {
     }
     setIsLoadingModels(true);
     setModelsError("");
-    
+
     try {
       const models = await utils.client.settings.listModels.query({
         provider,
         apiKey,
       });
-      
+
       setAvailableModels(models);
-      
+
       if (models.length === 0) {
         setModelsError("Nenhum modelo disponível");
       } else {
@@ -152,11 +154,12 @@ export default function Configuracoes() {
       toast.error("Selecione um modelo");
       return;
     }
-    
+
     updateSettingsMutation.mutate({
       llmApiKey: llmApiKey || undefined,
       llmProvider,
       llmModel: llmModel || undefined,
+      openaiEmbeddingsKey: openaiEmbeddingsKey || undefined,
     });
   };
 
@@ -326,7 +329,7 @@ export default function Configuracoes() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="apiKey">Chave de API</Label>
+                  <Label htmlFor="apiKey">Chave de API (Cérebro Principal)</Label>
                   <Input
                     id="apiKey"
                     type="password"
@@ -335,7 +338,22 @@ export default function Configuracoes() {
                     placeholder="Insira sua chave de API (deixe vazio para usar LLM nativa)"
                   />
                   <p className="text-xs text-muted-foreground">
-                    Sua chave de API é armazenada de forma segura no banco de dados
+                    Chave para o modelo de raciocínio (ex: GPT-4, Gemini 1.5 Pro)
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="embeddingsKey">Chave de API de Embeddings (Memória)</Label>
+                  <Input
+                    id="embeddingsKey"
+                    type="password"
+                    value={openaiEmbeddingsKey}
+                    onChange={(e) => setOpenaiEmbeddingsKey(e.target.value)}
+                    placeholder="Obrigatório: Chave da OpenAI para o sistema de memória (Embeddings)"
+                    className="border-blue-200 focus:border-blue-500"
+                  />
+                  <p className="text-xs text-blue-600 dark:text-blue-400 font-medium">
+                    ⚠️ Preferencialmente use uma API Key exclusiva para Embeddings da OpenAI (Models: text-embedding-3-small)
                   </p>
                 </div>
 
@@ -446,10 +464,10 @@ export default function Configuracoes() {
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 mb-2">
                               <h3 className="font-semibold truncate">{doc.title}</h3>
-                              <Badge 
+                              <Badge
                                 variant={doc.source === "sistema" ? "default" : "secondary"}
-                                className={doc.source === "sistema" 
-                                  ? "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200 border-red-300 dark:border-red-700" 
+                                className={doc.source === "sistema"
+                                  ? "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200 border-red-300 dark:border-red-700"
                                   : "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 border-green-300 dark:border-green-700"
                                 }
                               >

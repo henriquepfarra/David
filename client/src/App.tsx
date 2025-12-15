@@ -5,6 +5,7 @@ import { Route, Switch } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import Home from "./pages/Home";
+import HomeCompact from "./pages/HomeCompact";
 import BaseConhecimento from "./pages/BaseConhecimento";
 import Processos from "./pages/Processos";
 import Ghostwriter from "./pages/Ghostwriter";
@@ -24,6 +25,7 @@ function Router() {
     <Switch>
       <Route path={"/login"} component={LocalAuth} />
       <Route path={"/"} component={Home} />
+      <Route path={"/home-compact"} component={HomeCompact} />
       <Route path={"/processos"} component={Processos} />
       <Route path={"/processo/:id"} component={ProcessoDetalhes} />
       <Route path={"/minutas"} component={Minutas} />

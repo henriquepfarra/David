@@ -97,6 +97,7 @@ export const userSettings = mysqlTable("userSettings", {
   llmApiKey: text("llmApiKey"),
   llmProvider: varchar("llmProvider", { length: 50 }).default("openai"),
   llmModel: varchar("llmModel", { length: 100 }).default("gpt-4"),
+  openaiEmbeddingsKey: text("openaiEmbeddingsKey"), // Chave específica para embeddings (memória)
   customSystemPrompt: longtext("customSystemPrompt"), // System Prompt customizado do David
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
@@ -104,6 +105,26 @@ export const userSettings = mysqlTable("userSettings", {
 
 export type UserSettings = typeof userSettings.$inferSelect;
 export type InsertUserSettings = typeof userSettings.$inferInsert;
+
+// Chunks de documentos processados para RAG e Leitura Profunda
+export const processDocumentChunks = mysqlTable("processDocumentChunks", {
+  id: int("id").autoincrement().primaryKey(),
+  processId: int("processId").notNull(), // Vinculado ao processo
+  documentId: int("documentId").notNull(), // Vinculado ao documento original
+  content: longtext("content").notNull(), // Texto fiel do chunk
+  pageNumber: int("pageNumber").notNull(), // Página de origem
+  chunkIndex: int("chunkIndex").notNull(), // Ordem sequencial na página
+  tokenCount: int("tokenCount"), // Para gestão de janela de contexto
+  embedding: text("embedding", { mode: 'json' }).$type<number[]>(), // Vetor (armazenado como JSON array)
+  tags: text("tags"), // Metadados extras (ex: "comprovante", "assinatura")
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+}, (table) => ({
+  processIdIdx: index("processDocumentChunks_processId_idx").on(table.processId),
+  documentIdIdx: index("processDocumentChunks_documentId_idx").on(table.documentId),
+}));
+
+export type ProcessDocumentChunk = typeof processDocumentChunks.$inferSelect;
+export type InsertProcessDocumentChunk = typeof processDocumentChunks.$inferInsert;
 
 // Base de conhecimento - Documentos de referência GLOBAIS (minutas modelo, teses, enunciados)
 export const knowledgeBase = mysqlTable("knowledgeBase", {
@@ -185,6 +206,7 @@ export const savedPrompts = mysqlTable("savedPrompts", {
   content: longtext("content").notNull(), // O prompt completo
   description: text("description"), // Descrição do que o prompt faz
   isDefault: int("isDefault").default(0).notNull(), // Se é um prompt padrão do sistema
+  executionMode: mysqlEnum("executionMode", ["chat", "full_context"]).default("chat").notNull(), // chat = RAG/simples, full_context = Injeta todo o processo
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 }, (table) => ({

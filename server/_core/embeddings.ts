@@ -4,14 +4,34 @@ import { ENV } from "./env";
  * Gera embedding de um texto usando a API do Manus
  * Retorna um vetor numérico que representa semanticamente o texto
  */
-export async function generateEmbedding(text: string): Promise<number[]> {
+export async function generateEmbedding(text: string, apiKey?: string): Promise<number[]> {
   try {
+    // Se uma chave específica de embedding for fornecida, usar endpoint da OpenAI diretamente
+    if (apiKey) {
+      const response = await fetch("https://api.openai.com/v1/embeddings", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          input: text.replace(/\n/g, " "), // Sanitização simples
+          model: "text-embedding-3-small",
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Erro na API OpenAI (Embeddings): ${response.status} - ${await response.text()}`);
+      }
+
+      const data = await response.json();
+      return data.data[0].embedding;
+    }
+
+    // Fallback para a API interna (Forge/Manus) se não houver chave específica
     const apiUrl = ENV.forgeApiUrl && ENV.forgeApiUrl.trim().length > 0
       ? `${ENV.forgeApiUrl.replace(/\/$/, "")}/v1/embeddings`
       : "https://forge.manus.im/v1/embeddings";
-
-    console.log("[DEBUG] API URL:", apiUrl);
-    console.log("[DEBUG] API Key exists:", !!ENV.forgeApiKey);
 
     const response = await fetch(apiUrl, {
       method: "POST",
@@ -21,17 +41,16 @@ export async function generateEmbedding(text: string): Promise<number[]> {
       },
       body: JSON.stringify({
         input: text,
-        model: "text-embedding-3-small", // Modelo de embeddings da OpenAI
+        model: "text-embedding-3-small",
       }),
     });
 
     if (!response.ok) {
-      throw new Error(`Erro ao gerar embedding: ${response.statusText}`);
+      throw new Error(`Erro ao gerar embedding (Forge): ${response.statusText}`);
     }
 
     const data = await response.json();
-    
-    // A API retorna: { data: [{ embedding: [0.1, 0.2, ...] }] }
+
     if (!data.data || !data.data[0] || !data.data[0].embedding) {
       throw new Error("Resposta inválida da API de embeddings");
     }

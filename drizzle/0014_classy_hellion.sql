@@ -1,0 +1,1 @@
+ALTER TABLE `savedPrompts` ADD `executionMode` enum('chat','full_context') DEFAULT 'chat' NOT NULL;

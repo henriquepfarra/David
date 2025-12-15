@@ -9,10 +9,6 @@ import { TRPCError } from "@trpc/server";
  * Router para gerenciar documentos vinculados a processos específicos
  */
 export const processDocumentsRouter = router({
-  /**
-   * Upload de documento do processo
-   * Recebe arquivo em base64, faz upload para S3, extrai texto e salva no banco
-   */
   upload: protectedProcedure
     .input(
       z.object({
@@ -33,18 +29,24 @@ export const processDocumentsRouter = router({
         const mimeType = getMimeType(input.fileType);
         const { url: fileUrl } = await storagePut(fileKey, buffer, mimeType);
 
-        // Extrair texto do documento
         let extractedText = "";
+        let pagesToProcess: { pageNumber: number, text: string }[] = [];
+
+        // 1. Extração do Texto
         try {
           if (input.fileType === "txt") {
             extractedText = buffer.toString("utf-8");
+            pagesToProcess = [{ pageNumber: 1, text: extractedText }];
           } else if (input.fileType === "docx") {
             const result = await mammoth.extractRawText({ buffer });
             extractedText = result.value;
+            pagesToProcess = [{ pageNumber: 1, text: extractedText }];
           } else if (input.fileType === "pdf") {
-            // Para PDFs, usar o novo extrator
-            const { extractTextFromPdfBuffer } = await import("./_core/pdfExtractor");
-            extractedText = await extractTextFromPdfBuffer(buffer);
+            // Importação dinâmica dos extratores
+            const { extractPagesFromPdfBuffer } = await import("./_core/pdfExtractor");
+            // Extrai páginas separadas
+            pagesToProcess = await extractPagesFromPdfBuffer(buffer);
+            extractedText = pagesToProcess.map(p => p.text).join("\n\n");
           } else {
             extractedText = "[Arquivo de imagem - sem extração de texto]";
           }
@@ -53,21 +55,74 @@ export const processDocumentsRouter = router({
           extractedText = "[Erro na extração de texto]";
         }
 
-        // Salvar no banco
-        await createProcessDocument({
+        // 2. Salvar Documento Pai no Banco
+        // Aqui salvamos o registro "físico" do arquivo
+        const docResult = await createProcessDocument({
           userId: ctx.user.id,
           processId: input.processId,
           title: input.fileName,
-          content: extractedText,
+          content: extractedText, // Mantemos uma cópia bruta por segurança
           fileType: input.fileType,
           fileUrl,
           documentType: input.documentType || "outro",
         });
 
+        const documentId = Number(docResult[0].insertId);
+
+        // 3. Processamento Profundo (Deep Reading & Chunking)
+        // Só processamos se tiver extraído texto válido
+        if (extractedText.length > 50 && pagesToProcess.length > 0) {
+          const { splitTextIntoChunks } = await import("./_core/chunking");
+          const { generateEmbedding } = await import("./_core/embeddings");
+          const { processDocumentChunks, userSettings } = await import("../drizzle/schema");
+          const { db } = await import("./db");
+          const { eq } = await import("drizzle-orm");
+
+          // Buscar chave de API customizada do usuário
+          let apiKey: string | undefined;
+          if (db) {
+            const settingsResult = await db.select().from(userSettings).where(eq(userSettings.userId, ctx.user.id)).limit(1);
+            const settings = settingsResult[0];
+            apiKey = settings?.openaiEmbeddingsKey || undefined;
+          }
+
+          // Iterar sobre cada página
+          for (const page of pagesToProcess) {
+            // Quebrar página em chunks inteligentes (com overlap)
+            const chunks = splitTextIntoChunks(page.text, { maxSize: 1000, overlap: 200 });
+
+            // Processar cada chunk
+            for (const chunk of chunks) {
+              let embedding: number[] = [];
+              try {
+                // Gerar vetor semântico
+                embedding = await generateEmbedding(chunk.content, apiKey);
+              } catch (e) {
+                console.warn(`Falha ao gerar embedding para doc ${documentId} pag ${page.pageNumber}`);
+              }
+
+              // Salvar chunk no banco
+              if (db) {
+                await db.insert(processDocumentChunks).values({
+                  processId: input.processId,
+                  documentId: documentId,
+                  content: chunk.content,
+                  pageNumber: page.pageNumber,
+                  chunkIndex: chunk.chunkIndex,
+                  tokenCount: chunk.tokenCountEstimate,
+                  embedding: embedding, // Drizzle cuida do JSON.stringify
+                  tags: input.documentType
+                });
+              }
+            }
+          }
+        }
+
         return {
           success: true,
           fileUrl,
           extractedLength: extractedText.length,
+          pagesProcessed: pagesToProcess.length
         };
       } catch (error) {
         console.error("[ProcessDocuments] Erro no upload:", error);
