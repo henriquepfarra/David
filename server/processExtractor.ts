@@ -72,19 +72,19 @@ Retorne APENAS um objeto JSON válido, sem texto adicional.`;
 function cleanJsonResponse(content: string): string {
   // Remove blocos ```json ... ``` ou ``` ... ```
   let cleaned = content.trim();
-  
+
   // Remove ```json no início
   if (cleaned.startsWith('```json')) {
     cleaned = cleaned.slice(7);
   } else if (cleaned.startsWith('```')) {
     cleaned = cleaned.slice(3);
   }
-  
+
   // Remove ``` no final
   if (cleaned.endsWith('```')) {
     cleaned = cleaned.slice(0, -3);
   }
-  
+
   return cleaned.trim();
 }
 
@@ -92,7 +92,8 @@ function cleanJsonResponse(content: string): string {
  * Extrai dados processuais de um texto usando IA
  */
 export async function extractProcessData(
-  text: string
+  text: string,
+  params?: { apiKey?: string; model?: string; provider?: string }
 ): Promise<ExtractedProcessData> {
   try {
     // Limitar tamanho do texto para evitar excesso de tokens
@@ -132,12 +133,15 @@ export async function extractProcessData(
           },
         },
       },
+      apiKey: params?.apiKey,
+      model: params?.model,
+      provider: params?.provider,
     });
 
     if (!response || !response.choices || response.choices.length === 0) {
       throw new Error("API n\u00e3o retornou resposta v\u00e1lida. Verifique se a API key est\u00e1 configurada corretamente nas Configura\u00e7\u00f5es.");
     }
-    
+
     const content = response.choices[0]?.message?.content;
     if (!content) {
       throw new Error("Resposta vazia da IA. Verifique se a API key est\u00e1 configurada corretamente.");
@@ -161,8 +165,8 @@ export async function extractProcessData(
       valorCausa: data.valorCausa || data['Valor da Causa'] || null,
       dataDistribuicao: data.dataDistribuicao || data['Data de Distribuição'] || null,
       resumoFatos: data.resumoFatos || data['Resumo dos Fatos'] || null,
-      pedidos: Array.isArray(data.pedidos || data.Pedidos) 
-        ? (data.pedidos || data.Pedidos).join('\n') 
+      pedidos: Array.isArray(data.pedidos || data.Pedidos)
+        ? (data.pedidos || data.Pedidos).join('\n')
         : (data.pedidos || data.Pedidos || null),
     };
     console.log('[extractProcessData] cleanedData:', JSON.stringify(cleanedData, null, 2));
@@ -178,9 +182,9 @@ export async function extractProcessData(
     if (cleanedData.pedidos) extractedFields.push('requests');
 
     // Determinar confiança baseado em quantos campos foram extraídos
-    const confidence: "high" | "medium" | "low" = 
+    const confidence: "high" | "medium" | "low" =
       extractedFields.length >= 5 ? "high" :
-      extractedFields.length >= 3 ? "medium" : "low";
+        extractedFields.length >= 3 ? "medium" : "low";
 
     return {
       ...cleanedData,
@@ -197,7 +201,8 @@ export async function extractProcessData(
  * Extrai dados de múltiplas imagens (para PDFs digitalizados)
  */
 export async function extractProcessDataFromImages(
-  images: string[]
+  images: string[],
+  params?: { apiKey?: string; model?: string; provider?: string }
 ): Promise<ExtractedProcessData> {
   try {
     // Limitar número de imagens para evitar excesso de tokens
@@ -251,12 +256,15 @@ export async function extractProcessDataFromImages(
           },
         },
       },
+      apiKey: params?.apiKey,
+      model: params?.model,
+      provider: params?.provider,
     });
 
     if (!response || !response.choices || response.choices.length === 0) {
       throw new Error("API n\u00e3o retornou resposta v\u00e1lida. Verifique se a API key est\u00e1 configurada corretamente nas Configura\u00e7\u00f5es.");
     }
-    
+
     const content = response.choices[0]?.message?.content;
     if (!content) {
       throw new Error("Resposta vazia da IA. Verifique se a API key est\u00e1 configurada corretamente.");
@@ -280,8 +288,8 @@ export async function extractProcessDataFromImages(
       valorCausa: data.valorCausa || data['Valor da Causa'] || null,
       dataDistribuicao: data.dataDistribuicao || data['Data de Distribuição'] || null,
       resumoFatos: data.resumoFatos || data['Resumo dos Fatos'] || null,
-      pedidos: Array.isArray(data.pedidos || data.Pedidos) 
-        ? (data.pedidos || data.Pedidos).join('\n') 
+      pedidos: Array.isArray(data.pedidos || data.Pedidos)
+        ? (data.pedidos || data.Pedidos).join('\n')
         : (data.pedidos || data.Pedidos || null),
     };
     console.log('[extractProcessData] cleanedData:', JSON.stringify(cleanedData, null, 2));
@@ -297,9 +305,9 @@ export async function extractProcessDataFromImages(
     if (cleanedData.pedidos) extractedFields.push('requests');
 
     // Determinar confiança baseado em quantos campos foram extraídos
-    const confidence: "high" | "medium" | "low" = 
+    const confidence: "high" | "medium" | "low" =
       extractedFields.length >= 5 ? "high" :
-      extractedFields.length >= 3 ? "medium" : "low";
+        extractedFields.length >= 3 ? "medium" : "low";
 
     return {
       ...cleanedData,

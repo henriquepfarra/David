@@ -1,4 +1,6 @@
-console.log("🚀 Server starting... (index.ts loaded)");
+console.log("🚀 Server process starting...");
+console.log(`🌍 NODE_ENV: ${process.env.NODE_ENV}`);
+
 import "dotenv/config";
 import express from "express";
 import { createServer } from "http";
@@ -9,7 +11,7 @@ import { appRouter } from "../routers";
 import { createContext } from "./context";
 import { serveStatic } from "./vite";
 import cors from "cors";
-import { getConversationById, getConversationMessages, createMessage, getProcessForContext } from "../db";
+import { getConversationById, getConversationMessages, createMessage, getProcessForContext, getUserSettings } from "../db";
 import { invokeLLMStream as streamFn } from "../_core/llm";
 import { sdk } from "./sdk";
 
@@ -28,9 +30,11 @@ function isPortAvailable(port: number): Promise<boolean> {
 async function findAvailablePort(startPort: number = 3000): Promise<number> {
   for (let port = startPort; port < startPort + 20; port++) {
     if (await isPortAvailable(port)) {
+      console.log(`✅ Port ${port} is available`);
       return port;
     }
   }
+  console.error(`❌ No available port found starting from ${startPort}`);
   throw new Error(`No available port found starting from ${startPort}`);
 }
 
@@ -69,7 +73,16 @@ async function startServer() {
         return;
       }
 
+
       const { conversationId, content, systemPromptOverride } = req.body;
+
+      // Buscar configurações de LLM do usuário
+      const settings = await getUserSettings(user.id);
+      const llmConfig = {
+        apiKey: settings?.llmApiKey || undefined,
+        model: settings?.llmModel || undefined,
+        provider: settings?.llmProvider || undefined
+      };
 
       const conversation = await getConversationById(conversationId);
       if (!conversation || conversation.userId !== user.id) {
@@ -125,7 +138,12 @@ async function startServer() {
       try {
         // streamFn is now statically imported
 
-        for await (const chunk of streamFn({ messages: llmMessages })) {
+        for await (const chunk of streamFn({
+          messages: llmMessages,
+          apiKey: llmConfig.apiKey,
+          model: llmConfig.model,
+          provider: llmConfig.provider
+        })) {
           fullResponse += chunk;
           res.write(`data: ${JSON.stringify({ type: "chunk", content: chunk })}\n\n`);
         }

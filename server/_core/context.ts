@@ -16,6 +16,7 @@ export async function createContext(
   try {
     // In development mode, auto-login as admin
     if (process.env.NODE_ENV === "development") {
+      console.log("🔓 [Auth] Development mode detected: Bypassing authentication with mock user.");
       user = {
         id: 999999,
         openId: "dev-user-id",

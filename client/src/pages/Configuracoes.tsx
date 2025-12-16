@@ -15,7 +15,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { trpc } from "@/lib/trpc";
-import { FileText, Loader2, Save, Upload, Edit, Trash2, RefreshCw, Key, Brain, BookOpen } from "lucide-react";
+import { FileText, Loader2, Save, Upload, Edit, Trash2, RefreshCw, Key, Brain, BookOpen, Database, Check } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { DEFAULT_DAVID_SYSTEM_PROMPT } from "@shared/defaultPrompts";
@@ -139,6 +139,17 @@ export default function Configuracoes() {
     setAvailableModels([]);
     setModelsError("");
   };
+
+  // Auto-load models when API Key is present/changed (Debounced)
+  useEffect(() => {
+    if (!llmApiKey || llmApiKey.length < 10) return;
+
+    const timer = setTimeout(() => {
+      handleLoadModels();
+    }, 1000); // 1.5s delay to allow finish typing
+
+    return () => clearTimeout(timer);
+  }, [llmApiKey, llmProvider]);
 
   const handleLoadModels = () => {
     if (!llmApiKey) {
@@ -293,116 +304,207 @@ export default function Configuracoes() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                {/* Indicador de LLM ativa */}
-                {!llmApiKey ? (
-                  <div className="bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
-                    <p className="text-sm text-blue-900 dark:text-blue-100">
-                      <strong>✅ Usando LLM nativa da Manus</strong> - Nenhuma configuração necessária
-                    </p>
-                    <p className="text-xs text-blue-700 dark:text-blue-300 mt-1">
-                      Configure uma API externa abaixo se desejar usar um provedor específico
-                    </p>
+                <div className="space-y-6">
+                  {/* Explicação Didática */}
+                  <div className="bg-slate-50 dark:bg-slate-900/50 p-4 rounded-lg border border-slate-200 dark:border-slate-800">
+                    <h3 className="font-semibold flex items-center gap-2 mb-2 text-primary">
+                      <Brain className="h-4 w-4" />
+                      Como funciona o Cérebro do DAVID?
+                    </h3>
+                    <div className="grid md:grid-cols-2 gap-4 text-sm text-muted-foreground">
+                      <div>
+                        <p className="font-medium text-foreground mb-1">🧠 Cérebro (Raciocínio)</p>
+                        <p>É o modelo de IA que "pensa" e escreve as respostas. Você pode usar modelos potentes (ex: <strong>GPT 5.2, Gemini 3, Claude 4.5 Sonnet</strong>) ou opções rápidas.</p>
+                      </div>
+                      <div>
+                        <p className="font-medium text-foreground mb-1">📚 Memória (Embeddings)</p>
+                        <p>É a tecnologia que permite ao DAVID "ler" seus PDFs. Atualmente requer uma chave da <strong>OpenAI</strong>, mas estamos trabalhando para torná-la flexível.</p>
+                      </div>
+                    </div>
                   </div>
-                ) : (
-                  <div className="bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-lg p-4">
-                    <p className="text-sm text-green-900 dark:text-green-100">
-                      <strong>✅ Usando API externa configurada ({llmProvider})</strong>
-                    </p>
-                    <p className="text-xs text-green-700 dark:text-green-300 mt-1">
-                      Modelo: {llmModel || "Não selecionado"}
-                    </p>
+
+                  {/* Indicador de Status */}
+                  {!llmApiKey ? (
+                    <div className="bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+                      <p className="text-sm text-blue-900 dark:text-blue-100 flex items-center gap-2">
+                        <span className="h-2 w-2 rounded-full bg-blue-500 animate-pulse"></span>
+                        <strong>Modo Nativo (Manus)</strong>
+                      </p>
+                      <p className="text-xs text-blue-700 dark:text-blue-300 mt-1 ml-4">
+                        Você está usando a estrutura padrão. Configure abaixo para usar seu próprio cérebro.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-lg p-4">
+                      <p className="text-sm text-green-900 dark:text-green-100 flex items-center gap-2">
+                        <span className="h-2 w-2 rounded-full bg-green-500"></span>
+                        <strong>Provedor Ativo: {llmProvider.charAt(0).toUpperCase() + llmProvider.slice(1)}</strong>
+                      </p>
+                      <p className="text-xs text-green-700 dark:text-green-300 mt-1 ml-4 flex items-center gap-2">
+                        Modelo selecionado: <Badge variant="outline" className="bg-green-100 dark:bg-green-900 border-green-300">{llmModel || "Automático"}</Badge>
+                      </p>
+                    </div>
+                  )}
+
+                  <hr className="border-border/50" />
+
+                  {/* Configuração do Cérebro (LLM) */}
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-base flex items-center gap-2">
+                        <Brain className="h-4 w-4 text-primary" />
+                        1. Escolha seu Cérebro (LLM)
+                      </Label>
+
+                      {/* Links Dinâmicos por Provedor */}
+                      {llmProvider === 'groq' && (
+                        <a href="https://console.groq.com/keys" target="_blank" rel="noreferrer" className="text-xs text-violet-500 hover:underline flex items-center gap-1">
+                          Obter Chave Grátis (Groq) <Upload className="h-3 w-3 rotate-45" />
+                        </a>
+                      )}
+                      {llmProvider === 'google' && (
+                        <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noreferrer" className="text-xs text-blue-500 hover:underline flex items-center gap-1">
+                          Obter Chave (Google AI Studio) <Upload className="h-3 w-3 rotate-45" />
+                        </a>
+                      )}
+                      {llmProvider === 'openai' && (
+                        <a href="https://platform.openai.com/api-keys" target="_blank" rel="noreferrer" className="text-xs text-green-500 hover:underline flex items-center gap-1">
+                          Obter Chave (OpenAI) <Upload className="h-3 w-3 rotate-45" />
+                        </a>
+                      )}
+                      {llmProvider === 'anthropic' && (
+                        <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noreferrer" className="text-xs text-orange-500 hover:underline flex items-center gap-1">
+                          Obter Chave (Anthropic) <Upload className="h-3 w-3 rotate-45" />
+                        </a>
+                      )}
+                    </div>
+
+                    <div className="grid md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="provider" className="text-xs text-muted-foreground">Provedor</Label>
+                        <Select value={llmProvider} onValueChange={handleProviderChange}>
+                          <SelectTrigger id="provider" className="font-medium">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="google">Google (Gemini)</SelectItem>
+                            <SelectItem value="openai">OpenAI (GPT)</SelectItem>
+                            <SelectItem value="anthropic">Anthropic (Claude)</SelectItem>
+                            <SelectItem value="groq" className="font-bold text-violet-500">Groq (Recomendado/Rápido)</SelectItem>
+                            <SelectItem value="deepseek" className="font-bold text-blue-600">DeepSeek (Custo-Benefício)</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="apiKey" className="text-xs text-muted-foreground">Chave de API (Secret Key)</Label>
+                        <div className="relative">
+                          <Input
+                            id="apiKey"
+                            type="password"
+                            value={llmApiKey}
+                            onChange={(e) => handleApiKeyChange(e.target.value)}
+                            placeholder={llmProvider === 'groq' ? "gsk_..." : "sk-..."}
+                            className="pr-10"
+                          />
+                          <Key className="absolute right-3 top-2.5 h-4 w-4 text-muted-foreground opacity-50" />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <div className="flex justify-between items-center">
+                        <Label htmlFor="model" className="text-xs text-muted-foreground">Modelo de Raciocínio</Label>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={handleLoadModels}
+                          disabled={isLoadingModels || !llmApiKey}
+                          className="h-6 text-xs"
+                        >
+                          {isLoadingModels ? (
+                            <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                          ) : (
+                            <RefreshCw className="mr-1 h-3 w-3" />
+                          )}
+                          Atualizar Lista
+                        </Button>
+                      </div>
+
+                      {modelsError ? (
+                        <div className="text-xs text-destructive bg-destructive/10 p-2 rounded">{modelsError}</div>
+                      ) : (
+                        <Select value={llmModel} onValueChange={setLlmModel}>
+                          <SelectTrigger id="model">
+                            <SelectValue placeholder={availableModels.length > 0 ? "Selecione o modelo..." : "Insira a chave para carregar modelos"} />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {/* Curated or Filtered List Logic could go here, for now showing all but styled */}
+                            {availableModels.length > 0 ? (
+                              availableModels.map((model) => (
+                                <SelectItem key={model.id} value={model.id}>
+                                  {model.name}
+                                </SelectItem>
+                              ))
+                            ) : (
+                              <div className="p-2 text-xs text-muted-foreground text-center">Nenhum modelo carregado</div>
+                            )}
+                          </SelectContent>
+                        </Select>
+                      )}
+                      <p className="text-[10px] text-muted-foreground">
+                        * Modelos recomendados: <strong>llama-3.1-70b</strong> (Groq), <strong>gemini-1.5-flash</strong> (Google), <strong>gpt-4o</strong> (OpenAI).
+                      </p>
+                    </div>
                   </div>
-                )}
 
-                <div className="space-y-2">
-                  <Label htmlFor="provider">Provedor de IA</Label>
-                  <Select value={llmProvider} onValueChange={handleProviderChange}>
-                    <SelectTrigger id="provider">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="google">Google (Gemini)</SelectItem>
-                      <SelectItem value="openai">OpenAI (GPT)</SelectItem>
-                      <SelectItem value="anthropic">Anthropic (Claude)</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+                  <hr className="border-border/50" />
 
-                <div className="space-y-2">
-                  <Label htmlFor="apiKey">Chave de API (Cérebro Principal)</Label>
-                  <Input
-                    id="apiKey"
-                    type="password"
-                    value={llmApiKey}
-                    onChange={(e) => handleApiKeyChange(e.target.value)}
-                    placeholder="Insira sua chave de API (deixe vazio para usar LLM nativa)"
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Chave para o modelo de raciocínio (ex: GPT-4, Gemini 1.5 Pro)
-                  </p>
-                </div>
+                  {/* Configuração da Memória (Embeddings) */}
+                  <div className="space-y-4 pt-4">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-base flex items-center gap-2">
+                        <Database className="h-4 w-4 text-orange-500" />
+                        2. Configurar Memória (RAG)
+                      </Label>
+                      <a href="https://platform.openai.com/api-keys" target="_blank" rel="noreferrer" className="text-xs text-blue-500 hover:underline flex items-center gap-1">
+                        Obter Chave OpenAI <Upload className="h-3 w-3 rotate-45" />
+                      </a>
+                    </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="embeddingsKey">Chave de API de Embeddings (Memória)</Label>
-                  <Input
-                    id="embeddingsKey"
-                    type="password"
-                    value={openaiEmbeddingsKey}
-                    onChange={(e) => setOpenaiEmbeddingsKey(e.target.value)}
-                    placeholder="Obrigatório: Chave da OpenAI para o sistema de memória (Embeddings)"
-                    className="border-blue-200 focus:border-blue-500"
-                  />
-                  <p className="text-xs text-blue-600 dark:text-blue-400 font-medium">
-                    ⚠️ Preferencialmente use uma API Key exclusiva para Embeddings da OpenAI (Models: text-embedding-3-small)
-                  </p>
-                </div>
-
-                <div className="flex gap-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={handleLoadModels}
-                    disabled={isLoadingModels || !llmApiKey}
-                    className="flex-1"
-                  >
-                    {isLoadingModels ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Carregando Modelos...
-                      </>
+                    {!openaiEmbeddingsKey ? (
+                      <div className="bg-orange-50 dark:bg-orange-950/30 p-3 rounded-lg border border-orange-100 dark:border-orange-900/50 text-xs text-orange-800 dark:text-orange-200 mb-2">
+                        ⚠️ <strong>Importante:</strong> Para que o DAVID leia seus PDFs e processos, ele precisa de uma chave da <strong>OpenAI</strong> (mesmo que você use Groq/Google para o cérebro). Isso é necessário para gerar os "vetores" de memória.
+                      </div>
                     ) : (
-                      <>
-                        <RefreshCw className="mr-2 h-4 w-4" />
-                        Carregar Modelos Disponíveis
-                      </>
+                      <div className="bg-green-50 dark:bg-green-950/30 p-3 rounded-lg border border-green-100 dark:border-green-900/50 text-xs text-green-800 dark:text-green-200 mb-2 flex items-center gap-2">
+                        <Check className="h-4 w-4" />
+                        <strong>Memória Ativa:</strong> Chave de Embeddings configurada com sucesso.
+                      </div>
                     )}
-                  </Button>
-                </div>
 
-                {modelsError && (
-                  <p className="text-sm text-destructive">{modelsError}</p>
-                )}
-
-                {availableModels.length > 0 && (
-                  <div className="space-y-2">
-                    <Label htmlFor="model">Modelo</Label>
-                    <Select value={llmModel} onValueChange={setLlmModel}>
-                      <SelectTrigger id="model">
-                        <SelectValue placeholder="Selecione um modelo" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {availableModels.map((model) => (
-                          <SelectItem key={model.id} value={model.id}>
-                            {model.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <p className="text-xs text-muted-foreground">
-                      {availableModels.length} modelo(s) disponível(is)
-                    </p>
+                    <div className="space-y-2">
+                      <Label htmlFor="embeddingsKey" className="text-xs text-muted-foreground">Chave OpenAI para Embeddings</Label>
+                      <div className="relative">
+                        <Input
+                          id="embeddingsKey"
+                          type="password"
+                          value={openaiEmbeddingsKey}
+                          onChange={(e) => setOpenaiEmbeddingsKey(e.target.value)}
+                          placeholder="sk-..."
+                          className={`pr-10 ${openaiEmbeddingsKey?.startsWith('sk-') ? 'border-green-500 ring-green-500/20' : 'border-orange-200 dark:border-orange-900'}`}
+                        />
+                        {openaiEmbeddingsKey?.startsWith('sk-') ? (
+                          <Check className="absolute right-3 top-2.5 h-4 w-4 text-green-500" />
+                        ) : (
+                          <Key className="absolute right-3 top-2.5 h-4 w-4 text-muted-foreground opacity-50" />
+                        )}
+                      </div>
+                    </div>
                   </div>
-                )}
+
+                </div>
 
                 <Button
                   onClick={handleSaveApiKeys}

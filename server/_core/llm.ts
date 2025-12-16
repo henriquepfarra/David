@@ -212,10 +212,26 @@ const normalizeToolChoice = (
   return toolChoice;
 };
 
-const resolveApiUrl = () =>
-  ENV.forgeApiUrl && ENV.forgeApiUrl.trim().length > 0
-    ? `${ENV.forgeApiUrl.replace(/\/$/, "")}/v1/chat/completions`
-    : "https://forge.manus.im/v1/chat/completions";
+const resolveApiUrl = (provider?: string) => {
+  if (ENV.forgeApiUrl && ENV.forgeApiUrl.trim().length > 0) {
+    return `${ENV.forgeApiUrl.replace(/\/$/, "")}/v1/chat/completions`;
+  }
+
+  switch (provider?.toLowerCase()) {
+    case "openai":
+      return "https://api.openai.com/v1/chat/completions";
+    case "google":
+      // Google's OpenAI-compatible endpoint
+      return "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions";
+    case "groq":
+      return "https://api.groq.com/openai/v1/chat/completions";
+    case "deepseek":
+      return "https://api.deepseek.com/chat/completions";
+    case "forge":
+    default:
+      return "https://forge.manus.im/v1/chat/completions";
+  }
+};
 
 const assertApiKey = () => {
   if (!ENV.forgeApiKey) {
@@ -305,9 +321,7 @@ export async function invokeLLM(params: InvokeParams): Promise<InvokeResult> {
   }
 
   payload.max_tokens = 32768
-  payload.thinking = {
-    "budget_tokens": 128
-  }
+
 
   const normalizedResponseFormat = normalizeResponseFormat({
     responseFormat,
@@ -320,23 +334,32 @@ export async function invokeLLM(params: InvokeParams): Promise<InvokeResult> {
     payload.response_format = normalizedResponseFormat;
   }
 
-  const response = await fetch(resolveApiUrl(), {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-      authorization: `Bearer ${apiKey || ENV.forgeApiKey}`,
-    },
-    body: JSON.stringify(payload),
-  });
+  console.log(`[invokeLLM] Connecting to ${resolveApiUrl(provider)} with model ${payload.model}...`);
 
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(
-      `LLM invoke failed: ${response.status} ${response.statusText} – ${errorText}`
-    );
+  try {
+    const response = await fetch(resolveApiUrl(provider), {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        authorization: `Bearer ${apiKey || ENV.forgeApiKey}`,
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`[invokeLLM] API Error: ${response.status} ${response.statusText}`, errorText);
+      throw new Error(
+        `LLM invoke failed: ${response.status} ${response.statusText} – ${errorText}`
+      );
+    }
+
+    return (await response.json()) as InvokeResult;
+  } catch (error: any) {
+    console.error(`[invokeLLM] Network/Fetch Error:`, error);
+    if (error.cause) console.error(`[invokeLLM] Cause:`, error.cause);
+    throw new Error(`LLM Connection Failed: ${error.message}`);
   }
-
-  return (await response.json()) as InvokeResult;
 }
 
 export type StreamChunk = {
@@ -365,10 +388,13 @@ export async function* invokeLLMStream(params: InvokeParams): AsyncGenerator<str
     output_schema,
     responseFormat,
     response_format,
+    apiKey,
+    model,
+    provider
   } = params;
 
   const payload: Record<string, unknown> = {
-    model: "gemini-2.5-flash",
+    model: model || "gemini-2.5-flash",
     messages: messages.map(normalizeMessage),
     stream: true,
   };
@@ -386,9 +412,7 @@ export async function* invokeLLMStream(params: InvokeParams): AsyncGenerator<str
   }
 
   payload.max_tokens = 32768;
-  payload.thinking = {
-    "budget_tokens": 128
-  };
+
 
   const normalizedResponseFormat = normalizeResponseFormat({
     responseFormat,
@@ -401,11 +425,11 @@ export async function* invokeLLMStream(params: InvokeParams): AsyncGenerator<str
     payload.response_format = normalizedResponseFormat;
   }
 
-  const response = await fetch(resolveApiUrl(), {
+  const response = await fetch(resolveApiUrl(provider), {
     method: "POST",
     headers: {
       "content-type": "application/json",
-      authorization: `Bearer ${ENV.forgeApiKey}`,
+      authorization: `Bearer ${apiKey || ENV.forgeApiKey}`,
     },
     body: JSON.stringify(payload),
   });
@@ -453,4 +477,41 @@ export async function* invokeLLMStream(params: InvokeParams): AsyncGenerator<str
   } finally {
     reader.releaseLock();
   }
+}
+// ... existing code ...
+
+export async function transcribeAudio(audioBase64: string): Promise<string> {
+  assertApiKey();
+
+  const baseUrl = ENV.forgeApiUrl && ENV.forgeApiUrl.trim().length > 0
+    ? ENV.forgeApiUrl.replace(/\/$/, "")
+    : "https://forge.manus.im";
+
+  const url = `${baseUrl}/v1/audio/transcriptions`;
+
+  // Converter Base64 para Blob/File
+  const buffer = Buffer.from(audioBase64, 'base64');
+  const blob = new Blob([buffer], { type: 'audio/webm' });
+
+  const formData = new FormData();
+  formData.append('file', blob, 'audio.webm');
+  formData.append('model', 'whisper-1');
+
+  const response = await fetch(url, {
+    method: "POST",
+    headers: {
+      authorization: `Bearer ${ENV.forgeApiKey}`,
+    },
+    body: formData,
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(
+      `Audio transcription failed: ${response.status} ${response.statusText} – ${errorText}`
+    );
+  }
+
+  const json = await response.json() as { text: string };
+  return json.text;
 }

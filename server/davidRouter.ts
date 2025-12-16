@@ -33,7 +33,7 @@ import {
   getProcessDocuments,
 } from "./db";
 import { searchSimilarDocuments } from "./_core/textSearch";
-import { invokeLLM, invokeLLMStream } from "./_core/llm";
+import { invokeLLM, invokeLLMStream, transcribeAudio } from "./_core/llm";
 import { observable } from "@trpc/server/observable";
 import { extractThesisFromDraft } from "./thesisExtractor";
 import { generateConversationTitle } from "./titleGenerator";
@@ -59,6 +59,35 @@ export const davidRouter = router({
         title,
       });
       return { id: conversationId, title };
+    }),
+
+  // Melhorar prompt com IA
+  enhancePrompt: protectedProcedure
+    .input(z.object({ prompt: z.string() }))
+    .mutation(async ({ input }) => {
+      const response = await invokeLLM({
+        messages: [
+          {
+            role: "system",
+            content: "Você é um especialista em Prompt Engineering otimizado para tarefas jurídicas. Sua missão é reescrever o prompt do usuário para torná-lo mais claro, estruturado e eficaz para uma LLM jurídica (DAVID). Mantenha a intenção original, mas adicione detalhes se necessário. Responda APENAS com o prompt melhorado, sem aspas e sem explicações."
+          },
+          { role: "user", content: input.prompt }
+        ],
+      });
+
+      const content = typeof response.choices[0]?.message?.content === 'string'
+        ? response.choices[0].message.content
+        : input.prompt;
+
+      return { content };
+    }),
+
+  // Transcrever áudio (Whisper)
+  transcribeAudio: protectedProcedure
+    .input(z.object({ audio: z.string() }))
+    .mutation(async ({ input }) => {
+      const text = await transcribeAudio(input.audio);
+      return { text };
     }),
 
   // Listar conversas do usuário

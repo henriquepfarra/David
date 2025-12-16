@@ -145,18 +145,57 @@ export const appRouter = router({
         text: z.string(),
         images: z.array(z.string()).optional(),
         filename: z.string().optional(),
+        fileData: z.string().optional(), // Base64 do arquivo
+        fileType: z.string().optional(), // pdf, docx, etc
       }))
       .mutation(async ({ ctx, input }) => {
         const { extractProcessData, extractProcessDataFromImages } = await import("./processExtractor");
 
+        // Buscar configurações customizadas do usuário (API Key)
+        const settings = await db.getUserSettings(ctx.user.id);
+        const llmConfig = {
+          apiKey: settings?.llmApiKey || undefined,
+          model: settings?.llmModel || undefined,
+          provider: settings?.llmProvider || undefined
+        };
+
+        let textToAnalyze = input.text;
+
+        // SE não tem texto extraído (ou é muito curto) E foi enviado o arquivo bruto (fallback)
+        if ((!textToAnalyze || textToAnalyze.length < 100) && input.fileData && input.fileType) {
+          console.log(`[registerFromUpload] Texto insuficiente. Iniciando extração no servidor para ${input.filename}...`);
+          try {
+            const buffer = Buffer.from(input.fileData, "base64");
+
+            if (input.fileType === "pdf") {
+              const { extractPagesFromPdfBuffer } = await import("./_core/pdfExtractor");
+              const pages = await extractPagesFromPdfBuffer(buffer);
+              textToAnalyze = pages.map(p => p.text).join("\n\n");
+            } else if (input.fileType === "docx") {
+              const mammoth = await import("mammoth");
+              const result = await mammoth.extractRawText({ buffer });
+              textToAnalyze = result.value;
+            } else if (input.fileType === "txt") {
+              textToAnalyze = buffer.toString("utf-8");
+            } else {
+              console.warn(`[registerFromUpload] Tipo de arquivo não suportado para extração no servidor: ${input.fileType}`);
+            }
+
+            console.log(`[registerFromUpload] Extração concluída. Tamanho: ${textToAnalyze.length} chars`);
+          } catch (err) {
+            console.error("[registerFromUpload] Erro na extração server-side:", err);
+            // Não falha aqui, tenta seguir com o que tem (pode cair no erro abaixo ou tentar OCR das imagens se houver)
+          }
+        }
+
         // 1. Extrair dados
         let extractedData;
-        if (input.text && input.text.length > 100) {
-          extractedData = await extractProcessData(input.text);
+        if (textToAnalyze && textToAnalyze.length > 100) {
+          extractedData = await extractProcessData(textToAnalyze, llmConfig);
         } else if (input.images && input.images.length > 0) {
-          extractedData = await extractProcessDataFromImages(input.images);
+          extractedData = await extractProcessDataFromImages(input.images, llmConfig);
         } else {
-          throw new Error("Conteúdo insuficiente para análise");
+          throw new Error("Conteúdo insuficiente para análise (Falha na extração local e remota)");
         }
 
         // 2. Criar Processo no BD

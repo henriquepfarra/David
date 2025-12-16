@@ -24,6 +24,11 @@ export async function listAvailableModels(
         return await listOpenAIModels(apiKey);
       case "anthropic":
         return await listAnthropicModels(apiKey);
+      case "groq":
+        return await listGroqModels(apiKey);
+      case "deepseek":
+        // DeepSeek API is OpenAI compatible
+        return await listDeepSeekModels(apiKey);
       default:
         return getFallbackModels(provider);
     }
@@ -47,14 +52,48 @@ async function listGoogleModels(apiKey: string): Promise<LLMModel[]> {
 
   const data = await response.json();
 
+  // PERMISSIVO: Retornar todos os modelos Gemini relevantes
   return data.models
     .filter((model: any) => model.supportedGenerationMethods?.includes("generateContent"))
-    .map((model: any) => ({
-      id: model.name.replace("models/", ""),
-      name: model.displayName || model.name,
-      description: model.description,
-      supportsVision: model.name.includes("vision") || model.name.includes("gemini-1.5") || model.name.includes("gemini-2"),
-    }));
+    .map((model: any) => {
+      const id = model.name.replace("models/", "");
+      return {
+        id: id,
+        name: model.displayName || id,
+        description: model.description,
+        supportsVision: id.includes("vision") || id.includes("gemini"),
+      }
+    })
+    .filter((model: LLMModel) => {
+      // A regra agora é: Se tem 'gemini' no nome, mostre.
+      // O usuário quer ver tudo, incluindo 'experimental' e '3.0' se existir.
+      // Apenas filtramos 'paLM' ou coisas muito legadas se não forem Gemini.
+      return model.id.toLowerCase().includes("gemini");
+    })
+    .sort((a: LLMModel, b: LLMModel) => {
+      // Ordenação inteligente: 
+      // 1. Tenta extrair versão (1.5, 2.0, 3.0)
+      const getVersion = (id: string) => {
+        const match = id.match(/(\d+\.\d+)/);
+        return match ? parseFloat(match[0]) : 0;
+      };
+
+      const verA = getVersion(a.id);
+      const verB = getVersion(b.id);
+
+      if (verA !== verB) return verB - verA; // Decrescente (3.0 > 2.0 > 1.5)
+
+      // 2. Se versões iguais, priorize 'experimental' ou 'pro' sobre 'flash'
+      const score = (id: string) => {
+        // Dê prioridade para "exp" ou "experimental" se o usuário quer ver novidades
+        if (id.includes("exp")) return 4;
+        if (id.includes("pro")) return 3;
+        if (id.includes("flash")) return 2;
+        return 1;
+      };
+
+      return score(b.id) - score(a.id);
+    });
 }
 
 /**
@@ -73,25 +112,62 @@ async function listOpenAIModels(apiKey: string): Promise<LLMModel[]> {
 
   const data = await response.json();
 
-  // Filtrar apenas modelos de chat relevantes
   const chatModels = data.data.filter((model: any) =>
-    model.id.includes("gpt-4") ||
-    model.id.includes("gpt-3.5") ||
-    model.id.includes("o1")
+    model.id.startsWith("gpt-4o") ||
+    model.id.startsWith("o1-")
   );
 
   return chatModels.map((model: any) => ({
     id: model.id,
     name: model.id,
-    supportsVision: model.id.includes("vision") || model.id.includes("gpt-4o"),
+    supportsVision: true,
   }));
+}
+
+/**
+ * Lista modelos da Groq
+ */
+async function listGroqModels(apiKey: string): Promise<LLMModel[]> {
+  const response = await fetch("https://api.groq.com/openai/v1/models", {
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error("Falha ao listar modelos Groq");
+  }
+
+  const data = await response.json();
+
+  // Filtrar apenas Llama 3/3.1 e Mixtral (ignorar whisper/gemma se quiser focar em chat potente)
+  const validModels = data.data.filter((m: any) =>
+    !m.id.includes("whisper") && (m.id.includes("llama-3") || m.id.includes("mixtral"))
+  );
+
+  return validModels.map((model: any) => ({
+    id: model.id,
+    name: model.id,
+    supportsVision: false, // Groq vision support varies, assume false for safety or check ID
+  }));
+}
+
+/**
+ * Lista modelos da DeepSeek
+ */
+async function listDeepSeekModels(apiKey: string): Promise<LLMModel[]> {
+  // DeepSeek endpoint
+  return [
+    { id: "deepseek-chat", name: "DeepSeek V3 (Chat)", description: "Modelo econômico e incrivelmente inteligente", supportsVision: false },
+    { id: "deepseek-coder", name: "DeepSeek Coder V2", description: "Especializado em código", supportsVision: false },
+    { id: "deepseek-reasoner", name: "DeepSeek R1 (Reasoner)", description: "Raciocínio avançado (similar ao o1)", supportsVision: false }
+  ];
 }
 
 /**
  * Lista modelos da Anthropic
  */
 async function listAnthropicModels(apiKey: string): Promise<LLMModel[]> {
-  // Anthropic não tem endpoint público de listagem, retornar fallback
   return getFallbackModels("anthropic");
 }
 
@@ -101,65 +177,27 @@ async function listAnthropicModels(apiKey: string): Promise<LLMModel[]> {
 function getFallbackModels(provider: string): LLMModel[] {
   const fallbacks: Record<string, LLMModel[]> = {
     google: [
-      {
-        id: "gemini-3.0-pro",
-        name: "Gemini 3.0 Pro",
-        description: "Modelo de última geração (2025) com raciocínio avançado",
-        supportsVision: true,
-      },
-      {
-        id: "gemini-2.0-flash",
-        name: "Gemini 2.0 Flash",
-        description: "Modelo ultrarrápido e eficiente",
-        supportsVision: true,
-      },
-      {
-        id: "gemini-1.5-pro",
-        name: "Gemini 1.5 Pro",
-        description: "Modelo estável com contexto massivo",
-        supportsVision: true,
-      },
+      { id: "gemini-1.5-pro", name: "Gemini 1.5 Pro", supportsVision: true },
+      { id: "gemini-1.5-flash", name: "Gemini 1.5 Flash", supportsVision: true },
+      { id: "gemini-2.0-flash-exp", name: "Gemini 2.0 Flash (Exp)", supportsVision: true },
     ],
     openai: [
-      {
-        id: "gpt-5",
-        name: "GPT-5 (Preview)",
-        description: "A nova fronteira da inteligência artificial",
-        supportsVision: true,
-      },
-      {
-        id: "gpt-4o",
-        name: "GPT-4o",
-        description: "Modelo onipresente, rápido e inteligente",
-        supportsVision: true,
-      },
-      {
-        id: "o1",
-        name: "O1 (Reasoning)",
-        description: "Modelo focado em raciocínio complexo e lógica",
-        supportsVision: true,
-      },
-      {
-        id: "gpt-4o-mini",
-        name: "GPT-4o Mini",
-        description: "Versão econômica e veloz",
-        supportsVision: true,
-      },
+      { id: "gpt-4o", name: "GPT-4o", supportsVision: true },
+      { id: "gpt-4o-mini", name: "GPT-4o Mini", supportsVision: true },
+      { id: "o1-preview", name: "o1 Preview", supportsVision: true },
     ],
     anthropic: [
-      {
-        id: "claude-4-5-opus",
-        name: "Claude 4.5 Opus",
-        description: "O modelo mais inteligente do mundo (2025)",
-        supportsVision: true,
-      },
-      {
-        id: "claude-4-5-sonnet",
-        name: "Claude 4.5 Sonnet",
-        description: "Velocidade e inteligência inigualáveis",
-        supportsVision: true,
-      },
+      { id: "claude-3-5-sonnet-20241022", name: "Claude 3.5 Sonnet", supportsVision: true },
+      { id: "claude-3-5-haiku-20241022", name: "Claude 3.5 Haiku", supportsVision: true },
     ],
+    groq: [
+      { id: "llama-3.1-70b-versatile", name: "Llama 3.1 70B", supportsVision: false },
+      { id: "llama-3.1-8b-instant", name: "Llama 3.1 8B", supportsVision: false },
+    ],
+    deepseek: [
+      { id: "deepseek-chat", name: "DeepSeek V3", supportsVision: false },
+      { id: "deepseek-reasoner", name: "DeepSeek R1", supportsVision: false },
+    ]
   };
 
   return fallbacks[provider] || [];

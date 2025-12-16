@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/select";
 import { Card } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Loader2, Send, Plus, Trash2, FileText, Settings, BookMarked, X, Check, Edit, XCircle, ArrowLeft, Pencil, Upload, MessageSquare, ChevronRight, Pin, PinOff, Gavel } from "lucide-react";
+import { Loader2, Send, Plus, Trash2, FileText, Settings, BookMarked, X, Check, Edit, XCircle, ArrowLeft, Pencil, Upload, MessageSquare, ChevronRight, Pin, PinOff, Gavel, Brain, Mic, Wand2 } from "lucide-react";
 
 
 
@@ -48,6 +48,7 @@ import { Streamdown } from "streamdown";
 import { useLocation } from "wouter";
 import { ToolsMenu } from "@/components/ToolsMenu";
 import DashboardLayout from "@/components/DashboardLayout";
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 
 export default function David() {
   const [, setLocation] = useLocation();
@@ -73,6 +74,16 @@ export default function David() {
   const [isRenameDialogOpen, setIsRenameDialogOpen] = useState(false);
   const [renamingConversationId, setRenamingConversationId] = useState<number | null>(null);
   const [newConversationTitle, setNewConversationTitle] = useState("");
+
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const isProcessing = isStreaming;
+
+  const adjustTextareaHeight = () => {
+    if (textareaRef.current) {
+      textareaRef.current.style.height = "auto";
+      textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 200)}px`;
+    }
+  };
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [deletingConversationId, setDeletingConversationId] = useState<number | null>(null);
 
@@ -140,24 +151,48 @@ export default function David() {
     if (acceptedFiles.length === 0) return;
 
     const file = acceptedFiles[0];
+    const isLargeFile = file.size > 5 * 1024 * 1024; // 5MB limit for client-side processing
+
     try {
-      toast.info("⏳ Lendo arquivo e extraindo dados...");
+      if (isLargeFile) {
+        toast.info(`📦 Arquivo grande (${(file.size / 1024 / 1024).toFixed(1)}MB). Enviando para processamento no servidor...`);
 
-      const result = await processFile(file, (progress) => {
-        // Opcional: mostrar progresso
-      });
+        // Converter para Base64
+        const buffer = await file.arrayBuffer();
+        const base64 = btoa(
+          new Uint8Array(buffer)
+            .reduce((data, byte) => data + String.fromCharCode(byte), '')
+        );
+        const extension = file.name.split('.').pop()?.toLowerCase() || 'pdf';
 
-      if (result.error) {
-        throw new Error(result.error);
+        await registerFromUploadMutation.mutateAsync({
+          text: "", // Texto vazio para forçar extração no servidor
+          images: [],
+          filename: file.name,
+          fileData: base64,
+          fileType: extension
+        });
+
+      } else {
+        // Arquivo pequeno: Tenta processar no navegador (mais rápido se der certo)
+        toast.info("⏳ Lendo arquivo e extraindo dados...");
+
+        const result = await processFile(file, (progress) => {
+          // Opcional: mostrar progresso
+        });
+
+        if (result.error) {
+          throw new Error(result.error);
+        }
+
+        toast.info("🤖 Analisando com Inteligência Artificial...");
+
+        await registerFromUploadMutation.mutateAsync({
+          text: result.text,
+          images: result.images,
+          filename: file.name,
+        });
       }
-
-      toast.info("🤖 Analisando com Inteligência Artificial...");
-
-      await registerFromUploadMutation.mutateAsync({
-        text: result.text,
-        images: result.images,
-        filename: file.name,
-      });
 
     } catch (error: any) {
       toast.error("Erro no upload: " + error.message);
@@ -207,6 +242,7 @@ export default function David() {
         headers: {
           "Content-Type": "application/json",
         },
+        credentials: "include", // Importante: enviar cookies de sessão
         body: JSON.stringify({ conversationId, content }),
         signal: abortControllerRef.current.signal,
       });
@@ -380,22 +416,101 @@ export default function David() {
   }, [conversationData?.messages, streamingMessage]);
 
   const handleNewConversation = () => {
-    createConversationMutation.mutate({
-      processId: selectedProcessId,
-      title: selectedProcessId
-        ? `Conversa sobre processo ${processes?.find(p => p.id === selectedProcessId)?.processNumber}`
-        : "Nova conversa",
-    });
+    setSelectedConversationId(null);
+    setSelectedProcessId(undefined);
+    setMessageInput("");
   };
 
   const handleSendMessage = async () => {
-    if (!messageInput.trim() || !selectedConversationId || isStreaming) return;
+    if (!messageInput.trim() || isStreaming) return;
 
     const userMessage = messageInput;
     setMessageInput("");
 
+    // Se não tiver conversa selecionada, cria uma nova primeiro
+    if (!selectedConversationId) {
+      // Otimisticamente mostra loading ou algo, mas aqui vamos esperar a criação
+      createConversationMutation.mutate({
+        processId: selectedProcessId,
+        title: "Nova Conversa" // O backend ou usuário pode renomear depois
+      }, {
+        onSuccess: async (newConv) => {
+          setSelectedConversationId(newConv.id);
+          // Pequeno delay para garantir que o estado atualize
+          setTimeout(() => {
+            streamMessage(newConv.id, userMessage);
+          }, 100);
+        }
+      });
+      return;
+    }
+
     // Iniciar streaming
     await streamMessage(selectedConversationId, userMessage);
+  };
+
+  // --- Áudio & Enhancer Logic ---
+  const enhancePromptMutation = trpc.david.enhancePrompt.useMutation({
+    onSuccess: (data) => {
+      setMessageInput(data.content);
+      toast.success("Prompt melhorado!");
+      adjustTextareaHeight();
+    },
+    onError: () => toast.error("Erro ao melhorar prompt"),
+  });
+
+  const transcribeAudioMutation = trpc.david.transcribeAudio.useMutation({
+    onSuccess: (data) => {
+      setMessageInput((prev) => (prev ? prev + " " : "") + data.text);
+      if (textareaRef.current) {
+        textareaRef.current.focus();
+        adjustTextareaHeight();
+      }
+    },
+    onError: () => toast.error("Erro ao transcrever áudio"),
+  });
+
+  const [isRecording, setIsRecording] = useState(false);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+
+  const handleEnhancePrompt = () => {
+    if (!messageInput.trim()) return;
+    enhancePromptMutation.mutate({ prompt: messageInput });
+  };
+
+  const handleRecordClick = async () => {
+    if (isRecording) {
+      mediaRecorderRef.current?.stop();
+      setIsRecording(false);
+    } else {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        const mediaRecorder = new MediaRecorder(stream);
+        mediaRecorderRef.current = mediaRecorder;
+        const audioChunks: Blob[] = [];
+
+        mediaRecorder.ondataavailable = (event) => {
+          audioChunks.push(event.data);
+        };
+
+        mediaRecorder.onstop = () => {
+          const audioBlob = new Blob(audioChunks, { type: "audio/webm" });
+          const reader = new FileReader();
+          reader.readAsDataURL(audioBlob);
+          reader.onloadend = () => {
+            const base64Audio = (reader.result as string).split(",")[1];
+            transcribeAudioMutation.mutate({ audio: base64Audio });
+          };
+          stream.getTracks().forEach((track) => track.stop());
+        };
+
+        mediaRecorder.start();
+        setIsRecording(true);
+      } catch (err) {
+        toast.error("Erro ao acessar microfone. Verifique permissões.");
+        console.error("Microfone error:", err);
+      }
+    }
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -439,507 +554,482 @@ export default function David() {
     <DashboardLayout>
       <div className="flex h-full bg-background">
         {/* Sidebar - Histórico de Conversas */}
-        <div className="w-80 border-r flex flex-col">
-          <div className="p-4 border-b">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => setLocation("/")}
-                  title="Voltar para início"
-                  className="h-8 w-8"
-                >
-                  <ArrowLeft className="h-4 w-4" />
-                </Button>
-                <h2 className="text-lg font-semibold">DAVID</h2>
+        {/* Área Principal - Chat (Agora em tela cheia) */}
+        <div className="flex-1 flex flex-col relative h-full overflow-hidden"> {/* Added relative for positioning if needed */}
+
+
+          {/* Header com seletor de processo e Menu de Histórico */}
+          <div className="p-2 border-b bg-card/50 backdrop-blur-sm sticky top-0 z-10 flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              {/* Botão de Histórico (Mobile/Desktop Toggle) */}
+              <Sheet>
+                <SheetTrigger asChild>
+                  <Button variant="ghost" size="sm" className="gap-2" title="Ver Histórico de Conversas">
+                    <MessageSquare className="h-4 w-4" />
+                    Histórico
+                  </Button>
+                </SheetTrigger>
+                {/* Botão Nova Conversa Separado */}
+
+                <SheetContent side="left" className="w-80 p-0 sm:max-w-xs">
+                  <div className="flex flex-col h-full border-r">
+                    <div className="p-4 border-b">
+                      <div className="flex items-center justify-between mb-4">
+                        <h2 className="text-lg font-semibold flex items-center gap-2">
+                          <MessageSquare className="h-4 w-4" />
+                          Histórico
+                        </h2>
+                      </div>
+                      <Button onClick={() => {
+                        handleNewConversation();
+                        // Close sheet? Ideally yes, but depends on UX preferences. 
+                        // For now, let's assume clicking 'New' might keep it open or auto-close.
+                      }} className="w-full" size="sm" disabled={isSelectionMode}>
+                        <Plus className="h-4 w-4 mr-2" />
+                        Nova Conversa
+                      </Button>
+
+                      {/* Botões de seleção múltipla */}
+                      <div className="flex gap-2 mt-2">
+                        <Button
+                          onClick={() => {
+                            setIsSelectionMode(!isSelectionMode);
+                            setSelectedConversations(new Set());
+                          }}
+                          variant="outline"
+                          size="sm"
+                          className="flex-1"
+                        >
+                          {isSelectionMode ? "Cancelar" : "Selecionar"}
+                        </Button>
+
+                        {isSelectionMode && (
+                          <>
+                            <Button
+                              onClick={toggleSelectAll}
+                              variant="outline"
+                              size="sm"
+                              className="flex-1"
+                            >
+                              {selectedConversations.size === conversations?.length ? "Desmarcar" : "Todas"}
+                            </Button>
+                            <Button
+                              onClick={handleDeleteSelected}
+                              variant="destructive"
+                              size="sm"
+                              disabled={selectedConversations.size === 0}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </>
+                        )}
+                      </div>
+                    </div>
+
+                    <ScrollArea className="flex-1 p-2">
+                      {conversations?.map((conv) => (
+                        <ContextMenu key={conv.id}>
+                          <ContextMenuTrigger asChild>
+                            <Card
+                              className={`p-3 mb-2 cursor-pointer hover:bg-accent transition-colors ${selectedConversationId === conv.id ? "bg-accent" : ""
+                                } ${selectedConversations.has(conv.id) ? "ring-2 ring-primary" : ""}`}
+                              onClick={() => {
+                                if (isSelectionMode) {
+                                  toggleConversationSelection(conv.id);
+                                } else {
+                                  setSelectedConversationId(conv.id);
+                                }
+                              }}
+                            >
+                              <div className="flex items-start justify-between gap-2">
+                                {isSelectionMode && (
+                                  <Checkbox
+                                    checked={selectedConversations.has(conv.id)}
+                                    onCheckedChange={() => toggleConversationSelection(conv.id)}
+                                    onClick={(e) => e.stopPropagation()}
+                                  />
+                                )}
+
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-1">
+                                    {conv.isPinned === 1 && (
+                                      <Pin className="h-3 w-3 text-primary" />
+                                    )}
+                                    <p className="text-sm font-medium truncate">{conv.title}</p>
+                                  </div>
+                                  <p className="text-xs text-muted-foreground">
+                                    {new Date(conv.updatedAt).toLocaleDateString("pt-BR")}
+                                  </p>
+                                </div>
+
+                                {!isSelectionMode && (
+                                  <div className="flex gap-1">
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      className="h-6 w-6 p-0"
+                                      title="Renomear conversa"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setRenamingConversationId(conv.id);
+                                        setNewConversationTitle(conv.title);
+                                        setIsRenameDialogOpen(true);
+                                      }}
+                                    >
+                                      <Pencil className="h-3 w-3" />
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      className="h-6 w-6 p-0 text-destructive hover:text-destructive"
+                                      title="Deletar conversa"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setDeletingConversationId(conv.id);
+                                        setIsDeleteDialogOpen(true);
+                                      }}
+                                    >
+                                      <Trash2 className="h-3 w-3" />
+                                    </Button>
+                                  </div>
+                                )}
+                              </div>
+                            </Card>
+                          </ContextMenuTrigger>
+
+                          <ContextMenuContent>
+                            <ContextMenuItem
+                              onClick={() => togglePinMutation.mutate({ id: conv.id })}
+                            >
+                              {conv.isPinned === 1 ? (
+                                <>
+                                  <PinOff className="h-4 w-4 mr-2" />
+                                  Desafixar
+                                </>
+                              ) : (
+                                <>
+                                  <Pin className="h-4 w-4 mr-2" />
+                                  Fixar
+                                </>
+                              )}
+                            </ContextMenuItem>
+
+                            <ContextMenuItem
+                              onClick={() => {
+                                setRenamingConversationId(conv.id);
+                                setNewConversationTitle(conv.title);
+                                setIsRenameDialogOpen(true);
+                              }}
+                            >
+                              <Pencil className="h-4 w-4 mr-2" />
+                              Renomear
+                            </ContextMenuItem>
+
+                            <ContextMenuSeparator />
+
+                            <ContextMenuItem
+                              onClick={() => {
+                                setDeletingConversationId(conv.id);
+                                setIsDeleteDialogOpen(true);
+                              }}
+                              className="text-destructive focus:text-destructive"
+                            >
+                              <Trash2 className="h-4 w-4 mr-2" />
+                              Excluir
+                            </ContextMenuItem>
+                          </ContextMenuContent>
+                        </ContextMenu>
+                      ))}
+                    </ScrollArea>
+                  </div>
+                </SheetContent>
+              </Sheet>
+
+              <div className="flex-1 flex items-center justify-end">
+
+                {/* Seletor Dropdown sempre disponível para troca rápida */}
+                <div className="flex items-center gap-2">
+                  {selectedProcessId && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setSelectedProcessId(undefined)}
+                      title="Limpar seleção"
+                    >
+                      <XCircle className="h-4 w-4" />
+                    </Button>
+                  )}
+                  <Select
+                    value={selectedProcessId?.toString() || "none"}
+                    onValueChange={(val) => {
+                      if (val !== "none") setSelectedProcessId(parseInt(val));
+                      else setSelectedProcessId(undefined);
+                    }}
+                  >
+                    <SelectTrigger className="w-[250px]">
+                      <SelectValue placeholder="Selecionar processo..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Nenhum processo</SelectItem>
+                      {processes?.map((p) => (
+                        <SelectItem key={p.id} value={p.id.toString()}>
+                          {p.processNumber} - {p.subject || "Sem assunto"}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={() => setLocation("/david/config")}
-                title="Configurações do DAVID"
-              >
-                <Settings className="h-4 w-4" />
-              </Button>
-            </div>
-            <Button onClick={handleNewConversation} className="w-full" size="sm" disabled={isSelectionMode}>
-              <Plus className="h-4 w-4 mr-2" />
-              Nova Conversa
-            </Button>
-
-            {/* Botões de seleção múltipla */}
-            <div className="flex gap-2 mt-2">
-              <Button
-                onClick={() => {
-                  setIsSelectionMode(!isSelectionMode);
-                  setSelectedConversations(new Set());
-                }}
-                variant="outline"
-                size="sm"
-                className="flex-1"
-              >
-                {isSelectionMode ? "Cancelar" : "Selecionar"}
-              </Button>
-
-              {isSelectionMode && (
-                <>
-                  <Button
-                    onClick={toggleSelectAll}
-                    variant="outline"
-                    size="sm"
-                    className="flex-1"
-                  >
-                    {selectedConversations.size === conversations?.length ? "Desmarcar" : "Todas"}
-                  </Button>
-                  <Button
-                    onClick={handleDeleteSelected}
-                    variant="destructive"
-                    size="sm"
-                    disabled={selectedConversations.size === 0}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </>
-              )}
             </div>
           </div>
 
-          <ScrollArea className="flex-1 p-2">
-            {conversations?.map((conv) => (
-              <ContextMenu key={conv.id}>
-                <ContextMenuTrigger asChild>
-                  <Card
-                    className={`p-3 mb-2 cursor-pointer hover:bg-accent transition-colors ${selectedConversationId === conv.id ? "bg-accent" : ""
-                      } ${selectedConversations.has(conv.id) ? "ring-2 ring-primary" : ""}`}
-                    onClick={() => {
-                      if (isSelectionMode) {
-                        toggleConversationSelection(conv.id);
-                      } else {
-                        setSelectedConversationId(conv.id);
-                      }
-                    }}
-                  >
-                    <div className="flex items-start justify-between gap-2">
-                      {isSelectionMode && (
-                        <Checkbox
-                          checked={selectedConversations.has(conv.id)}
-                          onCheckedChange={() => toggleConversationSelection(conv.id)}
-                          onClick={(e) => e.stopPropagation()}
-                        />
-                      )}
-
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-1">
-                          {conv.isPinned === 1 && (
-                            <Pin className="h-3 w-3 text-primary" />
-                          )}
-                          <p className="text-sm font-medium truncate">{conv.title}</p>
-                        </div>
-                        <p className="text-xs text-muted-foreground">
-                          {new Date(conv.updatedAt).toLocaleDateString("pt-BR")}
-                        </p>
-                      </div>
-
-                      {!isSelectionMode && (
-                        <div className="flex gap-1">
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            className="h-6 w-6 p-0"
-                            title="Renomear conversa"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setRenamingConversationId(conv.id);
-                              setNewConversationTitle(conv.title);
-                              setIsRenameDialogOpen(true);
-                            }}
-                          >
-                            <Pencil className="h-3 w-3" />
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            className="h-6 w-6 p-0 text-destructive hover:text-destructive"
-                            title="Deletar conversa"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setDeletingConversationId(conv.id);
-                              setIsDeleteDialogOpen(true);
-                            }}
-                          >
-                            <Trash2 className="h-3 w-3" />
-                          </Button>
-                        </div>
-                      )}
-                    </div>
-                  </Card>
-                </ContextMenuTrigger>
-
-                <ContextMenuContent>
-                  <ContextMenuItem
-                    onClick={() => togglePinMutation.mutate({ id: conv.id })}
-                  >
-                    {conv.isPinned === 1 ? (
-                      <>
-                        <PinOff className="h-4 w-4 mr-2" />
-                        Desafixar
-                      </>
-                    ) : (
-                      <>
-                        <Pin className="h-4 w-4 mr-2" />
-                        Fixar
-                      </>
-                    )}
-                  </ContextMenuItem>
-
-                  <ContextMenuItem
-                    onClick={() => {
-                      setRenamingConversationId(conv.id);
-                      setNewConversationTitle(conv.title);
-                      setIsRenameDialogOpen(true);
-                    }}
-                  >
-                    <Pencil className="h-4 w-4 mr-2" />
-                    Renomear
-                  </ContextMenuItem>
-
-                  <ContextMenuSeparator />
-
-                  <ContextMenuItem
-                    onClick={() => {
-                      setDeletingConversationId(conv.id);
-                      setIsDeleteDialogOpen(true);
-                    }}
-                    className="text-destructive focus:text-destructive"
-                  >
-                    <Trash2 className="h-4 w-4 mr-2" />
-                    Excluir
-                  </ContextMenuItem>
-                </ContextMenuContent>
-              </ContextMenu>
-            ))}
-          </ScrollArea>
-        </div>
-
-        {/* Área Principal - Chat */}
-        <div className="flex-1 flex flex-col">
+          {/* Área Central: Mensagens OU Bem-vindo */}
           {selectedConversationId ? (
-            <>
-              {/* Header com seletor de processo (Estilo Clean) */}
-              <div className="p-4 border-b bg-card/50 backdrop-blur-sm sticky top-0 z-10">
-                <div className="flex items-center justify-between">
-                  {selectedProcessId ? (
-                    // Visualização do Processo Selecionado
-                    <div className="flex items-center gap-4 animate-in fade-in slide-in-from-top-2">
-                      <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                        <FileText className="h-5 w-5 text-primary" />
-                      </div>
-                      <div>
-                        <h3 className="font-semibold leading-none flex items-center gap-2">
-                          {processes?.find(p => p.id === selectedProcessId)?.processNumber}
-                          <span className="text-xs font-normal text-muted-foreground px-2 py-0.5 rounded-full bg-muted">
-                            {processes?.find(p => p.id === selectedProcessId)?.status || "Em análise"}
-                          </span>
-                        </h3>
-                        <p className="text-sm text-muted-foreground mt-1">
-                          {conversationData?.processData?.plaintiff} <span className="text-xs mx-1">VS</span> {conversationData?.processData?.defendant}
-                        </p>
-                      </div>
-                    </div>
-                  ) : (
-                    // Seletor Vazio
-                    <div className="flex items-center gap-2 text-muted-foreground">
-                      <div className="h-10 w-10 rounded-lg bg-muted/50 flex items-center justify-center">
-                        <FileText className="h-5 w-5" />
-                      </div>
-                      <p className="text-sm font-medium">Nenhum processo selecionado</p>
-                    </div>
-                  )}
-
-                  {/* Seletor Dropdown sempre disponível para troca rápida */}
-                  <div className="flex items-center gap-2">
-                    {selectedProcessId && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setSelectedProcessId(undefined)}
-                        title="Limpar seleção"
-                      >
-                        <XCircle className="h-4 w-4" />
-                      </Button>
-                    )}
-                    <Select
-                      value={selectedProcessId?.toString() || "none"}
-                      onValueChange={(val) => {
-                        if (val !== "none") setSelectedProcessId(parseInt(val));
-                        else setSelectedProcessId(undefined);
-                      }}
+            <ScrollArea className="flex-1 p-4" ref={scrollRef}>
+              <div className="space-y-4 max-w-4xl mx-auto">
+                {conversationData?.messages.map((message) => (
+                  <div
+                    key={message.id}
+                    className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}
+                  >
+                    <Card
+                      className={`p-4 max-w-[80%] ${message.role === "user"
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-muted"
+                        }`}
                     >
-                      <SelectTrigger className="w-[250px]">
-                        <SelectValue placeholder="Selecionar processo..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="none">Nenhum processo</SelectItem>
-                        {processes?.map((p) => (
-                          <SelectItem key={p.id} value={p.id.toString()}>
-                            {p.processNumber} - {p.subject || "Sem assunto"}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-              </div>
+                      {message.role === "assistant" ? (
+                        <>
+                          <Streamdown>{message.content}</Streamdown>
 
-              {/* Mensagens */}
-              <ScrollArea className="flex-1 p-4" ref={scrollRef}>
-                <div className="space-y-4 max-w-4xl mx-auto">
-                  {conversationData?.messages.map((message) => (
-                    <div
-                      key={message.id}
-                      className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}
-                    >
-                      <Card
-                        className={`p-4 max-w-[80%] ${message.role === "user"
-                          ? "bg-primary text-primary-foreground"
-                          : "bg-muted"
-                          }`}
-                      >
-                        {message.role === "assistant" ? (
-                          <>
-                            <Streamdown>{message.content}</Streamdown>
-
-                            {/* Botões de aprovação (apenas para mensagens do assistente) */}
-                            <div className="flex items-center gap-2 mt-4 pt-3 border-t border-border">
-                              <p className="text-xs opacity-70 flex-1">
-                                {new Date(message.createdAt).toLocaleTimeString("pt-BR")}
-                              </p>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="h-8 gap-1.5"
-                                onClick={() => handleApproveDraft(message.id, message.content, "approved")}
-                              >
-                                <Check className="h-3.5 w-3.5" />
-                                Aprovar
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="h-8 gap-1.5"
-                                onClick={() => handleEditAndApprove(message.id, message.content)}
-                              >
-                                <Edit className="h-3.5 w-3.5" />
-                                Editar e Aprovar
-                              </Button>
-                            </div>
-                          </>
-                        ) : (
-                          <>
-                            <p className="whitespace-pre-wrap">{message.content}</p>
-                            <p className="text-xs opacity-70 mt-2">
+                          {/* Botões de aprovação (apenas para mensagens do assistente) */}
+                          <div className="flex items-center gap-2 mt-4 pt-3 border-t border-border">
+                            <p className="text-xs opacity-70 flex-1">
                               {new Date(message.createdAt).toLocaleTimeString("pt-BR")}
                             </p>
-                          </>
-                        )}
-                      </Card>
-                    </div>
-                  ))}
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-8 gap-1.5"
+                              onClick={() => handleApproveDraft(message.id, message.content, "approved")}
+                            >
+                              <Check className="h-3.5 w-3.5" />
+                              Aprovar
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-8 gap-1.5"
+                              onClick={() => handleEditAndApprove(message.id, message.content)}
+                            >
+                              <Edit className="h-3.5 w-3.5" />
+                              Editar e Aprovar
+                            </Button>
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <p className="whitespace-pre-wrap">{message.content}</p>
+                          <p className="text-xs opacity-70 mt-2">
+                            {new Date(message.createdAt).toLocaleTimeString("pt-BR")}
+                          </p>
+                        </>
+                      )}
+                    </Card>
+                  </div>
+                ))}
 
-                  {/* Mensagem em streaming */}
-                  {isStreaming && streamingMessage && (
-                    <div className="flex justify-start">
-                      <Card className="p-4 max-w-[80%] bg-muted">
-                        <Streamdown>{streamingMessage}</Streamdown>
-                        <div className="flex items-center gap-2 mt-2">
-                          <Loader2 className="h-3 w-3 animate-spin" />
-                          <p className="text-xs opacity-70">Gerando...</p>
-                        </div>
-                      </Card>
-                    </div>
-                  )}
-                  {isStreaming && (
-                    <div className="flex justify-start">
-                      <Card className="p-4 bg-muted">
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      </Card>
-                    </div>
-                  )}
-                </div>
-              </ScrollArea>
-
-              {/* Área global de Drag & Drop oculta (input) */}
-              <div {...getRootProps()} className="outline-none">
-                <input {...getInputProps()} />
-
-                {/* Overlay de Drag & Drop quando arrastar arquivo */}
-                <AnimatePresence>
-                  {isDragActive && (
-                    <motion.div
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      exit={{ opacity: 0 }}
-                      className="absolute inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-center justify-center"
-                    >
-                      <div className="bg-card border-2 border-primary border-dashed rounded-xl p-10 text-center shadow-2xl">
-                        <Upload className="h-16 w-16 text-primary mx-auto mb-4 animate-bounce" />
-                        <h2 className="text-2xl font-bold">Solte para processar</h2>
-                        <p className="text-muted-foreground">O David irá analisar este processo automaticamente.</p>
+                {/* Mensagem em streaming */}
+                {isStreaming && streamingMessage && (
+                  <div className="flex justify-start">
+                    <Card className="p-4 max-w-[80%] bg-muted">
+                      <Streamdown>{streamingMessage}</Streamdown>
+                      <div className="flex items-center gap-2 mt-2">
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                        <p className="text-xs opacity-70">Gerando...</p>
                       </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-
-                {/* Input de mensagem */}
-                <div className="p-4 border-t relative bg-background">
-                  <div className="max-w-4xl mx-auto space-y-2">
-
-                    {/* Barra de Ferramentas acima do Input */}
-                    <div className="flex justify-between items-center px-1">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={open}
-                        className="text-muted-foreground hover:text-primary gap-2 h-7"
-                      >
-                        <Gavel className="h-4 w-4" />
-                        Cadastrar Processo (PDF)
-                      </Button>
-
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-primary gap-2 h-7">
-                            <BookMarked className="h-4 w-4" />
-                            Usar Prompt Salvo
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="w-64">
-                          <DropdownMenuLabel>Prompts Salvos</DropdownMenuLabel>
-                          <DropdownMenuSeparator />
-                          {savedPrompts && savedPrompts.length > 0 ? (
-                            savedPrompts.map((prompt: any) => (
-                              <DropdownMenuItem
-                                key={prompt.id}
-                                onClick={() => {
-                                  setMessageInput(prompt.content);
-                                  toast.success(`Prompt "${prompt.title}" aplicado`);
-                                }}
-                              >
-                                <div className="flex flex-col">
-                                  <span className="font-medium">{prompt.title}</span>
-                                  {prompt.category && (
-                                    <span className="text-xs text-muted-foreground">
-                                      {prompt.category}
-                                    </span>
-                                  )}
-                                </div>
-                              </DropdownMenuItem>
-                            ))
-                          ) : (
-                            <DropdownMenuItem disabled>
-                              Nenhum prompt salvo
-                            </DropdownMenuItem>
-                          )}
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
-
-                    <div className="flex gap-2">
-                      <Textarea
-                        value={messageInput}
-                        onChange={(e) => setMessageInput(e.target.value)}
-                        onKeyDown={handleKeyPress}
-                        placeholder="Digite sua mensagem... (Shift+Enter para nova linha)"
-                        className="resize-none"
-                        rows={3}
-                        disabled={isStreaming}
-                      />
-                      <div className="flex flex-col gap-2">
-                        <ToolsMenu
-                          onSelectProcess={() => {
-                            setIsProcessSelectorOpen(true);
-                          }}
-                          onViewProcessData={() => {
-                            if (!selectedProcessId) {
-                              toast.error("Nenhum processo selecionado");
-                              return;
-                            }
-                            setIsProcessDataOpen(true);
-                          }}
-                          onUploadDocuments={() => {
-                            if (!selectedProcessId) {
-                              toast.error("Selecione um processo primeiro");
-                              return;
-                            }
-                            setIsUploadDocsOpen(true);
-                          }}
-                          onSelectPrompt={() => {
-                            setIsPromptSelectorOpen(true);
-                          }}
-                          onSearchPrecedents={() => {
-                            if (!selectedProcessId) {
-                              toast.error("Selecione um processo primeiro");
-                              return;
-                            }
-                            // Redirecionar para página de Memória com filtro do processo atual
-                            setLocation("/memoria");
-                            toast.info("🔍 Buscando casos similares ao processo atual...");
-                          }}
-                          onViewMemory={() => {
-                            setLocation("/memoria");
-                          }}
-                          onUploadKnowledge={() => {
-                            setLocation("/base-conhecimento");
-                          }}
-                          onManageKnowledge={() => {
-                            setLocation("/base-conhecimento");
-                          }}
-                        />
-                        {isStreaming ? (
-                          <Button
-                            onClick={stopGeneration}
-                            size="icon"
-                            variant="destructive"
-                            className="h-9 w-9"
-                          >
-                            <X className="h-4 w-4" />
-                          </Button>
-                        ) : (
-                          <Button
-                            onClick={handleSendMessage}
-                            disabled={!messageInput.trim()}
-                            size="icon"
-                            className="h-9 w-9"
-                          >
-                            <Send className="h-4 w-4" />
-                          </Button>
-                        )}
-                      </div>
-                    </div>
+                    </Card>
+                  </div>
+                )}
+                {isStreaming && (
+                  <div className="flex justify-start">
+                    <Card className="p-4 bg-muted">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    </Card>
+                  </div>
+                )}
+              </div>
+            </ScrollArea>
+          ) : (
+            // Hero / Estado Vazio
+            <div className="flex-1 flex flex-col items-center justify-center p-8 text-center animate-in fade-in duration-500">
+              <div className="max-w-md space-y-6">
+                <div className="relative">
+                  <div className="absolute inset-0 bg-primary/20 blur-3xl rounded-full" />
+                  <div className="h-24 w-24 bg-gradient-to-br from-violet-600 to-indigo-600 rounded-2xl flex items-center justify-center mx-auto relative shadow-xl transform rotate-3">
+                    <span className="text-4xl font-bold text-white">D</span>
                   </div>
                 </div>
+
+                <div className="space-y-2">
+                  <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-violet-600 to-indigo-600 bg-clip-text text-transparent">
+                    Bem-vindo ao DAVID
+                  </h1>
+                  <p className="text-muted-foreground text-lg">
+                    Seu assistente jurídico inteligente para análise de processos e geração de minutas
+                  </p>
+                </div>
               </div>
 
-            </>
-          ) : (
-            <div className="flex-1 flex items-center justify-center text-center p-8">
-              <div>
-                <h2 className="text-2xl font-bold mb-2">Bem-vindo ao DAVID</h2>
-                <p className="text-muted-foreground mb-6">
-                  Seu assistente jurídico inteligente para análise de processos e geração de minutas
-                </p>
-                <Button onClick={handleNewConversation} size="lg">
-                  <Plus className="h-5 w-5 mr-2" />
-                  Iniciar Nova Conversa
-                </Button>
+            </div>
+
+          )}
+
+          {/* Área global de Drag & Drop oculta (input) */}
+          <div {...getRootProps()} className="outline-none">
+            <input {...getInputProps()} />
+
+            {/* Overlay de Drag & Drop quando arrastar arquivo */}
+            <AnimatePresence>
+              {isDragActive && (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="absolute inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-center justify-center"
+                >
+                  <div className="bg-card border-2 border-primary border-dashed rounded-xl p-10 text-center shadow-2xl">
+                    <Upload className="h-16 w-16 text-primary mx-auto mb-4 animate-bounce" />
+                    <h2 className="text-2xl font-bold">Solte para processar</h2>
+                    <p className="text-muted-foreground">O David irá analisar este processo automaticamente.</p>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            <div className="p-4 border-t bg-background">
+              <div className="max-w-4xl mx-auto border rounded-[2rem] p-4 relative shadow-sm bg-card transition-all focus-within:ring-1 focus-within:ring-violet-500/50">
+
+                <div className="flex justify-between items-start mb-2 relative">
+                  <Textarea
+                    ref={textareaRef}
+                    value={messageInput}
+                    onChange={(e) => {
+                      setMessageInput(e.target.value);
+                      adjustTextareaHeight();
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && !e.shiftKey) {
+                        e.preventDefault();
+                        handleSendMessage();
+                      }
+                    }}
+                    placeholder="O que posso fazer por você?"
+                    className="border-0 shadow-none resize-none min-h-[60px] w-full p-0 pr-10 focus-visible:ring-0 bg-transparent text-lg placeholder:text-muted-foreground/50"
+                    style={{ maxHeight: "200px" }}
+                  />
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 text-muted-foreground hover:text-primary absolute top-0 right-0 transition-colors"
+                    title="Melhorar Prompt (IA)"
+                    onClick={handleEnhancePrompt}
+                    disabled={!messageInput.trim() || enhancePromptMutation.isPending}
+                  >
+                    {enhancePromptMutation.isPending ? (
+                      <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                    ) : (
+                      <Wand2 className="h-5 w-5" />
+                    )}
+                  </Button>
+                </div>
+
+                <div className="flex justify-between items-center mt-2">
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="gap-2 rounded-full h-9 px-4 border-dashed border-violet-500/30 hover:bg-violet-500/10 hover:border-violet-500/50 hover:text-violet-500 transition-all font-medium"
+                      onClick={open}
+                    >
+                      <Gavel className="h-4 w-4" />
+                      Cadastrar Processo
+                    </Button>
+
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="sm" className="gap-2 rounded-full h-9 px-3 text-muted-foreground hover:text-primary">
+                          <BookMarked className="h-4 w-4" />
+                          Prompts
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="start" className="w-64">
+                        <DropdownMenuLabel>Prompts Salvos</DropdownMenuLabel>
+                        <DropdownMenuSeparator />
+                        {savedPrompts && savedPrompts.length > 0 ? (
+                          savedPrompts.map((prompt: any) => (
+                            <DropdownMenuItem
+                              key={prompt.id}
+                              onClick={() => setMessageInput(prompt.content)}
+                              className="cursor-pointer"
+                            >
+                              <span className="truncate">{prompt.title}</span>
+                            </DropdownMenuItem>
+                          ))
+                        ) : (
+                          <div className="p-2 text-sm text-muted-foreground text-center">
+                            Nenhum prompt salvo.
+                          </div>
+                        )}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
+
+                  <div className="flex gap-2 items-center">
+                    <Button
+                      onClick={handleRecordClick}
+                      variant={isRecording ? "destructive" : "ghost"}
+                      size="icon"
+                      className={`h-10 w-10 rounded-full transition-all ${isRecording ? 'animate-pulse' : 'text-muted-foreground hover:text-primary hover:bg-accent'}`}
+                      title={isRecording ? "Parar Gravação" : "Gravar áudio"}
+                      disabled={transcribeAudioMutation.isPending}
+                    >
+                      {transcribeAudioMutation.isPending ? (
+                        <Loader2 className="h-5 w-5 animate-spin" />
+                      ) : (
+                        <Mic className={`h-5 w-5 ${isRecording ? 'fill-current' : ''}`} />
+                      )}
+                    </Button>
+                    <Button
+                      onClick={handleSendMessage}
+                      disabled={!messageInput.trim() && !isProcessing}
+                      size="icon"
+                      className={`h-10 w-10 rounded-full transition-all duration-300 ${messageInput.trim() ? 'bg-violet-600 hover:bg-violet-700 text-white shadow-md hover:scale-105' : 'bg-muted text-muted-foreground'}`}
+                    >
+                      {isProcessing ? (
+                        <Loader2 className="h-5 w-5 animate-spin" />
+                      ) : (
+                        <Send className="h-5 w-5 ml-0.5" />
+                      )}
+                    </Button>
+                  </div>
+                </div>
+
+              </div>
+
+              {/* Footer Texto */}
+              <div className="text-center mt-2">
+                <p className="text-xs text-muted-foreground">O DAVID pode cometer erros. Considere verificar as informações importantes.</p>
               </div>
             </div>
-          )}
-        </div>
+          </div >
+
+
+
+        </div >
 
         {/* Modal de Edição de Minuta */}
-        <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        < Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen} >
           <DialogContent className="max-w-4xl max-h-[80vh]">
             <DialogHeader>
               <DialogTitle>Editar Minuta</DialogTitle>
@@ -997,10 +1087,10 @@ export default function David() {
               </div>
             </div>
           </DialogContent>
-        </Dialog>
+        </Dialog >
 
         {/* Dialog de Renomear Conversa */}
-        <Dialog open={isRenameDialogOpen} onOpenChange={setIsRenameDialogOpen}>
+        < Dialog open={isRenameDialogOpen} onOpenChange={setIsRenameDialogOpen} >
           <DialogContent>
             <DialogHeader>
               <DialogTitle>✏️ Renomear Conversa</DialogTitle>
@@ -1050,10 +1140,10 @@ export default function David() {
               </div>
             </div>
           </DialogContent>
-        </Dialog>
+        </Dialog >
 
         {/* Dialog de Seleção de Processo */}
-        <Dialog open={isProcessSelectorOpen} onOpenChange={setIsProcessSelectorOpen}>
+        < Dialog open={isProcessSelectorOpen} onOpenChange={setIsProcessSelectorOpen} >
           <DialogContent className="max-w-2xl">
             <DialogHeader>
               <DialogTitle>⚖️ Selecionar Processo Ativo</DialogTitle>
@@ -1125,10 +1215,10 @@ export default function David() {
               )}
             </div>
           </DialogContent>
-        </Dialog>
+        </Dialog >
 
         {/* Dialog de Visualização de Dados do Processo */}
-        <Dialog open={isProcessDataOpen} onOpenChange={setIsProcessDataOpen}>
+        < Dialog open={isProcessDataOpen} onOpenChange={setIsProcessDataOpen} >
           <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>📋 Dados do Processo</DialogTitle>
@@ -1202,10 +1292,10 @@ export default function David() {
               );
             })()}
           </DialogContent>
-        </Dialog>
+        </Dialog >
 
         {/* Dialog de Upload de Documentos */}
-        <Dialog open={isUploadDocsOpen} onOpenChange={setIsUploadDocsOpen}>
+        < Dialog open={isUploadDocsOpen} onOpenChange={setIsUploadDocsOpen} >
           <DialogContent>
             <DialogHeader>
               <DialogTitle>📎 Upload de Documentos do Processo</DialogTitle>
@@ -1333,10 +1423,10 @@ export default function David() {
               </div>
             </div>
           </DialogContent>
-        </Dialog>
+        </Dialog >
 
         {/* Dialog de Seleção de Prompt */}
-        <Dialog open={isPromptSelectorOpen} onOpenChange={setIsPromptSelectorOpen}>
+        < Dialog open={isPromptSelectorOpen} onOpenChange={setIsPromptSelectorOpen} >
           <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>📝 Aplicar Prompt Especializado</DialogTitle>
@@ -1405,10 +1495,10 @@ export default function David() {
               </Button>
             </div>
           </DialogContent>
-        </Dialog>
+        </Dialog >
 
         {/* Dialog de Confirmação de Deletar */}
-        <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        < Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen} >
           <DialogContent>
             <DialogHeader>
               <DialogTitle>🗑️ Deletar Conversa</DialogTitle>
@@ -1440,8 +1530,8 @@ export default function David() {
               </Button>
             </div>
           </DialogContent>
-        </Dialog>
-      </div>
+        </Dialog >
+      </div >
     </DashboardLayout >
   );
 }
