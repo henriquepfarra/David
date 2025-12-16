@@ -139,6 +139,51 @@ export const appRouter = router({
         await db.deleteProcess(input.id, ctx.user.id);
         return { success: true };
       }),
+
+    registerFromUpload: protectedProcedure
+      .input(z.object({
+        text: z.string(),
+        images: z.array(z.string()).optional(),
+        filename: z.string().optional(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const { extractProcessData, extractProcessDataFromImages } = await import("./processExtractor");
+
+        // 1. Extrair dados
+        let extractedData;
+        if (input.text && input.text.length > 100) {
+          extractedData = await extractProcessData(input.text);
+        } else if (input.images && input.images.length > 0) {
+          extractedData = await extractProcessDataFromImages(input.images);
+        } else {
+          throw new Error("Conteúdo insuficiente para análise");
+        }
+
+        // 2. Criar Processo no BD
+        // Usa "Processo s/n..." se não conseguir extrair o número
+        const processNumber = extractedData.numeroProcesso || `Processo Importado ${new Date().toLocaleDateString()}`;
+
+        const process = await db.createProcess({
+          userId: ctx.user.id,
+          processNumber,
+          court: extractedData.vara || undefined,
+          judge: undefined, // Geralmente não extrai bem, deixa quieto
+          plaintiff: extractedData.autor || undefined,
+          defendant: extractedData.reu || undefined,
+          subject: extractedData.assunto || input.filename || undefined,
+          facts: extractedData.resumoFatos || undefined,
+          evidence: undefined,
+          requests: extractedData.pedidos || undefined,
+          status: "Importado via Chat",
+          notes: "Processo cadastrado automaticamente via upload no chat.",
+        });
+
+        return {
+          processId: process.id,
+          processNumber,
+          extractedData
+        };
+      }),
   }),
 
   // Minutas
@@ -244,6 +289,7 @@ export const appRouter = router({
         llmApiKey: z.string().optional(),
         llmProvider: z.string().optional(),
         llmModel: z.string().optional(),
+        openaiEmbeddingsKey: z.string().optional(),
         customSystemPrompt: z.string().nullable().optional(),
       }))
       .mutation(async ({ ctx, input }) => {

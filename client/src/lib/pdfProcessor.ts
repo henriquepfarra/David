@@ -1,8 +1,9 @@
 import * as pdfjsLib from 'pdfjs-dist';
 import { createWorker } from 'tesseract.js';
+import pdfWorker from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 
-// Configurar worker do PDF.js (usando arquivo local)
-pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs';
+// Configurar worker do PDF.js (usando arquivo local versionado corretamente via Vite)
+pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorker;
 
 export interface ProcessingResult {
   text: string;
@@ -49,7 +50,7 @@ export async function processFile(
 
     // Tentativa 1: Extração de texto nativo
     const nativeText = await extractNativeText(pdf, onProgress);
-    
+
     if (isValidText(nativeText)) {
       return {
         text: nativeText,
@@ -66,7 +67,7 @@ export async function processFile(
     });
 
     const { text: ocrText, images } = await extractWithOCR(pdf, onProgress);
-    
+
     if (isValidText(ocrText)) {
       return {
         text: ocrText,
@@ -117,7 +118,7 @@ async function extractNativeText(
     const pageText = textContent.items
       .map((item: any) => item.str)
       .join(' ');
-    
+
     fullText += pageText + '\n\n';
 
     onProgress?.({
@@ -152,14 +153,14 @@ async function extractWithOCR(
   let fullText = '';
   const images: string[] = [];
   const numPages = pdf.numPages;
-  
+
   // Limitar a 50 páginas para evitar timeout
   const maxPages = Math.min(numPages, 50);
 
   for (let i = 1; i <= maxPages; i++) {
     const page = await pdf.getPage(i);
     const viewport = page.getViewport({ scale: 2.0 });
-    
+
     // Criar canvas
     const canvas = document.createElement('canvas');
     const context = canvas.getContext('2d')!;

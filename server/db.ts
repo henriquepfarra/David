@@ -1,10 +1,11 @@
 import { eq } from "drizzle-orm";
-import { drizzle } from "drizzle-orm/mysql2";
+import { drizzle, MySql2Database } from "drizzle-orm/mysql2";
 import { createPool } from "mysql2/promise";
 import { InsertUser, users } from "../drizzle/schema";
+import * as schema from "../drizzle/schema";
 import { ENV } from './_core/env';
 
-let _db: ReturnType<typeof drizzle> | null = null;
+let _db: MySql2Database<typeof schema> | null = null;
 export { _db as db };
 
 // Lazily create the drizzle instance so local tooling can run without a DB.
@@ -19,7 +20,7 @@ export async function getDb() {
         keepAliveInitialDelay: 0,
         waitForConnections: true
       });
-      _db = drizzle(connectionPool, { mode: "default" });
+      _db = drizzle(connectionPool, { mode: "default", schema });
     } catch (error) {
       if (process.env.NODE_ENV !== "development") {
         console.warn("[Database] Failed to connect:", error);
@@ -148,8 +149,8 @@ export async function createProcess(data: any) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
   const { processes } = await import("../drizzle/schema");
-  const result = await db.insert(processes).values(data);
-  return result;
+  const [header] = await db.insert(processes).values(data);
+  return { id: header.insertId };
 }
 
 export async function updateProcess(id: number, userId: number, data: any) {

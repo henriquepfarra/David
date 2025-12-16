@@ -29,7 +29,6 @@ import { Button } from "./ui/button";
 
 const menuItems = [
   { icon: Home, label: "Início", path: "/" },
-  { icon: FolderOpen, label: "Processos", path: "/processos" },
   { icon: Gavel, label: "DAVID", path: "/david" },
   { icon: Brain, label: "Memória do DAVID", path: "/david/memoria" },
   { icon: BookOpen, label: "Base de Conhecimento", path: "/base-conhecimento" },
@@ -79,6 +78,7 @@ export default function DashboardLayout({
               <p className="text-sm text-muted-foreground">
                 Please sign in to continue
               </p>
+              {loading && <p className="text-xs text-muted-foreground">Loading...</p>}
             </div>
           </div>
           <Button

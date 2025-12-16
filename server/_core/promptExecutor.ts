@@ -1,4 +1,4 @@
-import { db } from "../db";
+import { getDb } from "../db";
 import { savedPrompts, userSettings } from "../../drizzle/schema";
 import { eq } from "drizzle-orm";
 import { getProcessContext } from "./processContext";
@@ -22,6 +22,9 @@ export async function executeSavedPrompt(input: ExecutePromptInput): Promise<str
     // Buscar no banco
     // Como o drizzle-orm like é chato, vamos tentar match exato ou aproximado via filtro em memória se necessário,
     // mas idealmente o usuário salva com o nome do comando "analise_completa" ou "Analise Completa"
+    const db = await getDb();
+    if (!db) throw new Error("Database not initialized");
+
     const prompts = await db.query.savedPrompts.findMany({
         where: eq(savedPrompts.userId, input.userId)
     });
@@ -68,7 +71,15 @@ ${matchedPrompt.content}`;
             provider: (settings?.llmProvider as any) || undefined
         });
 
-        return response.choices[0]?.message?.content || "Erro: Resposta vazia da IA.";
+        const content = response.choices[0]?.message?.content;
+
+        if (typeof content === 'string') {
+            return content;
+        } else if (Array.isArray(content)) {
+            return content.map(c => c.type === 'text' ? c.text : '').join('\n');
+        }
+
+        return "Erro: Resposta vazia da IA.";
 
     } catch (error) {
         console.error("Erro ao executar prompt salvo:", error);

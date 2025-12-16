@@ -7,11 +7,13 @@ import { createExpressMiddleware } from "@trpc/server/adapters/express";
 import { registerOAuthRoutes } from "./oauth";
 import { appRouter } from "../routers";
 import { createContext } from "./context";
-import { serveStatic, setupVite } from "./vite";
+import { serveStatic } from "./vite";
 import cors from "cors";
 import { getConversationById, getConversationMessages, createMessage, getProcessForContext } from "../db";
 import { invokeLLMStream as streamFn } from "../_core/llm";
 import { sdk } from "./sdk";
+
+
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -33,6 +35,7 @@ async function findAvailablePort(startPort: number = 3000): Promise<number> {
 }
 
 async function startServer() {
+  console.log("startServer called");
   const app = express();
   const server = createServer(app);
 
@@ -148,7 +151,6 @@ async function startServer() {
   });
 
 
-
   // Global error handler
   app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
     const status = err.status || err.statusCode || 500;
@@ -166,22 +168,16 @@ async function startServer() {
       createContext,
     })
   );
+
   // development mode uses Vite, production mode uses static files
   if (process.env.NODE_ENV === "development") {
-    await setupVite(app, server);
+    // await setupVite(app, server); // DISABLED TO AVOID CONFLICT WITH dev:client
+    console.log("Vite middleware disabled in dev mode (use npm run dev:client)");
   } else {
     serveStatic(app);
   }
 
   const preferredPort = parseInt(process.env.PORT || "3001");
-  /* 
-  // Disable dynamic port for now to avoid proxy mismatch
-  const port = await findAvailablePort(preferredPort);
-
-  if (port !== preferredPort) {
-    console.log(`Port ${preferredPort} is busy, using port ${port} instead`);
-  }
-  */
   const port = preferredPort;
 
   server.listen(port, "0.0.0.0", () => {

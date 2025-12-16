@@ -1,4 +1,4 @@
-import { int, mysqlEnum, mysqlTable, text, timestamp, varchar, longtext, index } from "drizzle-orm/mysql-core";
+import { int, mysqlEnum, mysqlTable, text, timestamp, varchar, longtext, index, json } from "drizzle-orm/mysql-core";
 
 /**
  * Core user table backing auth flow.
@@ -115,7 +115,7 @@ export const processDocumentChunks = mysqlTable("processDocumentChunks", {
   pageNumber: int("pageNumber").notNull(), // Página de origem
   chunkIndex: int("chunkIndex").notNull(), // Ordem sequencial na página
   tokenCount: int("tokenCount"), // Para gestão de janela de contexto
-  embedding: text("embedding", { mode: 'json' }).$type<number[]>(), // Vetor (armazenado como JSON array)
+  embedding: json("embedding").$type<number[]>(), // Vetor (armazenado como JSON array)
   tags: text("tags"), // Metadados extras (ex: "comprovante", "assinatura")
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 }, (table) => ({
@@ -137,7 +137,7 @@ export const knowledgeBase = mysqlTable("knowledgeBase", {
   source: mysqlEnum("source", ["sistema", "usuario"]).notNull().default("usuario"), // Origem do documento (sistema = pré-carregado, usuario = adicionado pelo usuário)
   category: varchar("category", { length: 100 }), // decisoes, teses, referencias
   tags: text("tags"),
-  embedding: text("embedding"), // Vetor de embedding para busca semântica (JSON array)
+  embedding: json("embedding"), // Vetor de embedding para busca semântica (JSON array)
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 }, (table) => ({

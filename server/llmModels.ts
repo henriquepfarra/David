@@ -46,7 +46,7 @@ async function listGoogleModels(apiKey: string): Promise<LLMModel[]> {
   }
 
   const data = await response.json();
-  
+
   return data.models
     .filter((model: any) => model.supportedGenerationMethods?.includes("generateContent"))
     .map((model: any) => ({
@@ -72,10 +72,10 @@ async function listOpenAIModels(apiKey: string): Promise<LLMModel[]> {
   }
 
   const data = await response.json();
-  
+
   // Filtrar apenas modelos de chat relevantes
-  const chatModels = data.data.filter((model: any) => 
-    model.id.includes("gpt-4") || 
+  const chatModels = data.data.filter((model: any) =>
+    model.id.includes("gpt-4") ||
     model.id.includes("gpt-3.5") ||
     model.id.includes("o1")
   );
@@ -102,73 +102,61 @@ function getFallbackModels(provider: string): LLMModel[] {
   const fallbacks: Record<string, LLMModel[]> = {
     google: [
       {
-        id: "gemini-2.0-flash-exp",
-        name: "Gemini 2.0 Flash (Experimental)",
-        description: "Modelo mais recente e rápido com suporte a visão",
+        id: "gemini-3.0-pro",
+        name: "Gemini 3.0 Pro",
+        description: "Modelo de última geração (2025) com raciocínio avançado",
         supportsVision: true,
       },
       {
-        id: "gemini-1.5-flash",
-        name: "Gemini 1.5 Flash",
-        description: "Rápido e eficiente com suporte a visão",
+        id: "gemini-2.0-flash",
+        name: "Gemini 2.0 Flash",
+        description: "Modelo ultrarrápido e eficiente",
         supportsVision: true,
       },
       {
         id: "gemini-1.5-pro",
         name: "Gemini 1.5 Pro",
-        description: "Modelo avançado com grande contexto",
+        description: "Modelo estável com contexto massivo",
         supportsVision: true,
       },
     ],
     openai: [
       {
+        id: "gpt-5",
+        name: "GPT-5 (Preview)",
+        description: "A nova fronteira da inteligência artificial",
+        supportsVision: true,
+      },
+      {
         id: "gpt-4o",
         name: "GPT-4o",
-        description: "Modelo mais recente com suporte a visão",
+        description: "Modelo onipresente, rápido e inteligente",
+        supportsVision: true,
+      },
+      {
+        id: "o1",
+        name: "O1 (Reasoning)",
+        description: "Modelo focado em raciocínio complexo e lógica",
         supportsVision: true,
       },
       {
         id: "gpt-4o-mini",
         name: "GPT-4o Mini",
-        description: "Versão mais rápida e econômica",
+        description: "Versão econômica e veloz",
         supportsVision: true,
-      },
-      {
-        id: "gpt-4-turbo",
-        name: "GPT-4 Turbo",
-        description: "Modelo avançado com grande contexto",
-        supportsVision: true,
-      },
-      {
-        id: "gpt-3.5-turbo",
-        name: "GPT-3.5 Turbo",
-        description: "Rápido e econômico",
-        supportsVision: false,
       },
     ],
     anthropic: [
       {
-        id: "claude-3-5-sonnet-20241022",
-        name: "Claude 3.5 Sonnet",
-        description: "Modelo mais recente e equilibrado",
+        id: "claude-4-5-opus",
+        name: "Claude 4.5 Opus",
+        description: "O modelo mais inteligente do mundo (2025)",
         supportsVision: true,
       },
       {
-        id: "claude-3-opus-20240229",
-        name: "Claude 3 Opus",
-        description: "Modelo mais poderoso",
-        supportsVision: true,
-      },
-      {
-        id: "claude-3-sonnet-20240229",
-        name: "Claude 3 Sonnet",
-        description: "Equilibrado entre velocidade e qualidade",
-        supportsVision: true,
-      },
-      {
-        id: "claude-3-haiku-20240307",
-        name: "Claude 3 Haiku",
-        description: "Mais rápido e econômico",
+        id: "claude-4-5-sonnet",
+        name: "Claude 4.5 Sonnet",
+        description: "Velocidade e inteligência inigualáveis",
         supportsVision: true,
       },
     ],

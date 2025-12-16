@@ -1,4 +1,4 @@
-import { db } from "../db";
+import { getDb } from "../db";
 import { processDocumentChunks, userSettings } from "../../drizzle/schema";
 import { eq, sql, desc, asc } from "drizzle-orm";
 import { generateEmbedding, cosineSimilarity as calculateCosineSimilarity } from "./embeddings";
@@ -13,6 +13,9 @@ export async function getProcessContext(
     mode: "rag" | "audit"
 ): Promise<string> {
     // 1. Obter configurações do usuário (para chave de API)
+    const db = await getDb();
+    if (!db) throw new Error("Database not initialized");
+
     const settings = await db.query.userSettings.findFirst({
         where: eq(userSettings.userId, userId),
     });
@@ -32,6 +35,9 @@ export async function getProcessContext(
  * MODO AUDITORIA: Recupera texto integral do processo ordenado por página
  */
 async function getFullProcessContext(processId: number): Promise<string> {
+    const db = await getDb();
+    if (!db) return "";
+
     const chunks = await db.query.processDocumentChunks.findMany({
         where: eq(processDocumentChunks.processId, processId),
         orderBy: [asc(processDocumentChunks.documentId), asc(processDocumentChunks.pageNumber), asc(processDocumentChunks.chunkIndex)],
@@ -69,6 +75,9 @@ async function getRelevantChunks(
     // 2. Buscar todos os chunks do processo (limitado para otimização - ideal seria vector store nativo)
     // Como estamos usando MySQL sem extensão vetorial, carregamos os chunks do processo para memória
     // Isso funciona bem para processos de até ~2-3 mil páginas. Para maiores, precisaria de filtro prévio.
+    const db = await getDb();
+    if (!db) return "";
+
     const processChunks = await db.query.processDocumentChunks.findMany({
         where: eq(processDocumentChunks.processId, processId),
     });
