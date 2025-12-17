@@ -60,11 +60,14 @@ async function startServer() {
     try {
       // Imports moved to top-level for performance
 
+      console.log(`[Stream] Incoming request. Origin: ${req.headers.origin}, Cookie present: ${!!req.headers.cookie}`);
+
       let user;
       try {
         user = await sdk.authenticateRequest(req);
-      } catch (error) {
-        res.status(401).json({ error: "Unauthorized" });
+      } catch (error: any) {
+        console.error("[Stream] Auth failed:", error);
+        res.status(401).json({ error: "Unauthorized", details: error.message });
         return;
       }
 

@@ -248,7 +248,15 @@ export default function David() {
       });
 
       if (!response.ok) {
-        throw new Error("Erro ao iniciar streaming");
+        let errorMessage = "Erro ao iniciar streaming";
+        try {
+          const errorData = await response.json();
+          if (errorData.details) errorMessage += `: ${errorData.details}`;
+          else if (errorData.error) errorMessage += `: ${errorData.error}`;
+        } catch (e) {
+          errorMessage += ` (${response.status} ${response.statusText})`;
+        }
+        throw new Error(errorMessage);
       }
 
       if (!response.body) {

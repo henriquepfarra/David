@@ -17,7 +17,9 @@ async function testFeatures() {
             ],
             max_tokens: 10
         });
-        console.log("✅ Enhancer Check Passed. Response:", response.choices[0]?.message?.content?.substring(0, 50));
+        const content = response.choices[0]?.message?.content;
+        const output = typeof content === 'string' ? content : JSON.stringify(content);
+        console.log("✅ Enhancer Check Passed. Response:", output?.substring(0, 50));
     } catch (error: any) {
         console.error("❌ Enhancer Failed:", error.message);
     }
