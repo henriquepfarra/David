@@ -248,19 +248,39 @@ export async function getUserSettings(userId: number) {
   const db = await getDb();
   if (!db) return undefined;
   const { userSettings } = await import("../drizzle/schema");
+  const { decrypt } = await import("./_core/crypto");
+
   const result = await db.select().from(userSettings).where(eq(userSettings.userId, userId)).limit(1);
-  return result.length > 0 ? result[0] : undefined;
+
+  if (result.length === 0) return undefined;
+
+  const settings = result[0];
+  // Decrypt sensitive fields
+  return {
+    ...settings,
+    llmApiKey: settings.llmApiKey ? decrypt(settings.llmApiKey) : null,
+    openaiEmbeddingsKey: settings.openaiEmbeddingsKey ? decrypt(settings.openaiEmbeddingsKey) : null,
+  };
 }
 
 export async function upsertUserSettings(userId: number, data: any) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
   const { userSettings } = await import("../drizzle/schema");
+  const { encrypt } = await import("./_core/crypto");
 
   // Converter undefined para null para limpar valores no banco
   const normalizedData: any = {};
   for (const key in data) {
     normalizedData[key] = data[key] === undefined ? null : data[key];
+  }
+
+  // Encrypt sensitive fields before saving
+  if (normalizedData.llmApiKey) {
+    normalizedData.llmApiKey = encrypt(normalizedData.llmApiKey);
+  }
+  if (normalizedData.openaiEmbeddingsKey) {
+    normalizedData.openaiEmbeddingsKey = encrypt(normalizedData.openaiEmbeddingsKey);
   }
 
   await db.insert(userSettings).values({ userId, ...normalizedData }).onDuplicateKeyUpdate({ set: normalizedData });

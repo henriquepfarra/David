@@ -1,18 +1,26 @@
 import { z } from "zod";
 
 const envSchema = z.object({
-  VITE_APP_ID: z.string().optional(),
+  // Core required
   JWT_SECRET: z.string().min(1, "JWT_SECRET is required"),
   DATABASE_URL: z.string().min(1, "DATABASE_URL is required"),
-  OAUTH_SERVER_URL: z.string().optional(),
-  OWNER_OPEN_ID: z.string().optional(),
+
+  // App config
+  VITE_APP_ID: z.string().optional(),
   NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
-  BUILT_IN_FORGE_API_URL: z.string().optional(),
-  BUILT_IN_FORGE_API_KEY: z.string().optional(),
   PORT: z.string().optional(),
-  // Google OAuth
+
+  // Google OAuth (current auth method)
   GOOGLE_CLIENT_ID: z.string().optional(),
   GOOGLE_CLIENT_SECRET: z.string().optional(),
+
+  // Legacy Manus OAuth (kept for backwards compatibility)
+  OAUTH_SERVER_URL: z.string().optional(),
+  OWNER_OPEN_ID: z.string().optional(),
+
+  // Legacy Forge API (used by some features like storage, maps)
+  BUILT_IN_FORGE_API_URL: z.string().optional(),
+  BUILT_IN_FORGE_API_KEY: z.string().optional(),
 });
 
 // Validate process.env
@@ -28,15 +36,21 @@ if (!parsedEnv.success) {
 const env = parsedEnv.data;
 
 export const ENV = {
-  appId: env.VITE_APP_ID ?? "",
+  // Core
   cookieSecret: env.JWT_SECRET,
   databaseUrl: env.DATABASE_URL,
-  oAuthServerUrl: env.OAUTH_SERVER_URL ?? "",
-  ownerOpenId: env.OWNER_OPEN_ID ?? "",
   isProduction: env.NODE_ENV === "production",
-  forgeApiUrl: env.BUILT_IN_FORGE_API_URL ?? "",
-  forgeApiKey: env.BUILT_IN_FORGE_API_KEY ?? "",
-  // Google OAuth
+
+  // App config
+  appId: env.VITE_APP_ID ?? "",
+
+  // Google OAuth (current)
   googleClientId: env.GOOGLE_CLIENT_ID ?? "",
   googleClientSecret: env.GOOGLE_CLIENT_SECRET ?? "",
+
+  // Legacy (kept for backwards compatibility with some features)
+  oAuthServerUrl: env.OAUTH_SERVER_URL ?? "",
+  ownerOpenId: env.OWNER_OPEN_ID ?? "",
+  forgeApiUrl: env.BUILT_IN_FORGE_API_URL ?? "",
+  forgeApiKey: env.BUILT_IN_FORGE_API_KEY ?? "",
 };

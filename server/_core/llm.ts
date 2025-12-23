@@ -212,12 +212,17 @@ const normalizeToolChoice = (
   return toolChoice;
 };
 
+const VALID_PROVIDERS = ["openai", "google", "groq", "deepseek", "anthropic", "forge"] as const;
+type ValidProvider = typeof VALID_PROVIDERS[number];
+
 const resolveApiUrl = (provider?: string) => {
   if (ENV.forgeApiUrl && ENV.forgeApiUrl.trim().length > 0) {
     return `${ENV.forgeApiUrl.replace(/\/$/, "")}/v1/chat/completions`;
   }
 
-  switch (provider?.toLowerCase()) {
+  const normalizedProvider = provider?.toLowerCase() as ValidProvider | undefined;
+
+  switch (normalizedProvider) {
     case "openai":
       return "https://api.openai.com/v1/chat/completions";
     case "google":
@@ -227,15 +232,21 @@ const resolveApiUrl = (provider?: string) => {
       return "https://api.groq.com/openai/v1/chat/completions";
     case "deepseek":
       return "https://api.deepseek.com/chat/completions";
+    case "anthropic":
+      return "https://api.anthropic.com/v1/messages";
     case "forge":
-    default:
       return "https://forge.manus.im/v1/chat/completions";
+    case undefined:
+      // No provider specified, use default forge
+      return "https://forge.manus.im/v1/chat/completions";
+    default:
+      throw new Error(`Invalid LLM provider: "${provider}". Valid providers are: ${VALID_PROVIDERS.join(", ")}`);
   }
 };
 
 const assertApiKey = () => {
   if (!ENV.forgeApiKey) {
-    throw new Error("OPENAI_API_KEY is not configured");
+    throw new Error("LLM API Key is not configured. Please configure your API key in Settings.");
   }
 };
 
