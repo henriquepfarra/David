@@ -1,26 +1,17 @@
 import { eq } from "drizzle-orm";
-import type { MySql2Database } from "drizzle-orm/mysql2";
-import type { BetterSQLite3Database } from "drizzle-orm/better-sqlite3";
+import { drizzle, MySql2Database } from "drizzle-orm/mysql2";
+import { createPool } from "mysql2/promise";
 import { InsertUser, users } from "../drizzle/schema";
 import * as schema from "../drizzle/schema";
 import { ENV } from './_core/env';
 
-// Union type para suportar MySQL ou SQLite
-type DatabaseInstance = MySql2Database<typeof schema> | BetterSQLite3Database<typeof schema>;
-
-let _db: DatabaseInstance | null = null;
+let _db: MySql2Database<typeof schema> | null = null;
 export { _db as db };
 
 // Lazily create the drizzle instance so local tooling can run without a DB.
-export async function getDb(): Promise<DatabaseInstance | null> {
-  if (_db) return _db;
-
-  // Se tem DATABASE_URL, usa MySQL (produção)
-  if (process.env.DATABASE_URL) {
+export async function getDb() {
+  if (!_db && process.env.DATABASE_URL) {
     try {
-      const { drizzle } = await import("drizzle-orm/mysql2");
-      const { createPool } = await import("mysql2/promise");
-
       const connectionPool = createPool({
         uri: process.env.DATABASE_URL,
         connectionLimit: 10,
@@ -29,32 +20,17 @@ export async function getDb(): Promise<DatabaseInstance | null> {
         keepAliveInitialDelay: 0,
         waitForConnections: true
       });
-      _db = drizzle(connectionPool, { mode: "default", schema }) as DatabaseInstance;
-      console.log("[Database] Connected to MySQL");
-      return _db;
+      _db = drizzle(connectionPool, { mode: "default", schema });
+      console.log("[Database] ✅ Connected to MySQL successfully");
     } catch (error) {
-      console.error("[Database] Failed to connect to MySQL:", error);
+      console.error("[Database] ❌ Failed to connect to MySQL:", error);
       if (process.env.NODE_ENV !== "development") {
         throw error;
       }
-      // Em development, tentar SQLite como fallback
+      _db = null;
     }
   }
-
-  // Desenvolvimento: usa SQLite
-  try {
-    const { drizzle } = await import("drizzle-orm/better-sqlite3");
-    const Database = (await import("better-sqlite3")).default;
-
-    const sqlite = new Database("./dev.db");
-    _db = drizzle(sqlite, { schema }) as DatabaseInstance;
-    console.log("[Database] Connected to SQLite (./dev.db)");
-    return _db;
-  } catch (error) {
-    console.error("[Database] Failed to connect to SQLite:", error);
-    _db = null;
-    return null;
-  }
+  return _db;
 }
 
 export async function upsertUser(user: InsertUser): Promise<void> {
