@@ -1,3 +1,9 @@
+// Polyfill for crypto in Node.js (required for jose library)
+import { webcrypto } from "node:crypto";
+if (!globalThis.crypto) {
+  (globalThis as any).crypto = webcrypto;
+}
+
 console.log("🚀 Server process starting...");
 console.log(`🌍 NODE_ENV: ${process.env.NODE_ENV}`);
 
