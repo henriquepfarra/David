@@ -57,6 +57,10 @@ export function registerOAuthRoutes(app: Express) {
       try {
         console.log("[OAuth] Exchanging Google code for token");
         const redirectUri = getRedirectUri(req);
+        console.log("[OAuth] Using redirect URI:", redirectUri);
+        console.log("[OAuth] Google Client ID configured:", !!ENV.googleClientId);
+        console.log("[OAuth] Google Client Secret configured:", !!ENV.googleClientSecret);
+
         const tokenResponse = await exchangeGoogleCode(code, redirectUri);
 
         console.log("[OAuth] Getting user info from Google");
@@ -85,9 +89,10 @@ export function registerOAuthRoutes(app: Express) {
 
         console.log("[OAuth] Google login successful, redirecting to home");
         res.redirect(302, "/");
-      } catch (error) {
-        console.error("[OAuth] Google callback failed", error);
-        res.status(500).json({ error: "Google OAuth callback failed" });
+      } catch (error: any) {
+        console.error("[OAuth] Google callback failed:", error?.response?.data || error?.message || error);
+        const errorMessage = error?.response?.data?.error_description || error?.response?.data?.error || error?.message || "Unknown error";
+        res.status(500).json({ error: "Google OAuth callback failed", details: errorMessage });
       }
       return;
     }
