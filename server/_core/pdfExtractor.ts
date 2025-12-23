@@ -1,5 +1,3 @@
-import * as pdfjsLib from "pdfjs-dist/legacy/build/pdf.mjs";
-
 export interface ExtractedPage {
     pageNumber: number;
     text: string;
@@ -11,6 +9,9 @@ export interface ExtractedPage {
  * @returns Texto extraído de todas as páginas
  */
 export async function extractTextFromPdfBuffer(buffer: Buffer): Promise<string> {
+    // Import dinâmico para evitar erro no build/startup do servidor
+    const pdfjsLib = await import("pdfjs-dist/legacy/build/pdf.mjs");
+
     const data = new Uint8Array(buffer);
     const loadingTask = pdfjsLib.getDocument({
         data,
@@ -39,6 +40,9 @@ export async function extractTextFromPdfBuffer(buffer: Buffer): Promise<string> 
  */
 export async function extractPagesFromPdfBuffer(buffer: Buffer): Promise<ExtractedPage[]> {
     try {
+        // Import dinâmico para evitar erro no build/startup do servidor
+        const pdfjsLib = await import("pdfjs-dist/legacy/build/pdf.mjs");
+
         const data = new Uint8Array(buffer);
         const loadingTask = pdfjsLib.getDocument({
             data,
