@@ -325,13 +325,13 @@ export default function Configuracoes() {
 
                   {/* Indicador de Status */}
                   {!llmApiKey ? (
-                    <div className="bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
-                      <p className="text-sm text-blue-900 dark:text-blue-100 flex items-center gap-2">
-                        <span className="h-2 w-2 rounded-full bg-blue-500 animate-pulse"></span>
-                        <strong>Modo Nativo (Manus)</strong>
+                    <div className="bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-800 rounded-lg p-4">
+                      <p className="text-sm text-amber-900 dark:text-amber-100 flex items-center gap-2">
+                        <span className="h-2 w-2 rounded-full bg-amber-500 animate-pulse"></span>
+                        <strong>Configuração Necessária</strong>
                       </p>
-                      <p className="text-xs text-blue-700 dark:text-blue-300 mt-1 ml-4">
-                        Você está usando a estrutura padrão. Configure abaixo para usar seu próprio cérebro.
+                      <p className="text-xs text-amber-700 dark:text-amber-300 mt-1 ml-4">
+                        Configure sua chave de API para utilizar o DAVID. Escolha um provedor abaixo.
                       </p>
                     </div>
                   ) : (
