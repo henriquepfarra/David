@@ -377,7 +377,7 @@ export type StreamChunk = {
 };
 
 export async function* invokeLLMStream(params: InvokeParams): AsyncGenerator<string, void, unknown> {
-  assertApiKey();
+
 
   const {
     messages,

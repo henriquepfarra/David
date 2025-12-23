@@ -28,6 +28,13 @@ export async function createContext(
         updatedAt: new Date(),
         lastSignedIn: new Date(),
       };
+      // Garantir que o usuário exista no BD para não quebrar chaves estrangeiras
+      try {
+        const { upsertUser } = await import("../db");
+        await upsertUser(user);
+      } catch (dbError) {
+        console.warn("⚠️ [Auth] Failed to upsert dev user (Database might be offline):", dbError);
+      }
     } else {
       user = await sdk.authenticateRequest(opts.req);
     }

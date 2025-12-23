@@ -64,7 +64,21 @@ async function startServer() {
 
       let user;
       try {
-        user = await sdk.authenticateRequest(req);
+        if (process.env.NODE_ENV === "development") {
+          user = {
+            id: 999999,
+            openId: "dev-user-id",
+            name: "Desenvolvedor Local",
+            email: "dev@local.test",
+            loginMethod: "local",
+            role: "admin",
+            createdAt: new Date(),
+            updatedAt: new Date(),
+            lastSignedIn: new Date(),
+          };
+        } else {
+          user = await sdk.authenticateRequest(req);
+        }
       } catch (error: any) {
         console.error("[Stream] Auth failed:", error);
         res.status(401).json({ error: "Unauthorized", details: error.message });
@@ -160,9 +174,10 @@ async function startServer() {
 
         res.write(`data: ${JSON.stringify({ type: "done", content: fullResponse })}\n\n`);
         res.end();
-      } catch (error) {
+      } catch (error: any) {
         console.error("Stream error:", error);
-        res.write(`data: ${JSON.stringify({ type: "error", content: "Erro ao gerar resposta" })}\n\n`);
+        const errorMessage = error instanceof Error ? error.message : "Erro desconhecido";
+        res.write(`data: ${JSON.stringify({ type: "error", content: `Erro na IA: ${errorMessage}` })}\n\n`);
         res.end();
       }
     } catch (error) {
