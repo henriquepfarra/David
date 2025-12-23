@@ -3,19 +3,98 @@ import type { Express, Request, Response } from "express";
 import * as db from "../db";
 import { getSessionCookieOptions } from "./cookies";
 import { sdk } from "./sdk";
+import { ENV } from "./env";
+import {
+  getGoogleAuthUrl,
+  exchangeGoogleCode,
+  getGoogleUserInfo,
+} from "./googleOAuth";
 
 function getQueryParam(req: Request, key: string): string | undefined {
   const value = req.query[key];
   return typeof value === "string" ? value : undefined;
 }
 
+function getRedirectUri(req: Request): string {
+  const protocol = req.headers["x-forwarded-proto"] || req.protocol || "http";
+  const host = req.headers["x-forwarded-host"] || req.headers.host;
+  return `${protocol}://${host}/api/oauth/callback`;
+}
+
 export function registerOAuthRoutes(app: Express) {
+  // Google OAuth login route - redirects to Google
+  app.get("/api/oauth/google/login", (req: Request, res: Response) => {
+    console.log("[OAuth] Starting Google OAuth flow");
+    const redirectUri = getRedirectUri(req);
+    console.log("[OAuth] Redirect URI:", redirectUri);
+    const authUrl = getGoogleAuthUrl(redirectUri);
+    res.redirect(authUrl);
+  });
+
+  // Google OAuth callback - handles response from Google
   app.get("/api/oauth/callback", async (req: Request, res: Response) => {
     const code = getQueryParam(req, "code");
-    const state = getQueryParam(req, "state");
+    const error = getQueryParam(req, "error");
 
+    // Handle Google OAuth error
+    if (error) {
+      console.error("[OAuth] Google returned error:", error);
+      res.status(400).json({ error: `Google OAuth error: ${error}` });
+      return;
+    }
+
+    // Check if this is a Google OAuth callback (code present, no state)
+    const state = getQueryParam(req, "state");
+    const isGoogleCallback = code && !state;
+
+    if (isGoogleCallback) {
+      // Handle Google OAuth callback
+      if (!code) {
+        res.status(400).json({ error: "code is required for Google OAuth" });
+        return;
+      }
+
+      try {
+        console.log("[OAuth] Exchanging Google code for token");
+        const redirectUri = getRedirectUri(req);
+        const tokenResponse = await exchangeGoogleCode(code, redirectUri);
+
+        console.log("[OAuth] Getting user info from Google");
+        const googleUser = await getGoogleUserInfo(tokenResponse.access_token);
+
+        console.log("[OAuth] Google user:", googleUser.email);
+
+        // Create/update user in database using Google ID as openId
+        const openId = `google_${googleUser.id}`;
+        await db.upsertUser({
+          openId,
+          name: googleUser.name || null,
+          email: googleUser.email ?? null,
+          loginMethod: "google",
+          lastSignedIn: new Date(),
+        });
+
+        // Create session token
+        const sessionToken = await sdk.createSessionToken(openId, {
+          name: googleUser.name || "",
+          expiresInMs: ONE_YEAR_MS,
+        });
+
+        const cookieOptions = getSessionCookieOptions(req);
+        res.cookie(COOKIE_NAME, sessionToken, { ...cookieOptions, maxAge: ONE_YEAR_MS });
+
+        console.log("[OAuth] Google login successful, redirecting to home");
+        res.redirect(302, "/");
+      } catch (error) {
+        console.error("[OAuth] Google callback failed", error);
+        res.status(500).json({ error: "Google OAuth callback failed" });
+      }
+      return;
+    }
+
+    // Handle legacy Manus OAuth callback (with state)
     if (!code || !state) {
-      res.status(400).json({ error: "code and state are required" });
+      res.status(400).json({ error: "code and state are required for Manus OAuth" });
       return;
     }
 
@@ -46,8 +125,15 @@ export function registerOAuthRoutes(app: Express) {
 
       res.redirect(302, "/");
     } catch (error) {
-      console.error("[OAuth] Callback failed", error);
+      console.error("[OAuth] Manus callback failed", error);
       res.status(500).json({ error: "OAuth callback failed" });
     }
+  });
+
+  // Logout route
+  app.post("/api/oauth/logout", (req: Request, res: Response) => {
+    const cookieOptions = getSessionCookieOptions(req);
+    res.clearCookie(COOKIE_NAME, cookieOptions);
+    res.json({ success: true });
   });
 }

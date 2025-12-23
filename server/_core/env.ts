@@ -10,6 +10,9 @@ const envSchema = z.object({
   BUILT_IN_FORGE_API_URL: z.string().optional(),
   BUILT_IN_FORGE_API_KEY: z.string().optional(),
   PORT: z.string().optional(),
+  // Google OAuth
+  GOOGLE_CLIENT_ID: z.string().optional(),
+  GOOGLE_CLIENT_SECRET: z.string().optional(),
 });
 
 // Validate process.env
@@ -33,4 +36,7 @@ export const ENV = {
   isProduction: env.NODE_ENV === "production",
   forgeApiUrl: env.BUILT_IN_FORGE_API_URL ?? "",
   forgeApiKey: env.BUILT_IN_FORGE_API_KEY ?? "",
+  // Google OAuth
+  googleClientId: env.GOOGLE_CLIENT_ID ?? "",
+  googleClientSecret: env.GOOGLE_CLIENT_SECRET ?? "",
 };
