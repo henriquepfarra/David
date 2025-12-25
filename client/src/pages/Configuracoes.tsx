@@ -214,24 +214,20 @@ export default function Configuracoes() {
           </p>
         </div>
 
-        <Tabs defaultValue="system-prompt" className="w-full">
-          <TabsList className="grid w-full grid-cols-3 mb-8">
-            <TabsTrigger value="system-prompt" className="flex items-center gap-2">
+        <Tabs defaultValue="personalizacao" className="w-full">
+          <TabsList className="grid w-full grid-cols-2 mb-8">
+            <TabsTrigger value="personalizacao" className="flex items-center gap-2">
               <Brain className="h-4 w-4" />
-              System Prompt
+              Personalização do Assistente
             </TabsTrigger>
             <TabsTrigger value="api-keys" className="flex items-center gap-2">
               <Key className="h-4 w-4" />
-              API Keys
-            </TabsTrigger>
-            <TabsTrigger value="knowledge-base" className="flex items-center gap-2">
-              <BookOpen className="h-4 w-4" />
-              Base de Conhecimento
+              Chaves de API
             </TabsTrigger>
           </TabsList>
 
-          {/* Aba System Prompt */}
-          <TabsContent value="system-prompt">
+          {/* Aba Personalização do Assistente */}
+          <TabsContent value="personalizacao" className="space-y-6">
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -289,9 +285,82 @@ export default function Configuracoes() {
                 </Button>
               </CardContent>
             </Card>
+
+            {/* Card Base de Conhecimento - integrado na mesma tab */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <BookOpen className="h-5 w-5" />
+                  📚 Base de Conhecimento
+                </CardTitle>
+                <CardDescription>
+                  Documentos que o DAVID utiliza para fundamentar suas respostas
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex justify-between items-center">
+                  <p className="text-sm text-muted-foreground">
+                    {knowledgeDocs?.length || 0} documentos na base
+                  </p>
+                  <Button variant="outline" size="sm">
+                    <Upload className="mr-2 h-4 w-4" />
+                    Adicionar Documento
+                  </Button>
+                </div>
+
+                {docsLoading ? (
+                  <div className="text-center py-8">
+                    <Loader2 className="h-8 w-8 animate-spin mx-auto text-muted-foreground" />
+                    <p className="text-sm text-muted-foreground mt-4">Carregando documentos...</p>
+                  </div>
+                ) : knowledgeDocs && knowledgeDocs.length > 0 ? (
+                  <div className="space-y-3 max-h-80 overflow-y-auto">
+                    {knowledgeDocs.map((doc) => (
+                      <div
+                        key={doc.id}
+                        className="border rounded-lg p-3 hover:bg-accent/50 transition-colors"
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-1">
+                              <h3 className="font-semibold truncate text-sm">{doc.title}</h3>
+                              <Badge
+                                variant={doc.source === "sistema" ? "default" : "secondary"}
+                                className={doc.source === "sistema"
+                                  ? "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200 text-[10px]"
+                                  : "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 text-[10px]"
+                                }
+                              >
+                                {doc.source === "sistema" ? "Sistema" : "Usuário"}
+                              </Badge>
+                            </div>
+                            <p className="text-xs text-muted-foreground line-clamp-1">
+                              {doc.content.substring(0, 100)}...
+                            </p>
+                          </div>
+                          <div className="flex gap-1 flex-shrink-0">
+                            <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => handleEditDoc(doc)}>
+                              <Edit className="h-3.5 w-3.5" />
+                            </Button>
+                            <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => handleDeleteDoc(doc)}>
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-6 text-muted-foreground">
+                    <FileText className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                    <p className="text-sm">Nenhum documento na base</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </TabsContent>
 
-          {/* Aba API Keys */}
+          {/* Aba Chaves de API */}
           <TabsContent value="api-keys">
             <Card>
               <CardHeader>
@@ -394,19 +463,19 @@ export default function Configuracoes() {
                           <SelectContent>
                             {/* Top de Linha */}
                             <div className="px-2 py-1.5 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">⭐ Top de Linha</div>
-                            <SelectItem value="openai" className="font-medium">
+                            <SelectItem value="openai" className="font-medium text-gray-700 dark:text-gray-300">
                               <span className="flex items-center gap-2">
                                 <span className="w-2 h-2 rounded-full bg-gray-600"></span>
                                 OpenAI (GPT)
                               </span>
                             </SelectItem>
-                            <SelectItem value="google" className="font-medium">
+                            <SelectItem value="google" className="font-medium text-blue-600 dark:text-blue-400">
                               <span className="flex items-center gap-2">
                                 <span className="w-2 h-2 rounded-full bg-gradient-to-r from-blue-500 via-red-500 to-yellow-500"></span>
                                 Google (Gemini)
                               </span>
                             </SelectItem>
-                            <SelectItem value="anthropic" className="font-medium">
+                            <SelectItem value="anthropic" className="font-medium text-orange-600 dark:text-orange-400">
                               <span className="flex items-center gap-2">
                                 <span className="w-2 h-2 rounded-full bg-orange-500"></span>
                                 Anthropic (Claude)
@@ -557,97 +626,6 @@ export default function Configuracoes() {
                     </>
                   )}
                 </Button>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          {/* Aba Base de Conhecimento */}
-          <TabsContent value="knowledge-base">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <BookOpen className="h-5 w-5" />
-                  Gerenciar Base de Conhecimento
-                </CardTitle>
-                <CardDescription>
-                  Visualize, edite e gerencie os documentos da base de conhecimento do DAVID
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex justify-between items-center">
-                  <p className="text-sm text-muted-foreground">
-                    {knowledgeDocs?.length || 0} documentos na base
-                  </p>
-                  <Button variant="outline" size="sm">
-                    <Upload className="mr-2 h-4 w-4" />
-                    Adicionar Documento
-                  </Button>
-                </div>
-
-                {docsLoading ? (
-                  <div className="text-center py-12">
-                    <Loader2 className="h-8 w-8 animate-spin mx-auto text-muted-foreground" />
-                    <p className="text-sm text-muted-foreground mt-4">Carregando documentos...</p>
-                  </div>
-                ) : knowledgeDocs && knowledgeDocs.length > 0 ? (
-                  <div className="space-y-3">
-                    {knowledgeDocs.map((doc) => (
-                      <div
-                        key={doc.id}
-                        className="border rounded-lg p-4 hover:bg-accent/50 transition-colors"
-                      >
-                        <div className="flex items-start justify-between gap-4">
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 mb-2">
-                              <h3 className="font-semibold truncate">{doc.title}</h3>
-                              <Badge
-                                variant={doc.source === "sistema" ? "default" : "secondary"}
-                                className={doc.source === "sistema"
-                                  ? "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200 border-red-300 dark:border-red-700"
-                                  : "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 border-green-300 dark:border-green-700"
-                                }
-                              >
-                                {doc.source === "sistema" ? "Sistema" : "Usuário"}
-                              </Badge>
-                              {doc.documentType && (
-                                <Badge variant="outline" className="text-xs">
-                                  {doc.documentType}
-                                </Badge>
-                              )}
-                            </div>
-                            <p className="text-sm text-muted-foreground line-clamp-2">
-                              {doc.content.substring(0, 200)}...
-                            </p>
-                            <p className="text-xs text-muted-foreground mt-2">
-                              {doc.content.length.toLocaleString()} caracteres
-                            </p>
-                          </div>
-                          <div className="flex gap-2 flex-shrink-0">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleEditDoc(doc)}
-                            >
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleDeleteDoc(doc)}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-12 text-muted-foreground">
-                    <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                    <p>Nenhum documento na base de conhecimento</p>
-                  </div>
-                )}
               </CardContent>
             </Card>
           </TabsContent>
