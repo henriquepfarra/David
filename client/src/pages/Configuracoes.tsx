@@ -266,23 +266,25 @@ export default function Configuracoes() {
                   </p>
                 </div>
 
-                <Button
-                  onClick={handleSaveSystemPrompt}
-                  disabled={updateSettingsMutation.isPending}
-                  className="w-full"
-                >
-                  {updateSettingsMutation.isPending ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Salvando...
-                    </>
-                  ) : (
-                    <>
-                      <Save className="mr-2 h-4 w-4" />
-                      Salvar Instruções
-                    </>
-                  )}
-                </Button>
+                <div className="flex justify-end">
+                  <Button
+                    onClick={handleSaveSystemPrompt}
+                    disabled={updateSettingsMutation.isPending}
+                    size="sm"
+                  >
+                    {updateSettingsMutation.isPending ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Salvando...
+                      </>
+                    ) : (
+                      <>
+                        <Save className="mr-2 h-4 w-4" />
+                        Salvar Instruções
+                      </>
+                    )}
+                  </Button>
+                </div>
               </CardContent>
             </Card>
 
@@ -609,23 +611,25 @@ export default function Configuracoes() {
 
                 </div>
 
-                <Button
-                  onClick={handleSaveApiKeys}
-                  disabled={updateSettingsMutation.isPending}
-                  className="w-full"
-                >
-                  {updateSettingsMutation.isPending ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Salvando...
-                    </>
-                  ) : (
-                    <>
-                      <Save className="mr-2 h-4 w-4" />
-                      Salvar Configurações
-                    </>
-                  )}
-                </Button>
+                <div className="flex justify-end">
+                  <Button
+                    onClick={handleSaveApiKeys}
+                    disabled={updateSettingsMutation.isPending}
+                    size="sm"
+                  >
+                    {updateSettingsMutation.isPending ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Salvando...
+                      </>
+                    ) : (
+                      <>
+                        <Save className="mr-2 h-4 w-4" />
+                        Salvar Configurações
+                      </>
+                    )}
+                  </Button>
+                </div>
               </CardContent>
             </Card>
           </TabsContent>

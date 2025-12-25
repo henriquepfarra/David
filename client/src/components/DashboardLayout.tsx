@@ -31,7 +31,6 @@ const menuItems = [
   { icon: Home, label: "Início", path: "/" },
   { icon: Gavel, label: "DAVID", path: "/david" },
   { icon: Brain, label: "Memória do DAVID", path: "/david/memoria" },
-  { icon: BookOpen, label: "Base de Conhecimento", path: "/base-conhecimento" },
   { icon: Settings, label: "Configurações", path: "/configuracoes" },
 ];
 
