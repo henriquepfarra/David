@@ -353,7 +353,7 @@ export default function Configuracoes() {
                     <div className="flex items-center justify-between">
                       <Label className="text-base flex items-center gap-2">
                         <Brain className="h-4 w-4 text-primary" />
-                        1. Escolha seu Cérebro (LLM)
+                        🧠 CÉREBRO (IA Principal)
                       </Label>
 
                       {/* Links Dinâmicos por Provedor */}
@@ -377,21 +377,55 @@ export default function Configuracoes() {
                           Obter Chave (Anthropic) <Upload className="h-3 w-3 rotate-45" />
                         </a>
                       )}
+                      {llmProvider === 'deepseek' && (
+                        <a href="https://platform.deepseek.com/api_keys" target="_blank" rel="noreferrer" className="text-xs text-blue-500 hover:underline flex items-center gap-1">
+                          Obter Chave (DeepSeek) <Upload className="h-3 w-3 rotate-45" />
+                        </a>
+                      )}
                     </div>
 
                     <div className="grid md:grid-cols-2 gap-4">
                       <div className="space-y-2">
-                        <Label htmlFor="provider" className="text-xs text-muted-foreground">Provedor</Label>
+                        <Label htmlFor="provider" className="text-xs text-muted-foreground">Provedor de IA</Label>
                         <Select value={llmProvider} onValueChange={handleProviderChange}>
                           <SelectTrigger id="provider" className="font-medium">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="google">Google (Gemini)</SelectItem>
-                            <SelectItem value="openai">OpenAI (GPT)</SelectItem>
-                            <SelectItem value="anthropic">Anthropic (Claude)</SelectItem>
-                            <SelectItem value="groq" className="font-bold text-violet-500">Groq (Recomendado/Rápido)</SelectItem>
-                            <SelectItem value="deepseek" className="font-bold text-blue-600">DeepSeek (Custo-Benefício)</SelectItem>
+                            {/* Top de Linha */}
+                            <div className="px-2 py-1.5 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">⭐ Top de Linha</div>
+                            <SelectItem value="openai" className="font-medium">
+                              <span className="flex items-center gap-2">
+                                <span className="w-2 h-2 rounded-full bg-gray-600"></span>
+                                OpenAI (GPT)
+                              </span>
+                            </SelectItem>
+                            <SelectItem value="google" className="font-medium">
+                              <span className="flex items-center gap-2">
+                                <span className="w-2 h-2 rounded-full bg-gradient-to-r from-blue-500 via-red-500 to-yellow-500"></span>
+                                Google (Gemini)
+                              </span>
+                            </SelectItem>
+                            <SelectItem value="anthropic" className="font-medium">
+                              <span className="flex items-center gap-2">
+                                <span className="w-2 h-2 rounded-full bg-orange-500"></span>
+                                Anthropic (Claude)
+                              </span>
+                            </SelectItem>
+                            {/* Custo-Benefício */}
+                            <div className="px-2 py-1.5 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mt-2 border-t pt-2">💰 Custo-Benefício</div>
+                            <SelectItem value="groq" className="font-medium text-violet-600">
+                              <span className="flex items-center gap-2">
+                                <span className="w-2 h-2 rounded-full bg-violet-500"></span>
+                                Groq (Rápido/Gratuito)
+                              </span>
+                            </SelectItem>
+                            <SelectItem value="deepseek" className="font-medium text-blue-600">
+                              <span className="flex items-center gap-2">
+                                <span className="w-2 h-2 rounded-full bg-blue-500"></span>
+                                DeepSeek (Econômico)
+                              </span>
+                            </SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
@@ -454,7 +488,7 @@ export default function Configuracoes() {
                         </Select>
                       )}
                       <p className="text-[10px] text-muted-foreground">
-                        * Modelos recomendados: <strong>llama-3.1-70b</strong> (Groq), <strong>gemini-1.5-flash</strong> (Google), <strong>gpt-4o</strong> (OpenAI).
+                        * Modelos recomendados: <strong>llama-3.3-70b</strong> (Groq), <strong>gemini-2.5-pro</strong> (Google), <strong>gpt-4.1</strong> (OpenAI), <strong>claude-sonnet-4</strong> (Anthropic)
                       </p>
                     </div>
                   </div>
@@ -466,9 +500,9 @@ export default function Configuracoes() {
                     <div className="flex items-center justify-between">
                       <Label className="text-base flex items-center gap-2">
                         <Database className="h-4 w-4 text-orange-500" />
-                        2. Configurar Memória (RAG)
+                        📚 MEMÓRIA (Leitura de PDFs)
                       </Label>
-                      <a href="https://platform.openai.com/api-keys" target="_blank" rel="noreferrer" className="text-xs text-blue-500 hover:underline flex items-center gap-1">
+                      <a href="https://platform.openai.com/api-keys" target="_blank" rel="noreferrer" className="text-xs text-gray-500 hover:underline flex items-center gap-1">
                         Obter Chave OpenAI <Upload className="h-3 w-3 rotate-45" />
                       </a>
                     </div>
@@ -485,7 +519,7 @@ export default function Configuracoes() {
                     )}
 
                     <div className="space-y-2">
-                      <Label htmlFor="embeddingsKey" className="text-xs text-muted-foreground">Chave OpenAI para Embeddings</Label>
+                      <Label htmlFor="embeddingsKey" className="text-xs text-muted-foreground">Chave OpenAI para Leitura de PDFs</Label>
                       <div className="relative">
                         <Input
                           id="embeddingsKey"
