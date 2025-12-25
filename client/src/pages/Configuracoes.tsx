@@ -226,140 +226,132 @@ export default function Configuracoes() {
             </TabsTrigger>
           </TabsList>
 
-          {/* Aba Personalização do Assistente */}
-          <TabsContent value="personalizacao" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Brain className="h-5 w-5" />
-                  Instruções do DAVID
-                </CardTitle>
-                <CardDescription>
-                  Personalize o comportamento e as instruções do assistente jurídico DAVID
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
+          {/* Aba Personalização do Assistente - Layout 2 Colunas */}
+          <TabsContent value="personalizacao">
+            <div className="grid lg:grid-cols-2 gap-6">
+              {/* Coluna Esquerda: Instruções */}
+              <Card className="flex flex-col h-[600px]">
+                <CardHeader className="pb-3">
                   <div className="flex items-center justify-between">
-                    <Label htmlFor="system-prompt">System Prompt do DAVID</Label>
+                    <CardTitle className="flex items-center gap-2 text-base">
+                      <Brain className="h-4 w-4" />
+                      🧠 Instruções do DAVID
+                    </CardTitle>
                     <Button
                       type="button"
                       variant="ghost"
                       size="sm"
                       onClick={() => setCustomSystemPrompt(DEFAULT_DAVID_SYSTEM_PROMPT)}
-                      className="text-xs"
+                      className="text-xs h-7"
                     >
                       <RefreshCw className="mr-1 h-3 w-3" />
-                      Restaurar Padrão
+                      Restaurar
                     </Button>
                   </div>
+                  <CardDescription className="text-xs">
+                    Defina como o DAVID deve se comportar e responder
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="flex-1 flex flex-col gap-3 pt-0">
                   <Textarea
                     id="system-prompt"
                     placeholder="Edite as instruções do DAVID..."
                     value={customSystemPrompt}
                     onChange={(e) => setCustomSystemPrompt(e.target.value)}
-                    rows={15}
-                    className="font-mono text-sm"
+                    className="font-mono text-xs flex-1 resize-none min-h-0"
                   />
-                  <p className="text-xs text-muted-foreground">
-                    Edite o prompt do DAVID conforme necessário. Use o botão "Restaurar Padrão" para voltar ao prompt original.
-                  </p>
-                </div>
-
-                <div className="flex justify-end">
-                  <Button
-                    onClick={handleSaveSystemPrompt}
-                    disabled={updateSettingsMutation.isPending}
-                    size="sm"
-                  >
-                    {updateSettingsMutation.isPending ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Salvando...
-                      </>
-                    ) : (
-                      <>
-                        <Save className="mr-2 h-4 w-4" />
-                        Salvar Instruções
-                      </>
-                    )}
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Card Base de Conhecimento - integrado na mesma tab */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <BookOpen className="h-5 w-5" />
-                  📚 Base de Conhecimento
-                </CardTitle>
-                <CardDescription>
-                  Documentos que o DAVID utiliza para fundamentar suas respostas
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex justify-between items-center">
-                  <p className="text-sm text-muted-foreground">
-                    {knowledgeDocs?.length || 0} documentos na base
-                  </p>
-                  <Button variant="outline" size="sm">
-                    <Upload className="mr-2 h-4 w-4" />
-                    Adicionar Documento
-                  </Button>
-                </div>
-
-                {docsLoading ? (
-                  <div className="text-center py-8">
-                    <Loader2 className="h-8 w-8 animate-spin mx-auto text-muted-foreground" />
-                    <p className="text-sm text-muted-foreground mt-4">Carregando documentos...</p>
+                  <div className="flex justify-end">
+                    <Button
+                      onClick={handleSaveSystemPrompt}
+                      disabled={updateSettingsMutation.isPending}
+                      size="sm"
+                    >
+                      {updateSettingsMutation.isPending ? (
+                        <>
+                          <Loader2 className="mr-2 h-3 w-3 animate-spin" />
+                          Salvando...
+                        </>
+                      ) : (
+                        <>
+                          <Save className="mr-2 h-3 w-3" />
+                          Salvar Instruções
+                        </>
+                      )}
+                    </Button>
                   </div>
-                ) : knowledgeDocs && knowledgeDocs.length > 0 ? (
-                  <div className="space-y-3 max-h-80 overflow-y-auto">
-                    {knowledgeDocs.map((doc) => (
-                      <div
-                        key={doc.id}
-                        className="border rounded-lg p-3 hover:bg-accent/50 transition-colors"
-                      >
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 mb-1">
-                              <h3 className="font-semibold truncate text-sm">{doc.title}</h3>
-                              <Badge
-                                variant={doc.source === "sistema" ? "default" : "secondary"}
-                                className={doc.source === "sistema"
-                                  ? "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200 text-[10px]"
-                                  : "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 text-[10px]"
-                                }
-                              >
-                                {doc.source === "sistema" ? "Sistema" : "Usuário"}
-                              </Badge>
+                </CardContent>
+              </Card>
+
+              {/* Coluna Direita: Base de Conhecimento */}
+              <Card className="flex flex-col h-[600px]">
+                <CardHeader className="pb-3">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="flex items-center gap-2 text-base">
+                      <BookOpen className="h-4 w-4" />
+                      📚 Base de Conhecimento
+                    </CardTitle>
+                    <Button variant="outline" size="sm" className="h-7 text-xs">
+                      <Upload className="mr-1 h-3 w-3" />
+                      Adicionar
+                    </Button>
+                  </div>
+                  <CardDescription className="text-xs">
+                    {knowledgeDocs?.length || 0} documentos que o DAVID usa para fundamentar respostas
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="flex-1 overflow-hidden pt-0">
+                  {docsLoading ? (
+                    <div className="flex items-center justify-center h-full">
+                      <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                    </div>
+                  ) : knowledgeDocs && knowledgeDocs.length > 0 ? (
+                    <div className="space-y-2 overflow-y-auto h-full pr-1">
+                      {knowledgeDocs.map((doc) => (
+                        <div
+                          key={doc.id}
+                          className="border rounded-lg p-2.5 hover:bg-accent/50 transition-colors"
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-1.5 mb-0.5">
+                                <FileText className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
+                                <h3 className="font-medium truncate text-sm">{doc.title}</h3>
+                                <Badge
+                                  variant="outline"
+                                  className={doc.source === "sistema"
+                                    ? "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300 text-[9px] px-1 py-0"
+                                    : "bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300 text-[9px] px-1 py-0"
+                                  }
+                                >
+                                  {doc.source === "sistema" ? "Sistema" : "Usuário"}
+                                </Badge>
+                              </div>
+                              <p className="text-[10px] text-muted-foreground line-clamp-1 ml-5">
+                                {doc.content.substring(0, 80)}...
+                              </p>
                             </div>
-                            <p className="text-xs text-muted-foreground line-clamp-1">
-                              {doc.content.substring(0, 100)}...
-                            </p>
-                          </div>
-                          <div className="flex gap-1 flex-shrink-0">
-                            <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => handleEditDoc(doc)}>
-                              <Edit className="h-3.5 w-3.5" />
-                            </Button>
-                            <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => handleDeleteDoc(doc)}>
-                              <Trash2 className="h-3.5 w-3.5" />
-                            </Button>
+                            <div className="flex gap-0.5 flex-shrink-0">
+                              <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => handleEditDoc(doc)}>
+                                <Edit className="h-3 w-3" />
+                              </Button>
+                              <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => handleDeleteDoc(doc)}>
+                                <Trash2 className="h-3 w-3" />
+                              </Button>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-6 text-muted-foreground">
-                    <FileText className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                    <p className="text-sm">Nenhum documento na base</p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
+                      <FileText className="h-10 w-10 mb-2 opacity-40" />
+                      <p className="text-sm">Nenhum documento</p>
+                      <p className="text-xs">Adicione documentos para o DAVID consultar</p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
           </TabsContent>
 
           {/* Aba Chaves de API */}
