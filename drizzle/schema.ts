@@ -94,10 +94,14 @@ export type InsertJurisprudence = typeof jurisprudence.$inferInsert;
 export const userSettings = mysqlTable("userSettings", {
   id: int("id").autoincrement().primaryKey(),
   userId: int("userId").notNull().unique(),
+  // LLM para raciocínio/geração
   llmApiKey: text("llmApiKey"),
-  llmProvider: varchar("llmProvider", { length: 50 }).default("openai"),
-  llmModel: varchar("llmModel", { length: 100 }).default("gpt-4"),
-  openaiEmbeddingsKey: text("openaiEmbeddingsKey"), // Chave específica para embeddings (memória)
+  llmProvider: varchar("llmProvider", { length: 50 }).default("google"),
+  llmModel: varchar("llmModel", { length: 100 }).default("gemini-2.5-flash"),
+  // File API para leitura de PDF (Google Gemini)
+  readerApiKey: text("readerApiKey"), // Chave Gemini para File API
+  readerModel: varchar("readerModel", { length: 100 }).default("gemini-2.0-flash"),
+  // Configurações do assistente
   customSystemPrompt: longtext("customSystemPrompt"), // System Prompt customizado do David
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),

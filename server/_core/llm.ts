@@ -212,14 +212,10 @@ const normalizeToolChoice = (
   return toolChoice;
 };
 
-const VALID_PROVIDERS = ["openai", "google", "groq", "deepseek", "anthropic", "forge"] as const;
+const VALID_PROVIDERS = ["openai", "google", "groq", "deepseek", "anthropic"] as const;
 type ValidProvider = typeof VALID_PROVIDERS[number];
 
 const resolveApiUrl = (provider?: string) => {
-  if (ENV.forgeApiUrl && ENV.forgeApiUrl.trim().length > 0) {
-    return `${ENV.forgeApiUrl.replace(/\/$/, "")}/v1/chat/completions`;
-  }
-
   const normalizedProvider = provider?.toLowerCase() as ValidProvider | undefined;
 
   switch (normalizedProvider) {
@@ -234,18 +230,16 @@ const resolveApiUrl = (provider?: string) => {
       return "https://api.deepseek.com/chat/completions";
     case "anthropic":
       return "https://api.anthropic.com/v1/messages";
-    case "forge":
-      return "https://forge.manus.im/v1/chat/completions";
     case undefined:
-      // No provider specified, use default forge
-      return "https://forge.manus.im/v1/chat/completions";
+      // No provider specified, use default Google
+      return "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions";
     default:
       throw new Error(`Invalid LLM provider: "${provider}". Valid providers are: ${VALID_PROVIDERS.join(", ")}`);
   }
 };
 
-const assertApiKey = () => {
-  if (!ENV.forgeApiKey) {
+const assertApiKey = (apiKey?: string) => {
+  if (!apiKey && !ENV.geminiApiKey) {
     throw new Error("LLM API Key is not configured. Please configure your API key in Settings.");
   }
 };
@@ -352,7 +346,7 @@ export async function invokeLLM(params: InvokeParams): Promise<InvokeResult> {
       method: "POST",
       headers: {
         "content-type": "application/json",
-        authorization: `Bearer ${apiKey || ENV.forgeApiKey}`,
+        authorization: `Bearer ${apiKey || ENV.geminiApiKey}`,
       },
       body: JSON.stringify(payload),
     });
@@ -440,7 +434,7 @@ export async function* invokeLLMStream(params: InvokeParams): AsyncGenerator<str
     method: "POST",
     headers: {
       "content-type": "application/json",
-      authorization: `Bearer ${apiKey || ENV.forgeApiKey}`,
+      authorization: `Bearer ${apiKey || ENV.geminiApiKey}`,
     },
     body: JSON.stringify(payload),
   });
@@ -494,11 +488,8 @@ export async function* invokeLLMStream(params: InvokeParams): AsyncGenerator<str
 export async function transcribeAudio(audioBase64: string): Promise<string> {
   assertApiKey();
 
-  const baseUrl = ENV.forgeApiUrl && ENV.forgeApiUrl.trim().length > 0
-    ? ENV.forgeApiUrl.replace(/\/$/, "")
-    : "https://forge.manus.im";
-
-  const url = `${baseUrl}/v1/audio/transcriptions`;
+  // Whisper transcription uses OpenAI API
+  const url = "https://api.openai.com/v1/audio/transcriptions";
 
   // Converter Base64 para Blob/File
   const buffer = Buffer.from(audioBase64, 'base64');
@@ -511,7 +502,7 @@ export async function transcribeAudio(audioBase64: string): Promise<string> {
   const response = await fetch(url, {
     method: "POST",
     headers: {
-      authorization: `Bearer ${ENV.forgeApiKey}`,
+      authorization: `Bearer ${ENV.geminiApiKey}`,
     },
     body: formData,
   });

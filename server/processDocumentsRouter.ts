@@ -83,7 +83,7 @@ export const processDocumentsRouter = router({
           if (db) {
             const settingsResult = await db.select().from(userSettings).where(eq(userSettings.userId, ctx.user.id)).limit(1);
             const settings = settingsResult[0];
-            apiKey = settings?.openaiEmbeddingsKey || undefined;
+            apiKey = settings?.readerApiKey || undefined;
           }
 
           // Iterar sobre cada página

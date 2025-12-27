@@ -6,10 +6,13 @@ import * as llm from "./_core/llm";
 vi.mock("./_core/llm");
 vi.mock("./_core/env", () => ({
   ENV: {
-    forgeApiKey: "test-key",
-    forgeApiUrl: "https://test.url",
+    geminiApiKey: "test-key",
     cookieSecret: "test-secret",
-    databaseUrl: "mysql://mock:3306/db"
+    databaseUrl: "mysql://mock:3306/db",
+    isProduction: false,
+    appId: "test-app",
+    googleClientId: "",
+    googleClientSecret: ""
   }
 }));
 

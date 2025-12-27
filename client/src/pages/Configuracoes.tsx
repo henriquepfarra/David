@@ -39,7 +39,8 @@ export default function Configuracoes() {
   const [llmApiKey, setLlmApiKey] = useState("");
   const [llmProvider, setLlmProvider] = useState("google");
   const [llmModel, setLlmModel] = useState("");
-  const [openaiEmbeddingsKey, setOpenaiEmbeddingsKey] = useState(""); // State para chave de embeddings
+  const [readerApiKey, setReaderApiKey] = useState(""); // State para chave File API
+  const [readerModel, setReaderModel] = useState("gemini-2.0-flash"); // Modelo para leitura
   const [availableModels, setAvailableModels] = useState<Array<{ id: string; name: string }>>([]);
   const [isLoadingModels, setIsLoadingModels] = useState(false);
   const [modelsError, setModelsError] = useState("");
@@ -89,7 +90,8 @@ export default function Configuracoes() {
       setLlmApiKey(settings.llmApiKey || "");
       setLlmProvider(settings.llmProvider || "google");
       setLlmModel(settings.llmModel || "");
-      setOpenaiEmbeddingsKey(settings.openaiEmbeddingsKey || "");
+      setReaderApiKey(settings.readerApiKey || "");
+      setReaderModel(settings.readerModel || "gemini-2.0-flash");
 
       // Carregar modelos se já tiver API key
       if (settings.llmApiKey && settings.llmProvider) {
@@ -170,7 +172,8 @@ export default function Configuracoes() {
       llmApiKey: llmApiKey || undefined,
       llmProvider,
       llmModel: llmModel || undefined,
-      openaiEmbeddingsKey: openaiEmbeddingsKey || undefined,
+      readerApiKey: readerApiKey || undefined,
+      readerModel: readerModel || undefined,
     });
   };
 
@@ -558,45 +561,66 @@ export default function Configuracoes() {
 
                   <hr className="border-border/50" />
 
-                  {/* Configuração da Memória (Embeddings) */}
+                  {/* Configuração da Leitura de Documentos (File API) */}
                   <div className="space-y-4 pt-4">
                     <div className="flex items-center justify-between">
                       <Label className="text-base flex items-center gap-2">
-                        <Database className="h-4 w-4 text-orange-500" />
-                        📚 MEMÓRIA (Leitura de PDFs)
+                        <FileText className="h-4 w-4 text-blue-500" />
+                        📄 LEITURA DE DOCUMENTOS (File API)
                       </Label>
-                      <a href="https://platform.openai.com/api-keys" target="_blank" rel="noreferrer" className="text-xs text-gray-500 hover:underline flex items-center gap-1">
-                        Obter Chave OpenAI <Upload className="h-3 w-3 rotate-45" />
+                      <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noreferrer" className="text-xs text-blue-500 hover:underline flex items-center gap-1">
+                        Obter Chave Gemini <Upload className="h-3 w-3 rotate-45" />
                       </a>
                     </div>
 
-                    {!openaiEmbeddingsKey ? (
-                      <div className="bg-orange-50 dark:bg-orange-950/30 p-3 rounded-lg border border-orange-100 dark:border-orange-900/50 text-xs text-orange-800 dark:text-orange-200 mb-2">
-                        ⚠️ <strong>Importante:</strong> Para que o DAVID leia seus PDFs e processos, ele precisa de uma chave da <strong>OpenAI</strong> (mesmo que você use Groq/Google para o cérebro). Isso é necessário para gerar os "vetores" de memória.
-                      </div>
-                    ) : (
-                      <div className="bg-green-50 dark:bg-green-950/30 p-3 rounded-lg border border-green-100 dark:border-green-900/50 text-xs text-green-800 dark:text-green-200 mb-2 flex items-center gap-2">
-                        <Check className="h-4 w-4" />
-                        <strong>Memória Ativa:</strong> Chave de Embeddings configurada com sucesso.
-                      </div>
-                    )}
+                    <div className="bg-blue-50 dark:bg-blue-950/30 p-3 rounded-lg border border-blue-100 dark:border-blue-900/50 text-xs text-blue-800 dark:text-blue-200 mb-2">
+                      📄 <strong>File API do Google:</strong> Permite que o DAVID "veja" imagens, tabelas e prints dentro dos PDFs. Use uma chave Gemini separada para economizar (modelo mais barato para leitura).
+                    </div>
 
-                    <div className="space-y-2">
-                      <Label htmlFor="embeddingsKey" className="text-xs text-muted-foreground">Chave OpenAI para Leitura de PDFs</Label>
-                      <div className="relative">
-                        <Input
-                          id="embeddingsKey"
-                          type="password"
-                          value={openaiEmbeddingsKey}
-                          onChange={(e) => setOpenaiEmbeddingsKey(e.target.value)}
-                          placeholder="sk-..."
-                          className={`pr-10 ${openaiEmbeddingsKey?.startsWith('sk-') ? 'border-green-500 ring-green-500/20' : 'border-orange-200 dark:border-orange-900'}`}
-                        />
-                        {openaiEmbeddingsKey?.startsWith('sk-') ? (
-                          <Check className="absolute right-3 top-2.5 h-4 w-4 text-green-500" />
-                        ) : (
-                          <Key className="absolute right-3 top-2.5 h-4 w-4 text-muted-foreground opacity-50" />
-                        )}
+                    <div className="grid md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="readerApiKey" className="text-xs text-muted-foreground">Chave Gemini para Leitura</Label>
+                        <div className="relative">
+                          <Input
+                            id="readerApiKey"
+                            type="password"
+                            value={readerApiKey}
+                            onChange={(e) => setReaderApiKey(e.target.value)}
+                            placeholder="AIza..."
+                            className={`pr-10 ${readerApiKey?.startsWith('AIza') ? 'border-green-500 ring-green-500/20' : ''}`}
+                          />
+                          {readerApiKey?.startsWith('AIza') ? (
+                            <Check className="absolute right-3 top-2.5 h-4 w-4 text-green-500" />
+                          ) : (
+                            <Key className="absolute right-3 top-2.5 h-4 w-4 text-muted-foreground opacity-50" />
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="readerModel" className="text-xs text-muted-foreground">Modelo de Leitura</Label>
+                        <Select value={readerModel} onValueChange={setReaderModel}>
+                          <SelectTrigger id="readerModel">
+                            <SelectValue placeholder="Selecione..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="gemini-2.0-flash">
+                              <span className="flex items-center gap-2">
+                                <span className="w-2 h-2 rounded-full bg-green-500"></span>
+                                Gemini 2.0 Flash ($0.10/1M) ✓ Recomendado
+                              </span>
+                            </SelectItem>
+                            <SelectItem value="gemini-2.0-flash-lite">
+                              Gemini 2.0 Flash Lite ($0.075/1M)
+                            </SelectItem>
+                            <SelectItem value="gemini-2.5-flash-lite">
+                              Gemini 2.5 Flash Lite ($0.10/1M)
+                            </SelectItem>
+                            <SelectItem value="gemini-2.5-flash">
+                              Gemini 2.5 Flash ($0.30/1M)
+                            </SelectItem>
+                          </SelectContent>
+                        </Select>
                       </div>
                     </div>
                   </div>

@@ -10,17 +10,12 @@ const envSchema = z.object({
   NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
   PORT: z.string().optional(),
 
-  // Google OAuth (current auth method)
+  // Google OAuth (for authentication)
   GOOGLE_CLIENT_ID: z.string().optional(),
   GOOGLE_CLIENT_SECRET: z.string().optional(),
 
-  // Legacy Manus OAuth (kept for backwards compatibility)
-  OAUTH_SERVER_URL: z.string().optional(),
-  OWNER_OPEN_ID: z.string().optional(),
-
-  // Legacy Forge API (used by some features like storage, maps)
-  BUILT_IN_FORGE_API_URL: z.string().optional(),
-  BUILT_IN_FORGE_API_KEY: z.string().optional(),
+  // Google Gemini API (for File API and LLM)
+  GEMINI_API_KEY: z.string().optional(),
 });
 
 // Validate process.env
@@ -44,13 +39,10 @@ export const ENV = {
   // App config
   appId: env.VITE_APP_ID ?? "",
 
-  // Google OAuth (current)
+  // Google OAuth (for authentication)
   googleClientId: env.GOOGLE_CLIENT_ID ?? "",
   googleClientSecret: env.GOOGLE_CLIENT_SECRET ?? "",
 
-  // Legacy (kept for backwards compatibility with some features)
-  oAuthServerUrl: env.OAUTH_SERVER_URL ?? "",
-  ownerOpenId: env.OWNER_OPEN_ID ?? "",
-  forgeApiUrl: env.BUILT_IN_FORGE_API_URL ?? "",
-  forgeApiKey: env.BUILT_IN_FORGE_API_KEY ?? "",
+  // Google Gemini API (for File API and LLM - can be overridden by user settings)
+  geminiApiKey: env.GEMINI_API_KEY ?? "",
 };

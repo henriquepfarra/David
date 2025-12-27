@@ -20,7 +20,7 @@ export async function getProcessContext(
         where: eq(userSettings.userId, userId),
     });
 
-    const embeddingKey = settings?.openaiEmbeddingsKey || undefined;
+    const embeddingKey = settings?.readerApiKey || undefined;
 
     if (mode === "audit") {
         // Modo Auditoria ou Analise1: Recuperar TODO o contexto ordenado

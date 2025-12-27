@@ -1,61 +1,50 @@
 import { ENV } from "./env";
 
 /**
- * Gera embedding de um texto usando a API do Manus
+ * Gera embedding de um texto usando a API da OpenAI
  * Retorna um vetor numérico que representa semanticamente o texto
+ * 
+ * NOTA: Embeddings requerem uma chave da OpenAI (text-embedding-3-small)
+ * Pode ser a mesma chave usada para LLM ou uma chave separada
  */
 export async function generateEmbedding(text: string, apiKey?: string): Promise<number[]> {
+  const key = apiKey || ENV.geminiApiKey;
+
+  if (!key) {
+    throw new Error(
+      "API key não configurada para embeddings. Configure GEMINI_API_KEY ou forneça uma chave."
+    );
+  }
+
   try {
-    // Se uma chave específica de embedding for fornecida, usar endpoint da OpenAI diretamente
-    if (apiKey) {
-      const response = await fetch("https://api.openai.com/v1/embeddings", {
+    // Usar Google Gemini embedding API
+    const response = await fetch(
+      "https://generativelanguage.googleapis.com/v1beta/models/text-embedding-004:embedContent?key=" + key,
+      {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${apiKey}`,
         },
         body: JSON.stringify({
-          input: text.replace(/\n/g, " "), // Sanitização simples
-          model: "text-embedding-3-small",
+          model: "models/text-embedding-004",
+          content: {
+            parts: [{ text: text.replace(/\n/g, " ") }]
+          }
         }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`Erro na API OpenAI (Embeddings): ${response.status} - ${await response.text()}`);
       }
-
-      const data = await response.json();
-      return data.data[0].embedding;
-    }
-
-    // Fallback para a API interna (Forge/Manus) se não houver chave específica
-    const apiUrl = ENV.forgeApiUrl && ENV.forgeApiUrl.trim().length > 0
-      ? `${ENV.forgeApiUrl.replace(/\/$/, "")}/v1/embeddings`
-      : "https://forge.manus.im/v1/embeddings";
-
-    const response = await fetch(apiUrl, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${ENV.forgeApiKey}`,
-      },
-      body: JSON.stringify({
-        input: text,
-        model: "text-embedding-3-small",
-      }),
-    });
+    );
 
     if (!response.ok) {
-      throw new Error(`Erro ao gerar embedding (Forge): ${response.statusText}`);
+      throw new Error(`Erro na API Gemini (Embeddings): ${response.status} - ${await response.text()}`);
     }
 
     const data = await response.json();
 
-    if (!data.data || !data.data[0] || !data.data[0].embedding) {
-      throw new Error("Resposta inválida da API de embeddings");
+    if (!data.embedding || !data.embedding.values) {
+      throw new Error("Resposta inválida da API de embeddings Gemini");
     }
 
-    return data.data[0].embedding;
+    return data.embedding.values;
   } catch (error) {
     console.error("[Embeddings] Erro ao gerar embedding:", error);
     throw error;

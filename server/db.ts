@@ -42,7 +42,7 @@ export async function upsertUser(user: InsertUser): Promise<void> {
   if (!db) {
     // If DB is not available in development, we allow upserting the dev user silently
     // effectively doing nothing but preventing the crash.
-    if (process.env.NODE_ENV === "development" && user.openId === (ENV.ownerOpenId || "dev-user-id")) {
+    if (process.env.NODE_ENV === "development" && user.openId === "dev-user-id") {
       console.log("[Database] Dev mode: Mock upsert for dev user");
       return;
     }
@@ -76,7 +76,7 @@ export async function upsertUser(user: InsertUser): Promise<void> {
     if (user.role !== undefined) {
       values.role = user.role;
       updateSet.role = user.role;
-    } else if (user.openId === ENV.ownerOpenId) {
+    } else if (user.openId === "dev-user-id") {
       values.role = 'admin';
       updateSet.role = 'admin';
     }
@@ -102,7 +102,7 @@ export async function getUserByOpenId(openId: string) {
   const db = await getDb();
   if (!db) {
     // In dev mode, return a mock user if DB is down
-    if (process.env.NODE_ENV === "development" && openId === (ENV.ownerOpenId || "dev-user-id")) {
+    if (process.env.NODE_ENV === "development" && openId === "dev-user-id") {
       console.log("[Database] Dev mode: Returning mock user for", openId);
       const { users } = await import("../drizzle/schema");
       // Return a mock implementation of the User type
@@ -259,7 +259,7 @@ export async function getUserSettings(userId: number) {
   return {
     ...settings,
     llmApiKey: settings.llmApiKey ? decrypt(settings.llmApiKey) : null,
-    openaiEmbeddingsKey: settings.openaiEmbeddingsKey ? decrypt(settings.openaiEmbeddingsKey) : null,
+    readerApiKey: settings.readerApiKey ? decrypt(settings.readerApiKey) : null,
   };
 }
 
@@ -279,8 +279,8 @@ export async function upsertUserSettings(userId: number, data: any) {
   if (normalizedData.llmApiKey) {
     normalizedData.llmApiKey = encrypt(normalizedData.llmApiKey);
   }
-  if (normalizedData.openaiEmbeddingsKey) {
-    normalizedData.openaiEmbeddingsKey = encrypt(normalizedData.openaiEmbeddingsKey);
+  if (normalizedData.readerApiKey) {
+    normalizedData.readerApiKey = encrypt(normalizedData.readerApiKey);
   }
 
   await db.insert(userSettings).values({ userId, ...normalizedData }).onDuplicateKeyUpdate({ set: normalizedData });

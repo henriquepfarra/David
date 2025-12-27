@@ -73,7 +73,7 @@ class OAuthService {
 
 const createOAuthHttpClient = (): AxiosInstance =>
   axios.create({
-    baseURL: ENV.oAuthServerUrl,
+    baseURL: "", // Legacy Manus OAuth - no longer used
     timeout: AXIOS_TIMEOUT_MS,
   });
 

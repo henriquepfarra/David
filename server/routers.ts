@@ -28,7 +28,7 @@ export const appRouter = router({
     localLogin: publicProcedure.mutation(async ({ ctx }) => {
       // Create a dummy user session for local development
       const mockUser = {
-        openId: ENV.ownerOpenId || "dev-user-id",
+        openId: "dev-user-id",
         appId: ENV.appId || "dev-app-id",
         name: "Desenvolvedor Local",
         email: "dev@local.test",
@@ -328,7 +328,8 @@ export const appRouter = router({
         llmApiKey: z.string().optional(),
         llmProvider: z.string().optional(),
         llmModel: z.string().optional(),
-        openaiEmbeddingsKey: z.string().optional(),
+        readerApiKey: z.string().optional(),
+        readerModel: z.string().optional(),
         customSystemPrompt: z.string().nullable().optional(),
       }))
       .mutation(async ({ ctx, input }) => {
