@@ -52,7 +52,7 @@ export async function readPdfWithVision(
 ): Promise<ReadPdfResult> {
     const {
         apiKey = ENV.geminiApiKey,
-        model = "gemini-2.0-flash",
+        model = "gemini-2.0-flash-lite",
         instruction = getDefaultInstruction(),
         deleteAfterRead = true,
     } = options;
@@ -250,9 +250,10 @@ export async function deletePdfFromGoogle(fileName: string, apiKey?: string): Pr
  */
 export function getReaderModels(): Array<{ id: string; name: string; recommended?: boolean }> {
     return [
-        { id: "gemini-2.0-flash", name: "Gemini 2.0 Flash ($0.10/1M)", recommended: true },
-        { id: "gemini-2.0-flash-lite", name: "Gemini 2.0 Flash Lite ($0.075/1M)" },
-        { id: "gemini-2.5-flash-lite", name: "Gemini 2.5 Flash Lite ($0.10/1M)" },
-        { id: "gemini-2.5-flash", name: "Gemini 2.5 Flash ($0.30/1M)" },
+        { id: "gemini-2.0-flash-lite", name: "Gemini 2.0 Flash Lite - $0.075/1M", recommended: true },
+        { id: "gemini-2.0-flash", name: "Gemini 2.0 Flash - $0.10/1M" },
+        { id: "gemini-2.5-flash-lite", name: "Gemini 2.5 Flash Lite - $0.10/1M" },
+        { id: "gemini-2.5-flash", name: "Gemini 2.5 Flash - $0.30/1M" },
+        { id: "gemini-3-flash-preview", name: "Gemini 3 Flash Preview - $0.50/1M" },
     ];
 }

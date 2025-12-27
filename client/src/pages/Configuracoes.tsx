@@ -40,7 +40,7 @@ export default function Configuracoes() {
   const [llmProvider, setLlmProvider] = useState("google");
   const [llmModel, setLlmModel] = useState("");
   const [readerApiKey, setReaderApiKey] = useState(""); // State para chave File API
-  const [readerModel, setReaderModel] = useState("gemini-2.0-flash"); // Modelo para leitura
+  const [readerModel, setReaderModel] = useState("gemini-2.0-flash-lite"); // Modelo para leitura
   const [availableModels, setAvailableModels] = useState<Array<{ id: string; name: string }>>([]);
   const [isLoadingModels, setIsLoadingModels] = useState(false);
   const [modelsError, setModelsError] = useState("");
@@ -380,11 +380,11 @@ export default function Configuracoes() {
                     <div className="grid md:grid-cols-2 gap-4 text-sm text-muted-foreground">
                       <div>
                         <p className="font-medium text-foreground mb-1">🧠 Cérebro (Raciocínio)</p>
-                        <p>É o modelo de IA que "pensa" e escreve as respostas. Você pode usar modelos potentes (ex: <strong>GPT 5.2, Gemini 3, Claude 4.5 Sonnet</strong>) ou opções rápidas.</p>
+                        <p>É o modelo de IA que "pensa" e escreve as respostas. Você pode usar modelos potentes (ex: <strong>GPT-4.1, Gemini 3, Claude Sonnet 4</strong>) ou opções rápidas.</p>
                       </div>
                       <div>
-                        <p className="font-medium text-foreground mb-1">📚 Memória (Embeddings)</p>
-                        <p>É a tecnologia que permite ao DAVID "ler" seus PDFs. Atualmente requer uma chave da <strong>OpenAI</strong>, mas estamos trabalhando para torná-la flexível.</p>
+                        <p className="font-medium text-foreground mb-1">📄 Leitura de Documentos</p>
+                        <p>Permite que o DAVID <strong>leia seus PDFs na íntegra</strong> — textos, imagens, tabelas, prints de conversas. Tudo é analisado visualmente, como um humano faria.</p>
                       </div>
                     </div>
                   </div>
@@ -574,7 +574,7 @@ export default function Configuracoes() {
                     </div>
 
                     <div className="bg-blue-50 dark:bg-blue-950/30 p-3 rounded-lg border border-blue-100 dark:border-blue-900/50 text-xs text-blue-800 dark:text-blue-200 mb-2">
-                      📄 <strong>File API do Google:</strong> Permite que o DAVID "veja" imagens, tabelas e prints dentro dos PDFs. Use uma chave Gemini separada para economizar (modelo mais barato para leitura).
+                      📄 <strong>Leitura Visual:</strong> O DAVID "enxerga" todo o conteúdo do PDF — textos, imagens, tabelas, gráficos e até prints de conversas. Escolha um modelo abaixo (modelos mais baratos funcionam bem para leitura).
                     </div>
 
                     <div className="grid md:grid-cols-2 gap-4">
@@ -604,20 +604,23 @@ export default function Configuracoes() {
                             <SelectValue placeholder="Selecione..." />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="gemini-2.0-flash">
+                            <SelectItem value="gemini-2.0-flash-lite">
                               <span className="flex items-center gap-2">
                                 <span className="w-2 h-2 rounded-full bg-green-500"></span>
-                                Gemini 2.0 Flash ($0.10/1M) ✓ Recomendado
+                                Gemini 2.0 Flash Lite - $0.075/1M ✓ Mais Barato
                               </span>
                             </SelectItem>
-                            <SelectItem value="gemini-2.0-flash-lite">
-                              Gemini 2.0 Flash Lite ($0.075/1M)
+                            <SelectItem value="gemini-2.0-flash">
+                              Gemini 2.0 Flash - $0.10/1M (Equilibrado)
                             </SelectItem>
                             <SelectItem value="gemini-2.5-flash-lite">
-                              Gemini 2.5 Flash Lite ($0.10/1M)
+                              Gemini 2.5 Flash Lite - $0.10/1M
                             </SelectItem>
                             <SelectItem value="gemini-2.5-flash">
-                              Gemini 2.5 Flash ($0.30/1M)
+                              Gemini 2.5 Flash - $0.30/1M (1M contexto)
+                            </SelectItem>
+                            <SelectItem value="gemini-3-flash-preview">
+                              Gemini 3 Flash Preview - $0.50/1M (Mais Inteligente)
                             </SelectItem>
                           </SelectContent>
                         </Select>

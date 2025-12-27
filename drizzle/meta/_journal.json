@@ -1,1 +1,13 @@
-{"version":"7","dialect":"sqlite","entries":[]}
+{
+  "version": "7",
+  "dialect": "sqlite",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "5",
+      "when": 1766866997829,
+      "tag": "0000_cold_sauron",
+      "breakpoints": true
+    }
+  ]
+}
