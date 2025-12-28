@@ -834,7 +834,7 @@ export default function David() {
                   <img src="/logo.png" alt="DAVID" className="h-80 w-80 object-contain mx-auto" />
                 </div>
 
-                <div className="space-y-2 -mt-6">
+                <div className="space-y-2 -mt-12">
                   <h1 className="text-3xl font-bold tracking-tight text-primary">
                     Bem-vindo ao DAVID
                   </h1>
