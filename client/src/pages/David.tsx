@@ -830,9 +830,8 @@ export default function David() {
             // Hero / Estado Vazio
             <div className="flex-1 flex flex-col items-center justify-center p-8 text-center animate-in fade-in duration-500">
               <div className="max-w-md space-y-6">
-                <div className="relative">
-                  <div className="absolute inset-0 bg-primary/10 blur-3xl rounded-full" />
-                  <img src="/logo.png" alt="DAVID" className="h-32 w-32 object-contain mx-auto relative" />
+                <div className="mb-4">
+                  <img src="/logo.png" alt="DAVID" className="h-40 w-40 object-contain mx-auto" />
                 </div>
 
                 <div className="space-y-2">

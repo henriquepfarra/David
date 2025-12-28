@@ -120,9 +120,12 @@ export default function Home() {
             <span>Gabinete Virtual Inteligente</span>
           </div>
 
-          <h1 className="text-5xl font-bold tracking-tight text-foreground sm:text-7xl leading-[1.1]">
-            Celeridade e Precisão, <br />
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-primary">
+          <h1 className="text-5xl font-bold tracking-tight sm:text-7xl leading-[1.1]">
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 via-blue-500 to-primary">
+              Celeridade e Precisão,
+            </span>
+            <br />
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-500 to-primary">
               Para o Judiciário
             </span>
           </h1>
@@ -136,7 +139,7 @@ export default function Home() {
             <Button
               onClick={() => window.location.href = getLoginUrl()}
               size="xl"
-              className="h-14 px-8 text-lg rounded-full shadow-xl shadow-primary/20 hover:shadow-2xl hover:shadow-primary/30 transition-all hover:-translate-y-0.5"
+              className="h-14 px-8 text-lg rounded-full shadow-xl bg-blue-600 hover:bg-blue-700 shadow-blue-500/30 hover:shadow-2xl hover:shadow-blue-500/40 transition-all hover:-translate-y-0.5"
             >
               Começar agora <ArrowRight className="ml-2 h-5 w-5" />
             </Button>
@@ -187,7 +190,7 @@ export default function Home() {
       <div id="como-funciona" className="bg-muted/30 dark:bg-muted/10 border-t border-border/40 py-24">
         <div className="max-w-7xl mx-auto px-6 lg:px-8">
           <div className="text-center mb-16">
-            <h2 className="text-3xl font-bold tracking-tight sm:text-4xl mb-4">Fluxo de Trabalho Otimizado</h2>
+            <h2 className="text-3xl font-bold tracking-tight sm:text-4xl mb-4 text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-primary">Fluxo de Trabalho Otimizado</h2>
             <p className="text-lg text-muted-foreground">Como o DAVID acelera a produtividade do seu gabinete</p>
           </div>
 
