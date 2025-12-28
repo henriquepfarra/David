@@ -831,7 +831,7 @@ export default function David() {
             <div className="flex-1 flex flex-col items-center justify-center p-8 text-center animate-in fade-in duration-500">
               <div className="max-w-md space-y-6">
                 <div className="mb-4">
-                  <img src="/logo.png" alt="DAVID" className="h-40 w-40 object-contain mx-auto" />
+                  <img src="/logo.png" alt="DAVID" className="h-80 w-80 object-contain mx-auto" />
                 </div>
 
                 <div className="space-y-2">
