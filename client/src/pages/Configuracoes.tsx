@@ -39,11 +39,21 @@ export default function Configuracoes() {
   const [llmApiKey, setLlmApiKey] = useState("");
   const [llmProvider, setLlmProvider] = useState("google");
   const [llmModel, setLlmModel] = useState("");
-  const [readerApiKey, setReaderApiKey] = useState(""); // State para chave File API
-  const [readerModel, setReaderModel] = useState("gemini-2.0-flash-lite"); // Modelo para leitura
+  const [readerApiKey, setReaderApiKey] = useState("");
+  const [readerModel, setReaderModel] = useState("gemini-2.0-flash-lite");
   const [availableModels, setAvailableModels] = useState<Array<{ id: string; name: string }>>([]);
   const [isLoadingModels, setIsLoadingModels] = useState(false);
   const [modelsError, setModelsError] = useState("");
+
+  // Track original values for "has changes" detection
+  const [originalPrompt, setOriginalPrompt] = useState("");
+  const [originalApiSettings, setOriginalApiSettings] = useState<{
+    llmApiKey: string;
+    llmProvider: string;
+    llmModel: string;
+    readerApiKey: string;
+    readerModel: string;
+  } | null>(null);
 
   const { data: settings, isLoading: settingsLoading } = trpc.settings.get.useQuery();
   const { data: knowledgeDocs, isLoading: docsLoading } = trpc.knowledgeBase.list.useQuery();
@@ -52,7 +62,6 @@ export default function Configuracoes() {
   const updateSettingsMutation = trpc.settings.update.useMutation({
     onSuccess: () => {
       utils.settings.get.invalidate();
-      toast.success("System Prompt salvo com sucesso!");
     },
     onError: (error: any) => {
       toast.error("Erro ao salvar: " + error.message);
@@ -85,22 +94,38 @@ export default function Configuracoes() {
 
   useEffect(() => {
     if (settings) {
-      // Carregar o prompt customizado OU o prompt padrão
-      setCustomSystemPrompt(settings.customSystemPrompt || DEFAULT_DAVID_SYSTEM_PROMPT);
-      setLlmApiKey(settings.llmApiKey || "");
-      setLlmProvider(settings.llmProvider || "google");
-      setLlmModel(settings.llmModel || "");
-      setReaderApiKey(settings.readerApiKey || "");
-      setReaderModel(settings.readerModel || "gemini-2.0-flash");
+      const prompt = settings.customSystemPrompt || DEFAULT_DAVID_SYSTEM_PROMPT;
+      setCustomSystemPrompt(prompt);
+      setOriginalPrompt(prompt);
 
-      // Carregar modelos se já tiver API key
+      const apiKey = settings.llmApiKey || "";
+      const provider = settings.llmProvider || "google";
+      const model = settings.llmModel || "";
+      const rApiKey = settings.readerApiKey || "";
+      const rModel = settings.readerModel || "gemini-2.0-flash";
+
+      setLlmApiKey(apiKey);
+      setLlmProvider(provider);
+      setLlmModel(model);
+      setReaderApiKey(rApiKey);
+      setReaderModel(rModel);
+
+      setOriginalApiSettings({
+        llmApiKey: apiKey,
+        llmProvider: provider,
+        llmModel: model,
+        readerApiKey: rApiKey,
+        readerModel: rModel,
+      });
+
+      // Carregar modelos se já tiver API key (silenciosamente, sem toast)
       if (settings.llmApiKey && settings.llmProvider) {
-        loadModels(settings.llmProvider, settings.llmApiKey);
+        loadModels(settings.llmProvider, settings.llmApiKey, true);
       }
     }
   }, [settings]);
 
-  const loadModels = async (provider: string, apiKey: string) => {
+  const loadModels = async (provider: string, apiKey: string, silent = false) => {
     if (!apiKey || apiKey.length < 10) {
       setModelsError("Insira uma chave de API válida");
       return;
@@ -118,7 +143,7 @@ export default function Configuracoes() {
 
       if (models.length === 0) {
         setModelsError("Nenhum modelo disponível");
-      } else {
+      } else if (!silent) {
         toast.success(`${models.length} modelos carregados`);
       }
     } catch (error: any) {
@@ -142,16 +167,30 @@ export default function Configuracoes() {
     setModelsError("");
   };
 
-  // Auto-load models when API Key is present/changed (Debounced)
+  // Auto-load models when API Key is present/changed (Debounced, silent)
   useEffect(() => {
     if (!llmApiKey || llmApiKey.length < 10) return;
+    // Só auto-carregar se a key mudou do original
+    if (originalApiSettings?.llmApiKey === llmApiKey && originalApiSettings?.llmProvider === llmProvider) return;
 
     const timer = setTimeout(() => {
-      handleLoadModels();
-    }, 1000); // 1.5s delay to allow finish typing
+      loadModels(llmProvider, llmApiKey, true);
+    }, 1000);
 
     return () => clearTimeout(timer);
-  }, [llmApiKey, llmProvider]);
+  }, [llmApiKey, llmProvider, originalApiSettings]);
+
+  // Computed: has prompt changed?
+  const hasPromptChanged = customSystemPrompt !== originalPrompt;
+
+  // Computed: has API settings changed?
+  const hasApiSettingsChanged = originalApiSettings ? (
+    llmApiKey !== originalApiSettings.llmApiKey ||
+    llmProvider !== originalApiSettings.llmProvider ||
+    llmModel !== originalApiSettings.llmModel ||
+    readerApiKey !== originalApiSettings.readerApiKey ||
+    readerModel !== originalApiSettings.readerModel
+  ) : false;
 
   const handleLoadModels = () => {
     if (!llmApiKey) {
@@ -168,19 +207,42 @@ export default function Configuracoes() {
       return;
     }
 
-    updateSettingsMutation.mutate({
-      llmApiKey: llmApiKey || undefined,
-      llmProvider,
-      llmModel: llmModel || undefined,
-      readerApiKey: readerApiKey || undefined,
-      readerModel: readerModel || undefined,
-    });
+    updateSettingsMutation.mutate(
+      {
+        llmApiKey: llmApiKey || undefined,
+        llmProvider,
+        llmModel: llmModel || undefined,
+        readerApiKey: readerApiKey || undefined,
+        readerModel: readerModel || undefined,
+      },
+      {
+        onSuccess: () => {
+          // Atualizar valores originais após salvar
+          setOriginalApiSettings({
+            llmApiKey,
+            llmProvider,
+            llmModel,
+            readerApiKey,
+            readerModel,
+          });
+          toast.success("Configurações de API salvas!");
+        },
+      }
+    );
   };
 
   const handleSaveSystemPrompt = () => {
-    updateSettingsMutation.mutate({
-      customSystemPrompt,
-    });
+    updateSettingsMutation.mutate(
+      {
+        customSystemPrompt,
+      },
+      {
+        onSuccess: () => {
+          setOriginalPrompt(customSystemPrompt);
+          toast.success("Instruções salvas com sucesso!");
+        },
+      }
+    );
   };
 
   const handleEditDoc = (doc: any) => {
@@ -266,7 +328,7 @@ export default function Configuracoes() {
                   <div className="flex justify-end">
                     <Button
                       onClick={handleSaveSystemPrompt}
-                      disabled={updateSettingsMutation.isPending}
+                      disabled={updateSettingsMutation.isPending || !hasPromptChanged}
                       size="sm"
                     >
                       {updateSettingsMutation.isPending ? (
@@ -633,7 +695,7 @@ export default function Configuracoes() {
                 <div className="flex justify-end">
                   <Button
                     onClick={handleSaveApiKeys}
-                    disabled={updateSettingsMutation.isPending}
+                    disabled={updateSettingsMutation.isPending || !hasApiSettingsChanged}
                     size="sm"
                   >
                     {updateSettingsMutation.isPending ? (
