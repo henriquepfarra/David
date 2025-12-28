@@ -4,6 +4,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
@@ -21,18 +22,16 @@ import {
 } from "@/components/ui/sidebar";
 import { APP_LOGO, APP_TITLE, getLoginUrl } from "@/const";
 import { useIsMobile } from "@/hooks/useMobile";
-import { BookOpen, Brain, FolderOpen, Gavel, Home, LogOut, PanelLeft, Settings } from "lucide-react";
+import { LogOut, PanelLeft, Plus, Search, Settings, MessageSquare, Pin } from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { DashboardLayoutSkeleton } from './DashboardLayoutSkeleton';
 import { Button } from "./ui/button";
-
-const menuItems = [
-  { icon: Home, label: "Início", path: "/" },
-  { icon: Gavel, label: "DAVID", path: "/david" },
-  { icon: Brain, label: "Memória do DAVID", path: "/david/memoria" },
-  { icon: Settings, label: "Configurações", path: "/configuracoes" },
-];
+import { Input } from "./ui/input";
+import { ScrollArea } from "./ui/scroll-area";
+import { trpc } from "@/lib/trpc";
+import { formatDistanceToNow } from "date-fns";
+import { ptBR } from "date-fns/locale";
 
 const SIDEBAR_WIDTH_KEY = "sidebar-width";
 const DEFAULT_WIDTH = 280;
@@ -124,8 +123,38 @@ function DashboardLayoutContent({
   const isCollapsed = state === "collapsed";
   const [isResizing, setIsResizing] = useState(false);
   const sidebarRef = useRef<HTMLDivElement>(null);
-  const activeMenuItem = menuItems.find(item => item.path === location);
   const isMobile = useIsMobile();
+  const [searchQuery, setSearchQuery] = useState("");
+
+  // Fetch conversations for sidebar
+  const { data: conversations } = trpc.david.listConversations.useQuery();
+  const createConversationMutation = trpc.david.createConversation.useMutation({
+    onSuccess: (data) => {
+      setLocation(`/david?c=${data.id}`);
+    },
+  });
+
+  // Filter conversations by search
+  const filteredConversations = conversations?.filter(conv =>
+    conv.title.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  // Group conversations by date
+  const groupedConversations = filteredConversations?.reduce((acc, conv) => {
+    const date = new Date(conv.updatedAt);
+    const now = new Date();
+    const diffDays = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
+
+    let group = "Mais antigas";
+    if (diffDays === 0) group = "Hoje";
+    else if (diffDays === 1) group = "Ontem";
+    else if (diffDays <= 7) group = "Últimos 7 dias";
+    else if (diffDays <= 30) group = "Últimos 30 dias";
+
+    if (!acc[group]) acc[group] = [];
+    acc[group]!.push(conv);
+    return acc;
+  }, {} as Record<string, NonNullable<typeof filteredConversations>>);
 
   useEffect(() => {
     if (isCollapsed) {
@@ -163,6 +192,14 @@ function DashboardLayoutContent({
     };
   }, [isResizing, setSidebarWidth]);
 
+  const handleNewChat = () => {
+    createConversationMutation.mutate({ title: "Nova conversa" });
+  };
+
+  // Get current conversation ID from URL
+  const urlParams = new URLSearchParams(location.split("?")[1] || "");
+  const currentConversationId = urlParams.get("c") ? parseInt(urlParams.get("c")!) : null;
+
   return (
     <>
       <div className="relative" ref={sidebarRef}>
@@ -171,8 +208,9 @@ function DashboardLayoutContent({
           className="border-r-0"
           disableTransition={isResizing}
         >
-          <SidebarHeader className="h-16 justify-center">
-            <div className="flex items-center gap-3 pl-2 group-data-[collapsible=icon]:px-0 transition-all w-full">
+          <SidebarHeader className="p-3 space-y-3">
+            {/* Logo and Title */}
+            <div className="flex items-center gap-3 group-data-[collapsible=icon]:px-0 transition-all w-full">
               {isCollapsed ? (
                 <div className="relative h-8 w-8 shrink-0 group">
                   <img
@@ -208,32 +246,88 @@ function DashboardLayoutContent({
                 </>
               )}
             </div>
+
+            {/* New Chat Button */}
+            {!isCollapsed && (
+              <Button
+                onClick={handleNewChat}
+                className="w-full justify-start gap-2"
+                variant="outline"
+              >
+                <Plus className="h-4 w-4" />
+                Nova conversa
+              </Button>
+            )}
+
+            {/* Search */}
+            {!isCollapsed && (
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Buscar conversas..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-9 h-9"
+                />
+              </div>
+            )}
           </SidebarHeader>
 
           <SidebarContent className="gap-0">
-            <SidebarMenu className="px-2 py-1">
-              {menuItems.map(item => {
-                const isActive = location === item.path;
-                return (
-                  <SidebarMenuItem key={item.path}>
-                    <SidebarMenuButton
-                      isActive={isActive}
-                      onClick={() => setLocation(item.path)}
-                      tooltip={item.label}
-                      className={`h-10 transition-all font-normal`}
-                    >
-                      <item.icon
-                        className={`h-4 w-4 ${isActive ? "text-primary" : ""}`}
-                      />
-                      <span>{item.label}</span>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                );
-              })}
-            </SidebarMenu>
+            {isCollapsed ? (
+              <SidebarMenu className="px-2 py-1">
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    onClick={handleNewChat}
+                    tooltip="Nova conversa"
+                    className="h-10"
+                  >
+                    <Plus className="h-4 w-4" />
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              </SidebarMenu>
+            ) : (
+              <ScrollArea className="flex-1 px-2">
+                {groupedConversations && Object.entries(groupedConversations).map(([group, convs]) => (
+                  <div key={group} className="mb-4">
+                    <p className="text-xs text-muted-foreground font-medium px-2 py-1">
+                      {group}
+                    </p>
+                    {convs?.map((conv) => (
+                      <button
+                        key={conv.id}
+                        onClick={() => setLocation(`/david?c=${conv.id}`)}
+                        className={`w-full text-left px-2 py-2 rounded-lg text-sm hover:bg-accent transition-colors flex items-center gap-2 group ${currentConversationId === conv.id ? "bg-accent" : ""
+                          }`}
+                      >
+                        {conv.isPinned ? (
+                          <Pin className="h-3.5 w-3.5 text-primary shrink-0" />
+                        ) : (
+                          <MessageSquare className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                        )}
+                        <span className="truncate flex-1">{conv.title}</span>
+                      </button>
+                    ))}
+                  </div>
+                ))}
+              </ScrollArea>
+            )}
           </SidebarContent>
 
-          <SidebarFooter className="p-3">
+          <SidebarFooter className="p-3 space-y-2">
+            {/* Settings */}
+            {!isCollapsed && (
+              <Button
+                variant="ghost"
+                className="w-full justify-start gap-2 h-9"
+                onClick={() => setLocation("/configuracoes")}
+              >
+                <Settings className="h-4 w-4" />
+                Configurações
+              </Button>
+            )}
+
+            {/* User */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button className="flex items-center gap-3 rounded-lg px-1 py-1 hover:bg-accent/50 transition-colors w-full text-left group-data-[collapsible=icon]:justify-center focus:outline-none focus-visible:ring-2 focus-visible:ring-ring">
@@ -253,12 +347,24 @@ function DashboardLayoutContent({
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-48">
+                {isCollapsed && (
+                  <>
+                    <DropdownMenuItem
+                      onClick={() => setLocation("/configuracoes")}
+                      className="cursor-pointer"
+                    >
+                      <Settings className="mr-2 h-4 w-4" />
+                      <span>Configurações</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                  </>
+                )}
                 <DropdownMenuItem
                   onClick={logout}
                   className="cursor-pointer text-destructive focus:text-destructive"
                 >
                   <LogOut className="mr-2 h-4 w-4" />
-                  <span>Sign out</span>
+                  <span>Sair</span>
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -282,14 +388,14 @@ function DashboardLayoutContent({
               <div className="flex items-center gap-3">
                 <div className="flex flex-col gap-1">
                   <span className="tracking-tight text-foreground">
-                    {activeMenuItem?.label ?? APP_TITLE}
+                    DAVID
                   </span>
                 </div>
               </div>
             </div>
           </div>
         )}
-        <main className="flex-1 p-4">{children}</main>
+        <main className="flex-1">{children}</main>
       </SidebarInset>
     </>
   );
