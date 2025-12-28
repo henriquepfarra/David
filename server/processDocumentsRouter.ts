@@ -42,11 +42,27 @@ export const processDocumentsRouter = router({
             extractedText = result.value;
             pagesToProcess = [{ pageNumber: 1, text: extractedText }];
           } else if (input.fileType === "pdf") {
-            // Importação dinâmica dos extratores
-            const { extractPagesFromPdfBuffer } = await import("./_core/pdfExtractor");
-            // Extrai páginas separadas
-            pagesToProcess = await extractPagesFromPdfBuffer(buffer);
-            extractedText = pagesToProcess.map(p => p.text).join("\n\n");
+            // Usar File API para leitura visual do PDF
+            const { readPdfWithVision } = await import("./_core/fileApi");
+            const { userSettings } = await import("../drizzle/schema");
+            const { eq } = await import("drizzle-orm");
+            const { db } = await import("./db");
+
+            // Buscar configurações do usuário
+            let apiKey: string | undefined;
+            let model = "gemini-2.0-flash-lite";
+            if (db) {
+              const settingsResult = await db.select().from(userSettings).where(eq(userSettings.userId, ctx.user.id)).limit(1);
+              const settings = settingsResult[0];
+              apiKey = settings?.readerApiKey || undefined;
+              model = settings?.readerModel || "gemini-2.0-flash-lite";
+            }
+
+            const result = await readPdfWithVision(buffer, { apiKey, model });
+            extractedText = result.content;
+            // File API retorna texto completo, tratamos como uma única página
+            pagesToProcess = [{ pageNumber: 1, text: extractedText }];
+            console.log(`[ProcessDocuments] File API: Leitura visual concluída. Tokens: ${result.tokensUsed}`);
           } else {
             extractedText = "[Arquivo de imagem - sem extração de texto]";
           }

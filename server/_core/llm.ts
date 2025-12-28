@@ -341,13 +341,24 @@ export async function invokeLLM(params: InvokeParams): Promise<InvokeResult> {
 
   console.log(`[invokeLLM] Connecting to ${resolveApiUrl(provider)} with model ${payload.model}...`);
 
+  // Build headers based on provider (Anthropic uses different auth)
+  const headers: Record<string, string> = {
+    "content-type": "application/json",
+  };
+
+  if (provider === "anthropic") {
+    // Anthropic requires x-api-key header, not Bearer token
+    headers["x-api-key"] = apiKey || "";
+    headers["anthropic-version"] = "2023-06-01";
+  } else {
+    // OpenAI, Google, Groq, DeepSeek use Bearer token
+    headers["authorization"] = `Bearer ${apiKey || ENV.geminiApiKey}`;
+  }
+
   try {
     const response = await fetch(resolveApiUrl(provider), {
       method: "POST",
-      headers: {
-        "content-type": "application/json",
-        authorization: `Bearer ${apiKey || ENV.geminiApiKey}`,
-      },
+      headers,
       body: JSON.stringify(payload),
     });
 
@@ -430,12 +441,21 @@ export async function* invokeLLMStream(params: InvokeParams): AsyncGenerator<str
     payload.response_format = normalizedResponseFormat;
   }
 
+  // Build headers based on provider (Anthropic uses different auth)
+  const headers: Record<string, string> = {
+    "content-type": "application/json",
+  };
+
+  if (provider === "anthropic") {
+    headers["x-api-key"] = apiKey || "";
+    headers["anthropic-version"] = "2023-06-01";
+  } else {
+    headers["authorization"] = `Bearer ${apiKey || ENV.geminiApiKey}`;
+  }
+
   const response = await fetch(resolveApiUrl(provider), {
     method: "POST",
-    headers: {
-      "content-type": "application/json",
-      authorization: `Bearer ${apiKey || ENV.geminiApiKey}`,
-    },
+    headers,
     body: JSON.stringify(payload),
   });
 
@@ -502,7 +522,7 @@ export async function transcribeAudio(audioBase64: string): Promise<string> {
   const response = await fetch(url, {
     method: "POST",
     headers: {
-      authorization: `Bearer ${ENV.geminiApiKey}`,
+      authorization: `Bearer ${ENV.openaiApiKey}`,
     },
     body: formData,
   });

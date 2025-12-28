@@ -168,9 +168,14 @@ export const appRouter = router({
             const buffer = Buffer.from(input.fileData, "base64");
 
             if (input.fileType === "pdf") {
-              const { extractPagesFromPdfBuffer } = await import("./_core/pdfExtractor");
-              const pages = await extractPagesFromPdfBuffer(buffer);
-              textToAnalyze = pages.map(p => p.text).join("\n\n");
+              // Usar File API para leitura visual do PDF
+              const { readPdfWithVision } = await import("./_core/fileApi");
+              const result = await readPdfWithVision(buffer, {
+                apiKey: settings?.readerApiKey || undefined,
+                model: settings?.readerModel || "gemini-2.0-flash-lite",
+              });
+              textToAnalyze = result.content;
+              console.log(`[registerFromUpload] File API: Leitura visual concluída. Tokens: ${result.tokensUsed}`);
             } else if (input.fileType === "docx") {
               const mammoth = await import("mammoth");
               const result = await mammoth.extractRawText({ buffer });

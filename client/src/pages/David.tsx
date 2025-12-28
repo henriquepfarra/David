@@ -130,19 +130,39 @@ export default function David() {
     },
   });
 
+  // Estado de progresso do upload
+  const [uploadState, setUploadState] = useState<{
+    isUploading: boolean;
+    stage: 'sending' | 'reading' | 'extracting' | 'done' | null;
+    fileName: string | null;
+    error: string | null;
+  }>({ isUploading: false, stage: null, fileName: null, error: null });
+
   // Mutation nova para cadastro silencioso
   const registerFromUploadMutation = trpc.processes.registerFromUpload.useMutation({
     onSuccess: (data) => {
-      setSelectedProcessId(data.processId);
-      refetchMessages();
-      toast.success(`📂 Processo ${data.processNumber} identificado e cadastrado!`);
-
-      // Se tiver dados extraídos, pode até mandar uma mensagem inicial automática para o chat
-      if (data.extractedData) {
-        // Opcional: Inserir mensagem de sistema no chat localmente ou via backend
+      // Vincula o processo à conversa atual (se houver)
+      if (selectedConversationId && data.processId) {
+        updateProcessMutation.mutate({
+          conversationId: selectedConversationId,
+          processId: data.processId,
+        });
       }
+      setSelectedProcessId(data.processId);
+
+      // Atualiza estado de upload
+      setUploadState(prev => ({ ...prev, stage: 'done' }));
+
+      // Mostra sucesso
+      toast.success(`📂 Processo ${data.processNumber} identificado!`);
+
+      // Limpa estado após 2 segundos
+      setTimeout(() => {
+        setUploadState({ isUploading: false, stage: null, fileName: null, error: null });
+      }, 2000);
     },
     onError: (error) => {
+      setUploadState(prev => ({ ...prev, isUploading: false, error: error.message }));
       toast.error("Erro ao processar arquivo: " + error.message);
     }
   });
@@ -151,50 +171,45 @@ export default function David() {
     if (acceptedFiles.length === 0) return;
 
     const file = acceptedFiles[0];
-    const isLargeFile = file.size > 5 * 1024 * 1024; // 5MB limit for client-side processing
+
+    // Inicia estado de loading
+    setUploadState({
+      isUploading: true,
+      stage: 'sending',
+      fileName: file.name,
+      error: null,
+    });
 
     try {
-      if (isLargeFile) {
-        toast.info(`📦 Arquivo grande (${(file.size / 1024 / 1024).toFixed(1)}MB). Enviando para processamento no servidor...`);
+      // Stage 1: Enviando arquivo
+      const buffer = await file.arrayBuffer();
+      const base64 = btoa(
+        new Uint8Array(buffer)
+          .reduce((data, byte) => data + String.fromCharCode(byte), '')
+      );
+      const extension = file.name.split('.').pop()?.toLowerCase() || 'pdf';
 
-        // Converter para Base64
-        const buffer = await file.arrayBuffer();
-        const base64 = btoa(
-          new Uint8Array(buffer)
-            .reduce((data, byte) => data + String.fromCharCode(byte), '')
-        );
-        const extension = file.name.split('.').pop()?.toLowerCase() || 'pdf';
+      // Stage 2: Lendo documento
+      setUploadState(prev => ({ ...prev, stage: 'reading' }));
 
-        await registerFromUploadMutation.mutateAsync({
-          text: "", // Texto vazio para forçar extração no servidor
-          images: [],
-          filename: file.name,
-          fileData: base64,
-          fileType: extension
-        });
+      // Stage 3: Extraindo metadados
+      setUploadState(prev => ({ ...prev, stage: 'extracting' }));
 
-      } else {
-        // Arquivo pequeno: Tenta processar no navegador (mais rápido se der certo)
-        toast.info("⏳ Lendo arquivo e extraindo dados...");
-
-        const result = await processFile(file, (progress) => {
-          // Opcional: mostrar progresso
-        });
-
-        if (result.error) {
-          throw new Error(result.error);
-        }
-
-        toast.info("🤖 Analisando com Inteligência Artificial...");
-
-        await registerFromUploadMutation.mutateAsync({
-          text: result.text,
-          images: result.images,
-          filename: file.name,
-        });
-      }
+      await registerFromUploadMutation.mutateAsync({
+        text: "", // Força extração no servidor via File API
+        images: [],
+        filename: file.name,
+        fileData: base64,
+        fileType: extension
+      });
 
     } catch (error: any) {
+      setUploadState({
+        isUploading: false,
+        stage: null,
+        fileName: null,
+        error: error.message,
+      });
       toast.error("Erro no upload: " + error.message);
     }
   };
@@ -810,30 +825,50 @@ export default function David() {
                         <>
                           <Streamdown>{message.content}</Streamdown>
 
-                          {/* Botões de aprovação (apenas para mensagens do assistente) */}
-                          <div className="flex items-center gap-2 mt-4 pt-3 border-t border-border">
-                            <p className="text-xs opacity-70 flex-1">
-                              {new Date(message.createdAt).toLocaleTimeString("pt-BR")}
-                            </p>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="h-8 gap-1.5"
-                              onClick={() => handleApproveDraft(message.id, message.content, "approved")}
-                            >
-                              <Check className="h-3.5 w-3.5" />
-                              Aprovar
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="h-8 gap-1.5"
-                              onClick={() => handleEditAndApprove(message.id, message.content)}
-                            >
-                              <Edit className="h-3.5 w-3.5" />
-                              Editar e Aprovar
-                            </Button>
-                          </div>
+                          {/* Botões de aprovação (apenas para minutas - detecta por palavras-chave) */}
+                          {(() => {
+                            const content = message.content.toLowerCase();
+                            const isDraft = content.includes("minuta") ||
+                              content.includes("petição") ||
+                              content.includes("contestação") ||
+                              content.includes("sentença") ||
+                              content.includes("decisão interlocutória") ||
+                              content.includes("despacho") ||
+                              content.includes("recurso") ||
+                              (content.includes("excelentíssimo") && content.length > 500);
+
+                            if (!isDraft) return (
+                              <p className="text-xs opacity-70 mt-2">
+                                {new Date(message.createdAt).toLocaleTimeString("pt-BR")}
+                              </p>
+                            );
+
+                            return (
+                              <div className="flex items-center gap-2 mt-4 pt-3 border-t border-border">
+                                <p className="text-xs opacity-70 flex-1">
+                                  {new Date(message.createdAt).toLocaleTimeString("pt-BR")}
+                                </p>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="h-8 gap-1.5"
+                                  onClick={() => handleApproveDraft(message.id, message.content, "approved")}
+                                >
+                                  <Check className="h-3.5 w-3.5" />
+                                  Aprovar
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="h-8 gap-1.5"
+                                  onClick={() => handleEditAndApprove(message.id, message.content)}
+                                >
+                                  <Edit className="h-3.5 w-3.5" />
+                                  Editar e Aprovar
+                                </Button>
+                              </div>
+                            );
+                          })()}
                         </>
                       ) : (
                         <>
@@ -915,6 +950,44 @@ export default function David() {
               )}
             </AnimatePresence>
 
+            {/* Overlay de progresso durante upload */}
+            <AnimatePresence>
+              {uploadState.isUploading && (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="absolute inset-0 z-50 bg-background/90 backdrop-blur-sm flex items-center justify-center"
+                >
+                  <div className="bg-card border rounded-xl p-8 text-center shadow-2xl max-w-md">
+                    <Loader2 className="h-12 w-12 text-primary mx-auto mb-4 animate-spin" />
+                    <h2 className="text-xl font-bold mb-2">Processando {uploadState.fileName}</h2>
+
+                    <div className="space-y-2 text-left mt-4">
+                      <div className={`flex items-center gap-2 ${uploadState.stage === 'sending' ? 'text-primary font-medium' : uploadState.stage && ['reading', 'extracting', 'done'].includes(uploadState.stage) ? 'text-green-500' : 'text-muted-foreground'}`}>
+                        {uploadState.stage === 'sending' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+                        <span>Enviando arquivo...</span>
+                      </div>
+                      <div className={`flex items-center gap-2 ${uploadState.stage === 'reading' ? 'text-primary font-medium' : uploadState.stage && ['extracting', 'done'].includes(uploadState.stage) ? 'text-green-500' : 'text-muted-foreground'}`}>
+                        {uploadState.stage === 'reading' ? <Loader2 className="h-4 w-4 animate-spin" /> : uploadState.stage && ['extracting', 'done'].includes(uploadState.stage) ? <Check className="h-4 w-4" /> : <span className="h-4 w-4" />}
+                        <span>Lendo documento visualmente...</span>
+                      </div>
+                      <div className={`flex items-center gap-2 ${uploadState.stage === 'extracting' ? 'text-primary font-medium' : uploadState.stage === 'done' ? 'text-green-500' : 'text-muted-foreground'}`}>
+                        {uploadState.stage === 'extracting' ? <Loader2 className="h-4 w-4 animate-spin" /> : uploadState.stage === 'done' ? <Check className="h-4 w-4" /> : <span className="h-4 w-4" />}
+                        <span>Extraindo metadados...</span>
+                      </div>
+                      {uploadState.stage === 'done' && (
+                        <div className="flex items-center gap-2 text-green-500 font-medium">
+                          <Check className="h-4 w-4" />
+                          <span>Pronto!</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
             <div className="p-4 border-t bg-background">
               <div className="max-w-4xl mx-auto border rounded-[2rem] p-4 relative shadow-sm bg-card transition-all focus-within:ring-1 focus-within:ring-violet-500/50">
 
@@ -961,7 +1034,7 @@ export default function David() {
                       onClick={open}
                     >
                       <Gavel className="h-4 w-4" />
-                      Cadastrar Processo
+                      Enviar Processo
                     </Button>
 
                     <DropdownMenu>

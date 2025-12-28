@@ -16,6 +16,9 @@ const envSchema = z.object({
 
   // Google Gemini API (for File API and LLM)
   GEMINI_API_KEY: z.string().optional(),
+
+  // OpenAI API (for Whisper audio transcription)
+  OPENAI_API_KEY: z.string().optional(),
 });
 
 // Validate process.env
@@ -45,4 +48,7 @@ export const ENV = {
 
   // Google Gemini API (for File API and LLM - can be overridden by user settings)
   geminiApiKey: env.GEMINI_API_KEY ?? "",
+
+  // OpenAI API (for Whisper audio transcription)
+  openaiApiKey: env.OPENAI_API_KEY ?? "",
 };

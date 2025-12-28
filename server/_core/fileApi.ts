@@ -31,6 +31,8 @@ interface ReadPdfResult {
     pageCount?: number;       // Number of pages (if available)
     model: string;            // Model used
     tokensUsed?: number;      // Approximate tokens used
+    fileUri?: string;         // Google File URI (if file wasn't deleted)
+    fileName?: string;        // Google File name (for deletion later)
 }
 
 /**
@@ -108,7 +110,7 @@ export async function readPdfWithVision(
         console.log(`[FileAPI] Analyzing with model: ${model}`);
         const generativeModel = genAI.getGenerativeModel({ model });
 
-        const result = await generativeModel.generateContent([
+        const genResult = await generativeModel.generateContent([
             {
                 fileData: {
                     mimeType: file.mimeType,
@@ -118,16 +120,26 @@ export async function readPdfWithVision(
             { text: instruction },
         ]);
 
-        const response = result.response;
+        const response = genResult.response;
         const content = response.text();
 
         console.log(`[FileAPI] Content extracted. Length: ${content.length} characters`);
 
-        return {
+        // Include file info if we're not deleting (for session persistence)
+        const pdfResult: ReadPdfResult = {
             content,
             model,
             tokensUsed: response.usageMetadata?.totalTokenCount,
         };
+
+        // If not deleting, include file URI for later queries
+        if (!deleteAfterRead && uploadResult?.file) {
+            pdfResult.fileUri = uploadResult.file.uri;
+            pdfResult.fileName = uploadResult.file.name;
+            console.log(`[FileAPI] File retained for session. URI: ${pdfResult.fileUri}`);
+        }
+
+        return pdfResult;
     } finally {
         // 4. Cleanup: Delete file from Google servers
         if (deleteAfterRead && uploadResult?.file?.name) {
