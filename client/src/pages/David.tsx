@@ -770,38 +770,69 @@ export default function David() {
 
               <div className="flex-1 flex items-center justify-end">
 
-                {/* Seletor Dropdown sempre disponível para troca rápida */}
-                <div className="flex items-center gap-2">
-                  {selectedProcessId && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setSelectedProcessId(undefined)}
-                      title="Limpar seleção"
+                {/* Progress bar durante upload OU Badge quando concluído */}
+                <AnimatePresence mode="wait">
+                  {uploadState.isUploading ? (
+                    <motion.div
+                      key="progress"
+                      initial={{ opacity: 0, scale: 0.9 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.9 }}
+                      className="flex items-center gap-2 bg-muted/50 border rounded-lg px-3 py-1.5 min-w-[200px] max-w-[300px]"
                     >
-                      <XCircle className="h-4 w-4" />
-                    </Button>
-                  )}
-                  <Select
-                    value={selectedProcessId?.toString() || "none"}
-                    onValueChange={(val) => {
-                      if (val !== "none") setSelectedProcessId(parseInt(val));
-                      else setSelectedProcessId(undefined);
-                    }}
-                  >
-                    <SelectTrigger className="w-[250px]">
-                      <SelectValue placeholder="Selecionar processo..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">Nenhum processo</SelectItem>
-                      {processes?.map((p) => (
-                        <SelectItem key={p.id} value={p.id.toString()}>
-                          {p.processNumber} - {p.subject || "Sem assunto"}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+                      <Loader2 className="h-4 w-4 text-primary animate-spin flex-shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-medium truncate" title={uploadState.fileName || ''}>
+                          {uploadState.fileName && uploadState.fileName.length > 25
+                            ? uploadState.fileName.substring(0, 22) + '...'
+                            : uploadState.fileName}
+                        </p>
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                          <div className="flex-1 h-1 bg-muted rounded-full overflow-hidden">
+                            <div
+                              className="h-full bg-primary transition-all duration-300 rounded-full"
+                              style={{
+                                width: uploadState.stage === 'sending' ? '25%'
+                                  : uploadState.stage === 'reading' ? '50%'
+                                    : uploadState.stage === 'extracting' ? '75%'
+                                      : uploadState.stage === 'done' ? '100%'
+                                        : '0%'
+                              }}
+                            />
+                          </div>
+                          <span className="text-[10px] text-muted-foreground">
+                            {uploadState.stage === 'sending' && '25%'}
+                            {uploadState.stage === 'reading' && '50%'}
+                            {uploadState.stage === 'extracting' && '75%'}
+                            {uploadState.stage === 'done' && '100%'}
+                          </span>
+                        </div>
+                      </div>
+                    </motion.div>
+                  ) : selectedProcessId && processes?.find(p => p.id === selectedProcessId) ? (
+                    <motion.div
+                      key="badge"
+                      initial={{ opacity: 0, scale: 0.9 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.9 }}
+                      className="flex items-center gap-2 bg-muted/50 border rounded-lg px-3 py-1.5"
+                    >
+                      <FileText className="h-4 w-4 text-primary" />
+                      <span className="text-sm font-medium truncate max-w-[180px]" title={processes.find(p => p.id === selectedProcessId)?.processNumber}>
+                        {processes.find(p => p.id === selectedProcessId)?.processNumber || 'Processo anexado'}
+                      </span>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-5 w-5 p-0 hover:bg-destructive/20"
+                        onClick={() => setSelectedProcessId(undefined)}
+                        title="Remover processo"
+                      >
+                        <XCircle className="h-3.5 w-3.5" />
+                      </Button>
+                    </motion.div>
+                  ) : null}
+                </AnimatePresence>
               </div>
             </div>
           </div>
@@ -950,43 +981,7 @@ export default function David() {
               )}
             </AnimatePresence>
 
-            {/* Overlay de progresso durante upload */}
-            <AnimatePresence>
-              {uploadState.isUploading && (
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  className="absolute inset-0 z-50 bg-background/90 backdrop-blur-sm flex items-center justify-center"
-                >
-                  <div className="bg-card border rounded-xl p-8 text-center shadow-2xl max-w-md">
-                    <Loader2 className="h-12 w-12 text-primary mx-auto mb-4 animate-spin" />
-                    <h2 className="text-xl font-bold mb-2">Processando {uploadState.fileName}</h2>
-
-                    <div className="space-y-2 text-left mt-4">
-                      <div className={`flex items-center gap-2 ${uploadState.stage === 'sending' ? 'text-primary font-medium' : uploadState.stage && ['reading', 'extracting', 'done'].includes(uploadState.stage) ? 'text-green-500' : 'text-muted-foreground'}`}>
-                        {uploadState.stage === 'sending' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
-                        <span>Enviando arquivo...</span>
-                      </div>
-                      <div className={`flex items-center gap-2 ${uploadState.stage === 'reading' ? 'text-primary font-medium' : uploadState.stage && ['extracting', 'done'].includes(uploadState.stage) ? 'text-green-500' : 'text-muted-foreground'}`}>
-                        {uploadState.stage === 'reading' ? <Loader2 className="h-4 w-4 animate-spin" /> : uploadState.stage && ['extracting', 'done'].includes(uploadState.stage) ? <Check className="h-4 w-4" /> : <span className="h-4 w-4" />}
-                        <span>Lendo documento visualmente...</span>
-                      </div>
-                      <div className={`flex items-center gap-2 ${uploadState.stage === 'extracting' ? 'text-primary font-medium' : uploadState.stage === 'done' ? 'text-green-500' : 'text-muted-foreground'}`}>
-                        {uploadState.stage === 'extracting' ? <Loader2 className="h-4 w-4 animate-spin" /> : uploadState.stage === 'done' ? <Check className="h-4 w-4" /> : <span className="h-4 w-4" />}
-                        <span>Extraindo metadados...</span>
-                      </div>
-                      {uploadState.stage === 'done' && (
-                        <div className="flex items-center gap-2 text-green-500 font-medium">
-                          <Check className="h-4 w-4" />
-                          <span>Pronto!</span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
+            {/* Banner de progresso removido - agora fica dentro do input */}
 
             <div className="p-4 border-t bg-background">
               <div className="max-w-4xl mx-auto border rounded-[2rem] p-4 relative shadow-sm bg-card transition-all focus-within:ring-1 focus-within:ring-violet-500/50">

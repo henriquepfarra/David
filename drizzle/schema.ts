@@ -178,6 +178,8 @@ export const conversations = mysqlTable("conversations", {
   processId: int("processId"), // Processo associado (opcional)
   title: varchar("title", { length: 300 }).notNull(), // Título gerado automaticamente
   isPinned: int("isPinned").default(0).notNull(), // 0 = não fixada, 1 = fixada
+  googleFileUri: varchar("googleFileUri", { length: 500 }), // URI do arquivo no Google (para sessão)
+  googleFileName: varchar("googleFileName", { length: 200 }), // Nome do arquivo no Google (para cleanup)
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 }, (table) => ({

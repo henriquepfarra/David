@@ -391,6 +391,40 @@ export async function updateConversationTitle(conversationId: number, title: str
     .where(eq(conversations.id, conversationId));
 }
 
+export async function updateConversationGoogleFile(
+  conversationId: number,
+  googleFileUri: string | null,
+  googleFileName: string | null
+) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  await db
+    .update(conversations)
+    .set({
+      googleFileUri,
+      googleFileName,
+      updatedAt: new Date()
+    })
+    .where(eq(conversations.id, conversationId));
+}
+
+export async function getConversationGoogleFile(conversationId: number) {
+  const db = await getDb();
+  if (!db) return null;
+
+  const result = await db
+    .select({
+      googleFileUri: conversations.googleFileUri,
+      googleFileName: conversations.googleFileName,
+    })
+    .from(conversations)
+    .where(eq(conversations.id, conversationId))
+    .limit(1);
+
+  return result[0] || null;
+}
+
 export async function toggleConversationPin(id: number) {
   const db = await getDb();
   if (!db) {

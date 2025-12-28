@@ -159,6 +159,29 @@ export async function readPdfWithVision(
 }
 
 /**
+ * Deletes a file from Google's File API servers
+ * 
+ * @param fileName - The file name returned from upload (e.g., "files/abc123")
+ * @param apiKey - Optional API key (uses ENV.geminiApiKey as fallback)
+ */
+export async function deleteFileFromGoogle(fileName: string, apiKey?: string): Promise<void> {
+    const key = apiKey || ENV.geminiApiKey;
+    if (!key) {
+        console.warn("[FileAPI] No API key available for file deletion");
+        return;
+    }
+
+    try {
+        const fileManager = new GoogleAIFileManager(key);
+        await fileManager.deleteFile(fileName);
+        console.log(`[FileAPI] File ${fileName} deleted from Google servers.`);
+    } catch (error) {
+        console.error(`[FileAPI] Failed to delete file ${fileName}:`, error);
+        throw error;
+    }
+}
+
+/**
  * Returns the default instruction for PDF extraction
  */
 function getDefaultInstruction(): string {

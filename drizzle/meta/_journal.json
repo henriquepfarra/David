@@ -8,6 +8,13 @@
       "when": 1766866997829,
       "tag": "0000_cold_sauron",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "5",
+      "when": 1766930779204,
+      "tag": "0001_smart_spectrum",
+      "breakpoints": true
     }
   ]
 }
