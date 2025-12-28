@@ -38,6 +38,8 @@ export function useAuth(options?: UseAuthOptions) {
     } finally {
       utils.auth.me.setData(undefined, null);
       await utils.auth.me.invalidate();
+      // Redirecionar para landing page após logout
+      window.location.href = "/";
     }
   }, [logoutMutation, utils]);
 
