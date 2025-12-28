@@ -5,16 +5,12 @@ import { Route, Switch } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import Home from "./pages/Home";
-import HomeCompact from "./pages/HomeCompact";
-import BaseConhecimento from "./pages/BaseConhecimento";
 import Processos from "./pages/Processos";
-import Ghostwriter from "./pages/Ghostwriter";
 import Configuracoes from "./pages/Configuracoes";
 import Jurisprudencia from "./pages/Jurisprudencia";
 import Minutas from "./pages/Minutas";
 import ProcessoDetalhes from "./pages/ProcessoDetalhes";
 import David from "./pages/David";
-import DavidConfig from "./pages/DavidConfig";
 import DavidPrompts from "./pages/DavidPrompts";
 import MemoriaDavid from "./pages/MemoriaDavid";
 import LocalAuth from "./pages/LocalAuth";
@@ -25,17 +21,13 @@ function Router() {
     <Switch>
       <Route path={"/login"} component={LocalAuth} />
       <Route path={"/"} component={Home} />
-      <Route path={"/home-compact"} component={HomeCompact} />
       <Route path={"/processos"} component={Processos} />
       <Route path={"/processo/:id"} component={ProcessoDetalhes} />
       <Route path={"/minutas"} component={Minutas} />
-      <Route path={"/ghostwriter"} component={Ghostwriter} />
       <Route path={"/david"} component={David} />
-      <Route path={"/david/config"} component={DavidConfig} />
       <Route path={"/david/prompts"} component={DavidPrompts} />
       <Route path={"/david/memoria"} component={MemoriaDavid} />
       <Route path={"/jurisprudencia"} component={Jurisprudencia} />
-      <Route path={"/base-conhecimento"} component={BaseConhecimento} />
       <Route path={"/configuracoes"} component={Configuracoes} />
       <Route path={"/404"} component={NotFound} />
       {/* Final fallback route */}
