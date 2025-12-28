@@ -33,6 +33,7 @@ import {
   searchSimilarTheses,
   getUserKnowledgeBase,
   getProcessDocuments,
+  findConversationsByProcessNumber,
 } from "./db";
 import { searchSimilarDocuments } from "./_core/textSearch";
 import { invokeLLM, invokeLLMStream, transcribeAudio } from "./_core/llm";
@@ -251,6 +252,38 @@ export const davidRouter = router({
       // Limpar referências no banco
       await updateConversationGoogleFile(input.conversationId, null, null);
       return { success: true };
+    }),
+
+  // Verificar se processo já existe em outra conversa
+  checkDuplicateProcess: protectedProcedure
+    .input(
+      z.object({
+        processNumber: z.string(),
+        excludeConversationId: z.number().optional(), // Excluir a conversa atual da busca
+      })
+    )
+    .query(async ({ ctx, input }) => {
+      const existingConversations = await findConversationsByProcessNumber(
+        ctx.user.id,
+        input.processNumber
+      );
+
+      // Filtrar a conversa atual se fornecida
+      const filtered = input.excludeConversationId
+        ? existingConversations.filter(c => c.conversationId !== input.excludeConversationId)
+        : existingConversations;
+
+      if (filtered.length > 0) {
+        return {
+          isDuplicate: true,
+          existingConversations: filtered.map(c => ({
+            id: c.conversationId,
+            title: c.conversationTitle,
+          })),
+        };
+      }
+
+      return { isDuplicate: false, existingConversations: [] };
     }),
 
   // Enviar mensagem e receber resposta do DAVID

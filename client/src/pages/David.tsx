@@ -96,6 +96,13 @@ export default function David() {
   const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({});
   const [isPromptSelectorOpen, setIsPromptSelectorOpen] = useState(false);
 
+  // Estado para diálogo de processo duplicado
+  const [duplicateProcessDialog, setDuplicateProcessDialog] = useState<{
+    isOpen: boolean;
+    processNumber: string | null;
+    existingConversations: { id: number; title: string }[];
+  }>({ isOpen: false, processNumber: null, existingConversations: [] });
+
   // Carregar prompts salvos
   const { data: savedPrompts } = trpc.david.savedPrompts.list.useQuery();
 
@@ -151,8 +158,36 @@ export default function David() {
 
   // Mutation nova para cadastro silencioso
   const registerFromUploadMutation = trpc.processes.registerFromUpload.useMutation({
-    onSuccess: (data) => {
-      // Vincula o processo à conversa atual (se houver)
+    onSuccess: async (data) => {
+      // Atualiza estado de upload
+      setUploadState(prev => ({ ...prev, stage: 'done' }));
+
+      // Verificar se o processo já existe em outra conversa
+      try {
+        const duplicateCheck = await utils.david.checkDuplicateProcess.fetch({
+          processNumber: data.processNumber,
+          excludeConversationId: selectedConversationId ?? undefined,
+        });
+
+        if (duplicateCheck.isDuplicate && duplicateCheck.existingConversations.length > 0) {
+          // Mostra diálogo de duplicata
+          setDuplicateProcessDialog({
+            isOpen: true,
+            processNumber: data.processNumber,
+            existingConversations: duplicateCheck.existingConversations,
+          });
+          // Não vincula automaticamente - espera decisão do usuário
+          setSelectedProcessId(data.processId);
+          setTimeout(() => {
+            setUploadState({ isUploading: false, stage: null, fileName: null, error: null });
+          }, 1000);
+          return;
+        }
+      } catch (e) {
+        console.error("[Duplicate Check] Erro:", e);
+      }
+
+      // Se não há duplicata, procede normalmente
       if (selectedConversationId && data.processId) {
         updateProcessMutation.mutate({
           conversationId: selectedConversationId,
@@ -160,9 +195,6 @@ export default function David() {
         });
       }
       setSelectedProcessId(data.processId);
-
-      // Atualiza estado de upload
-      setUploadState(prev => ({ ...prev, stage: 'done' }));
 
       // Mostra sucesso
       toast.success(`📂 Processo ${data.processNumber} identificado!`);
@@ -1651,6 +1683,56 @@ export default function David() {
             </div>
           </DialogContent>
         </Dialog >
+
+        {/* Dialog de Processo Duplicado */}
+        <Dialog
+          open={duplicateProcessDialog.isOpen}
+          onOpenChange={(open) => setDuplicateProcessDialog(prev => ({ ...prev, isOpen: open }))}
+        >
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 text-amber-600">
+                ⚠️ Processo já existe!
+              </DialogTitle>
+              <DialogDescription>
+                O processo <strong>{duplicateProcessDialog.processNumber}</strong> já está vinculado a outra(s) conversa(s):
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-2 my-4">
+              {duplicateProcessDialog.existingConversations.map((conv) => (
+                <div
+                  key={conv.id}
+                  className="flex items-center justify-between p-3 bg-muted rounded-lg"
+                >
+                  <span className="text-sm font-medium truncate flex-1">{conv.title}</span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setSelectedConversationId(conv.id);
+                      setDuplicateProcessDialog({ isOpen: false, processNumber: null, existingConversations: [] });
+                      toast.info("Navegando para conversa existente...");
+                    }}
+                  >
+                    <ChevronRight className="h-4 w-4 mr-1" />
+                    Ir
+                  </Button>
+                </div>
+              ))}
+            </div>
+            <div className="flex gap-2 justify-end">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setDuplicateProcessDialog({ isOpen: false, processNumber: null, existingConversations: [] });
+                  toast.success("Processo mantido nesta conversa.");
+                }}
+              >
+                Manter aqui
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div >
     </DashboardLayout >
   );

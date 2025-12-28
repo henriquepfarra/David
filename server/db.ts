@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import { drizzle, MySql2Database } from "drizzle-orm/mysql2";
 import { createPool } from "mysql2/promise";
 import { InsertUser, users } from "../drizzle/schema";
@@ -423,6 +423,35 @@ export async function getConversationGoogleFile(conversationId: number) {
     .limit(1);
 
   return result[0] || null;
+}
+
+/**
+ * Find conversations that have a process with the given processNumber
+ * Used to detect duplicate process uploads
+ */
+export async function findConversationsByProcessNumber(
+  userId: number,
+  processNumber: string
+): Promise<{ conversationId: number; conversationTitle: string; processId: number }[]> {
+  const db = await getDb();
+  if (!db) return [];
+
+  const result = await db
+    .select({
+      conversationId: conversations.id,
+      conversationTitle: conversations.title,
+      processId: conversations.processId,
+    })
+    .from(conversations)
+    .innerJoin(processes, eq(conversations.processId, processes.id))
+    .where(
+      and(
+        eq(conversations.userId, userId),
+        eq(processes.processNumber, processNumber)
+      )
+    );
+
+  return result.filter(r => r.processId !== null) as { conversationId: number; conversationTitle: string; processId: number }[];
 }
 
 export async function toggleConversationPin(id: number) {
