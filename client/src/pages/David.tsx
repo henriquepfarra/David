@@ -832,9 +832,7 @@ export default function David() {
               <div className="max-w-md space-y-6">
                 <div className="relative">
                   <div className="absolute inset-0 bg-primary/10 blur-3xl rounded-full" />
-                  <div className="h-24 w-24 bg-background rounded-2xl flex items-center justify-center mx-auto relative shadow-xl border overflow-hidden">
-                    <img src="/logo.png" alt="DAVID" className="h-20 w-20 object-contain" />
-                  </div>
+                  <img src="/logo.png" alt="DAVID" className="h-32 w-32 object-contain mx-auto relative" />
                 </div>
 
                 <div className="space-y-2">

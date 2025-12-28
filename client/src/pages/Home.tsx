@@ -86,7 +86,7 @@ export default function Home() {
       <header className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-md border-b">
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <img src={APP_LOGO} alt={APP_TITLE} className="h-8 w-8 rounded-lg" />
+            {/* Header sem logo - apenas espaço reservado */}
           </div>
           <div className="flex items-center gap-4">
             {loading ? (
@@ -103,8 +103,8 @@ export default function Home() {
 
       {/* Decorative Background Elements */}
       <div className="fixed inset-0 -z-10 overflow-hidden pointer-events-none">
-        <div className="absolute top-[-10%] right-[-5%] w-[500px] h-[500px] rounded-full bg-slate-200/20 dark:bg-slate-900/10 blur-[100px]" />
-        <div className="absolute bottom-[-10%] left-[-10%] w-[600px] h-[600px] rounded-full bg-slate-300/20 dark:bg-slate-800/10 blur-[100px]" />
+        <div className="absolute top-[-10%] right-[-5%] w-[500px] h-[500px] rounded-full bg-blue-200/30 dark:bg-blue-900/20 blur-[100px]" />
+        <div className="absolute bottom-[-10%] left-[-10%] w-[600px] h-[600px] rounded-full bg-slate-300/30 dark:bg-slate-800/20 blur-[100px]" />
       </div>
 
       {/* Hero Section */}
@@ -122,7 +122,7 @@ export default function Home() {
 
           <h1 className="text-5xl font-bold tracking-tight text-foreground sm:text-7xl leading-[1.1]">
             Celeridade e Precisão, <br />
-            <span className="text-primary">
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-primary">
               Para o Judiciário
             </span>
           </h1>
