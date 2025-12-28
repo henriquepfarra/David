@@ -941,59 +941,62 @@ export default function David() {
                       Enviar Processo
                     </Button>
 
-                    <Sheet open={isPromptsModalOpen} onOpenChange={setIsPromptsModalOpen}>
-                      <SheetTrigger asChild>
-                        <Button variant="ghost" size="sm" className="gap-2 rounded-full h-9 px-3 text-muted-foreground hover:text-primary">
-                          <BookMarked className="h-4 w-4" />
-                          Prompts
-                        </Button>
-                      </SheetTrigger>
-                      <SheetContent side="bottom" className="h-[70vh] rounded-t-2xl">
-                        {/* Header */}
-                        <div className="flex items-center justify-between py-4 border-b">
-                          <h2 className="text-xl font-bold">Prompts</h2>
-                          <div className="flex items-center gap-2">
-                            <Button
-                              onClick={() => setIsCreatePromptOpen(true)}
-                              className="gap-2 bg-primary hover:bg-primary/90"
-                            >
-                              <Plus className="h-4 w-4" />
-                              Prompt
-                            </Button>
-                          </div>
-                        </div>
+                    {/* Prompts Button */}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="gap-2 rounded-full h-9 px-3 text-muted-foreground hover:text-primary"
+                      onClick={() => setIsPromptsModalOpen(true)}
+                    >
+                      <BookMarked className="h-4 w-4" />
+                      Prompts
+                    </Button>
 
-                        {/* Create Prompt View */}
+                    {/* Prompts Modal (Dialog Style like Adapta) */}
+                    <Dialog open={isPromptsModalOpen} onOpenChange={(open) => {
+                      setIsPromptsModalOpen(open);
+                      if (!open) setIsCreatePromptOpen(false);
+                    }}>
+                      <DialogContent className="max-w-3xl h-[70vh] p-0 overflow-hidden">
                         {isCreatePromptOpen ? (
-                          <div className="pt-4 pb-6 h-full flex flex-col">
-                            <div className="flex items-center gap-3 mb-6">
-                              <Button
-                                variant="ghost"
-                                size="icon"
+                          /* Create Prompt View */
+                          <div className="flex flex-col h-full">
+                            {/* Header */}
+                            <div className="flex items-center gap-3 px-6 py-4 border-b">
+                              <button
                                 onClick={() => setIsCreatePromptOpen(false)}
+                                className="text-muted-foreground hover:text-foreground transition-colors"
                               >
-                                <ArrowLeft className="h-4 w-4" />
-                              </Button>
+                                <ArrowLeft className="h-5 w-5" />
+                              </button>
                               <span className="text-lg font-medium">Criar</span>
+                              <button
+                                onClick={() => setIsPromptsModalOpen(false)}
+                                className="ml-auto text-muted-foreground hover:text-foreground"
+                              >
+                                <X className="h-5 w-5" />
+                              </button>
                             </div>
 
-                            <div className="flex-1 space-y-4">
+                            {/* Form */}
+                            <div className="flex-1 p-6 space-y-4 overflow-y-auto">
                               <input
                                 type="text"
                                 placeholder="Nome do Prompt"
                                 value={newPromptTitle}
                                 onChange={(e) => setNewPromptTitle(e.target.value)}
-                                className="w-full text-xl font-semibold text-primary bg-transparent border-none outline-none placeholder:text-muted-foreground/50"
+                                className="w-full text-xl font-semibold text-primary bg-transparent border-none outline-none placeholder:text-muted-foreground/40"
                               />
                               <Textarea
                                 placeholder="Escreva seu prompt aqui..."
                                 value={newPromptContent}
                                 onChange={(e) => setNewPromptContent(e.target.value)}
-                                className="flex-1 min-h-[200px] resize-none border-none shadow-none focus-visible:ring-0 text-base"
+                                className="min-h-[300px] resize-none border-0 shadow-none focus-visible:ring-0 text-base p-0 placeholder:text-muted-foreground/40"
                               />
                             </div>
 
-                            <div className="flex items-center justify-between pt-4 border-t mt-auto">
+                            {/* Footer */}
+                            <div className="flex items-center justify-between px-6 py-4 border-t bg-muted/30">
                               <Button
                                 variant="ghost"
                                 onClick={() => {
@@ -1019,66 +1022,72 @@ export default function David() {
                                 {createPromptMutation.isPending ? (
                                   <Loader2 className="h-4 w-4 animate-spin" />
                                 ) : (
-                                  <Check className="h-4 w-4" />
+                                  <FileText className="h-4 w-4" />
                                 )}
                                 Salvar
                               </Button>
                             </div>
                           </div>
                         ) : (
-                          /* Prompts Grid */
-                          <ScrollArea className="h-[calc(100%-60px)] pt-4">
-                            {savedPrompts && savedPrompts.length > 0 ? (
-                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pb-4">
-                                {savedPrompts.map((prompt: any) => (
-                                  <div
-                                    key={prompt.id}
-                                    className="p-4 rounded-xl border bg-card hover:shadow-md transition-all group"
-                                  >
-                                    <div className="flex items-start justify-between mb-2">
-                                      <h3 className="font-semibold text-foreground truncate flex-1">
-                                        {prompt.title}
-                                      </h3>
-                                      <DropdownMenu>
-                                        <DropdownMenuTrigger asChild>
-                                          <Button variant="ghost" size="sm" className="h-8 gap-1 text-muted-foreground">
-                                            Usar
-                                            <ChevronRight className="h-3 w-3 rotate-90" />
-                                          </Button>
-                                        </DropdownMenuTrigger>
-                                        <DropdownMenuContent align="end">
-                                          <DropdownMenuItem
-                                            onClick={() => {
-                                              setMessageInput(prompt.content);
-                                              setIsPromptsModalOpen(false);
-                                            }}
-                                          >
-                                            Inserir no chat
-                                          </DropdownMenuItem>
-                                        </DropdownMenuContent>
-                                      </DropdownMenu>
+                          /* Prompts List View */
+                          <div className="flex flex-col h-full">
+                            {/* Header */}
+                            <div className="flex items-center justify-between px-6 py-4 border-b">
+                              <h2 className="text-lg font-semibold">Prompts</h2>
+                              <div className="flex items-center gap-3">
+                                <Button
+                                  onClick={() => setIsCreatePromptOpen(true)}
+                                  className="gap-2 bg-primary hover:bg-primary/90"
+                                >
+                                  <Plus className="h-4 w-4" />
+                                  Prompt
+                                </Button>
+                              </div>
+                            </div>
+
+                            {/* Content */}
+                            <ScrollArea className="flex-1 px-6">
+                              {savedPrompts && savedPrompts.length > 0 ? (
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 py-4">
+                                  {savedPrompts.map((prompt: any) => (
+                                    <div
+                                      key={prompt.id}
+                                      className="p-4 rounded-lg border hover:border-primary/30 hover:shadow-sm transition-all cursor-pointer group"
+                                      onClick={() => {
+                                        setMessageInput(prompt.content);
+                                        setIsPromptsModalOpen(false);
+                                      }}
+                                    >
+                                      <div className="flex items-start justify-between mb-2">
+                                        <h3 className="font-semibold text-foreground">
+                                          {prompt.title}
+                                        </h3>
+                                        <span className="text-sm text-muted-foreground group-hover:text-primary transition-colors flex items-center gap-1">
+                                          Usar
+                                          <ChevronRight className="h-3 w-3 rotate-90" />
+                                        </span>
+                                      </div>
+                                      <p className="text-sm text-muted-foreground line-clamp-3">
+                                        {prompt.content}
+                                      </p>
                                     </div>
-                                    <p className="text-sm text-muted-foreground line-clamp-2">
-                                      {prompt.content}
-                                    </p>
+                                  ))}
+                                </div>
+                              ) : (
+                                <div className="flex flex-col items-center justify-center py-20 text-center">
+                                  <div className="h-16 w-16 rounded-full bg-muted flex items-center justify-center mb-4">
+                                    <BookMarked className="h-8 w-8 text-muted-foreground" />
                                   </div>
-                                ))}
-                              </div>
-                            ) : (
-                              <div className="flex flex-col items-center justify-center py-12 text-center">
-                                <BookMarked className="h-12 w-12 text-muted-foreground/50 mb-4" />
-                                <p className="text-muted-foreground">
-                                  Nenhum prompt salvo.
-                                </p>
-                                <p className="text-sm text-muted-foreground/70">
-                                  Crie seu primeiro prompt clicando em "+ Prompt"
-                                </p>
-                              </div>
-                            )}
-                          </ScrollArea>
+                                  <p className="text-primary font-medium">
+                                    Nenhum prompt encontrado
+                                  </p>
+                                </div>
+                              )}
+                            </ScrollArea>
+                          </div>
                         )}
-                      </SheetContent>
-                    </Sheet>
+                      </DialogContent>
+                    </Dialog>
                   </div>
 
                   <div className="flex gap-2 items-center">
