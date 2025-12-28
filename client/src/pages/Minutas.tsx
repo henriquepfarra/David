@@ -20,7 +20,7 @@ export default function Minutas() {
 
   const utils = trpc.useUtils();
   const { data: drafts, isLoading } = trpc.drafts.listAll.useQuery();
-  
+
   const deleteMutation = trpc.drafts.delete.useMutation({
     onSuccess: () => {
       utils.drafts.listAll.invalidate();
@@ -58,7 +58,7 @@ export default function Minutas() {
             Minutas Salvas
           </h1>
           <p className="mt-2 text-muted-foreground">
-            Visualize e gerencie suas minutas geradas pelo Ghostwriter
+            Visualize e gerencie suas minutas geradas pelo DAVID
           </p>
         </div>
 
@@ -114,7 +114,7 @@ export default function Minutas() {
               <p className="text-muted-foreground text-center">
                 Nenhuma minuta salva ainda.
                 <br />
-                Use o Ghostwriter para gerar minutas automaticamente.
+                Use o DAVID para gerar minutas automaticamente.
               </p>
             </CardContent>
           </Card>

@@ -4,7 +4,7 @@ import { systemRouter } from "./_core/systemRouter";
 import { protectedProcedure, publicProcedure, router } from "./_core/trpc";
 import { z } from "zod";
 import * as db from "./db";
-import { generateDraft } from "./ghostwriter";
+import { generateDraft } from "./draftGenerator";
 import { fetchDriveContentCached } from "./driveHelper";
 import { listAvailableModels } from "./llmModels";
 import { davidRouter } from "./davidRouter";
@@ -399,8 +399,8 @@ export const appRouter = router({
       }),
   }),
 
-  // Ghostwriter - Geração de minutas com IA
-  ghostwriter: router({
+  // Geração de minutas com IA (DAVID)
+  draftGenerator: router({
     generate: protectedProcedure
       .input(z.object({
         processId: z.number(),

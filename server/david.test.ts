@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { generateDraft, chunkText } from "./ghostwriter";
+import { generateDraft, chunkText } from "./draftGenerator";
 
 describe("David - System Prompt e Conhecimento Híbrido", () => {
   it("should generate draft with David system prompt", async () => {
