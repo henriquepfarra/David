@@ -35,7 +35,7 @@ export default function LocalAuth() {
                     </div>
                     <CardTitle className="text-2xl font-bold text-primary">DAVID</CardTitle>
                     <CardDescription>
-                        Assistente Jurídico com Inteligência Artificial
+                        Seu assistente jurídico inteligente
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="flex flex-col gap-4">

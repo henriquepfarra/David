@@ -38,9 +38,9 @@ export default function Home() {
       title: "DAVID - O Assistente Virtual",
       description: "IA treinada em Direito Brasileiro e nas peculiaridades do seu gabinete. Gera minutas personalizadas.",
       href: "/david",
-      color: "text-purple-600 dark:text-purple-400",
-      bg: "bg-purple-50 dark:bg-purple-950/30",
-      border: "hover:border-purple-200 dark:hover:border-purple-800",
+      color: "text-amber-600 dark:text-amber-400",
+      bg: "bg-amber-50 dark:bg-amber-950/30",
+      border: "hover:border-amber-200 dark:hover:border-amber-800",
     },
     {
       icon: BookOpen,
@@ -87,7 +87,6 @@ export default function Home() {
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <img src={APP_LOGO} alt={APP_TITLE} className="h-8 w-8 rounded-lg" />
-            <span className="font-semibold text-lg">{APP_TITLE}</span>
           </div>
           <div className="flex items-center gap-4">
             {loading ? (
@@ -104,8 +103,8 @@ export default function Home() {
 
       {/* Decorative Background Elements */}
       <div className="fixed inset-0 -z-10 overflow-hidden pointer-events-none">
-        <div className="absolute top-[-10%] right-[-5%] w-[500px] h-[500px] rounded-full bg-purple-200/20 dark:bg-purple-900/10 blur-[100px]" />
-        <div className="absolute bottom-[-10%] left-[-10%] w-[600px] h-[600px] rounded-full bg-blue-200/20 dark:bg-blue-900/10 blur-[100px]" />
+        <div className="absolute top-[-10%] right-[-5%] w-[500px] h-[500px] rounded-full bg-slate-200/20 dark:bg-slate-900/10 blur-[100px]" />
+        <div className="absolute bottom-[-10%] left-[-10%] w-[600px] h-[600px] rounded-full bg-slate-300/20 dark:bg-slate-800/10 blur-[100px]" />
       </div>
 
       {/* Hero Section */}
@@ -123,7 +122,7 @@ export default function Home() {
 
           <h1 className="text-5xl font-bold tracking-tight text-foreground sm:text-7xl leading-[1.1]">
             Celeridade e Precisão, <br />
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600 dark:from-blue-400 dark:to-purple-400">
+            <span className="text-primary">
               Para o Judiciário
             </span>
           </h1>

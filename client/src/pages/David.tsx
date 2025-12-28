@@ -831,14 +831,14 @@ export default function David() {
             <div className="flex-1 flex flex-col items-center justify-center p-8 text-center animate-in fade-in duration-500">
               <div className="max-w-md space-y-6">
                 <div className="relative">
-                  <div className="absolute inset-0 bg-primary/20 blur-3xl rounded-full" />
-                  <div className="h-24 w-24 bg-gradient-to-br from-violet-600 to-indigo-600 rounded-2xl flex items-center justify-center mx-auto relative shadow-xl transform rotate-3">
-                    <span className="text-4xl font-bold text-white">D</span>
+                  <div className="absolute inset-0 bg-primary/10 blur-3xl rounded-full" />
+                  <div className="h-24 w-24 bg-background rounded-2xl flex items-center justify-center mx-auto relative shadow-xl border overflow-hidden">
+                    <img src="/logo.png" alt="DAVID" className="h-20 w-20 object-contain" />
                   </div>
                 </div>
 
                 <div className="space-y-2">
-                  <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-violet-600 to-indigo-600 bg-clip-text text-transparent">
+                  <h1 className="text-3xl font-bold tracking-tight text-primary">
                     Bem-vindo ao DAVID
                   </h1>
                   <p className="text-muted-foreground text-lg">
@@ -876,7 +876,7 @@ export default function David() {
             {/* Banner de progresso removido - agora fica dentro do input */}
 
             <div className="p-4 border-t bg-background">
-              <div className="max-w-4xl mx-auto border rounded-[2rem] p-4 relative shadow-sm bg-card transition-all focus-within:ring-1 focus-within:ring-violet-500/50">
+              <div className="max-w-4xl mx-auto border rounded-[2rem] p-4 relative shadow-sm bg-card transition-all focus-within:ring-1 focus-within:ring-primary/50">
 
                 <div className="flex justify-between items-start mb-2 relative">
                   <Textarea
@@ -917,7 +917,7 @@ export default function David() {
                     <Button
                       variant="outline"
                       size="sm"
-                      className="gap-2 rounded-full h-9 px-4 border-dashed border-violet-500/30 hover:bg-violet-500/10 hover:border-violet-500/50 hover:text-violet-500 transition-all font-medium"
+                      className="gap-2 rounded-full h-9 px-4 border-dashed border-primary/30 hover:bg-primary/10 hover:border-primary/50 hover:text-primary transition-all font-medium"
                       onClick={open}
                     >
                       <Gavel className="h-4 w-4" />
@@ -972,7 +972,7 @@ export default function David() {
                       onClick={handleSendMessage}
                       disabled={!messageInput.trim() && !isProcessing}
                       size="icon"
-                      className={`h-10 w-10 rounded-full transition-all duration-300 ${messageInput.trim() ? 'bg-violet-600 hover:bg-violet-700 text-white shadow-md hover:scale-105' : 'bg-muted text-muted-foreground'}`}
+                      className={`h-10 w-10 rounded-full transition-all duration-300 ${messageInput.trim() ? 'bg-primary hover:bg-primary/90 text-primary-foreground shadow-md hover:scale-105' : 'bg-muted text-muted-foreground'}`}
                     >
                       {isProcessing ? (
                         <Loader2 className="h-5 w-5 animate-spin" />
