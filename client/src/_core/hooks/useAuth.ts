@@ -36,10 +36,12 @@ export function useAuth(options?: UseAuthOptions) {
       }
       throw error;
     } finally {
+      // Limpar dados locais de usuário
+      localStorage.removeItem("manus-runtime-user-info");
       utils.auth.me.setData(undefined, null);
       await utils.auth.me.invalidate();
-      // Redirecionar para landing page após logout
-      window.location.href = "/";
+      // Usar replace para evitar voltar com botão back
+      window.location.replace("/");
     }
   }, [logoutMutation, utils]);
 

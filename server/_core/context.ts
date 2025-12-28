@@ -14,27 +14,15 @@ export async function createContext(
   let user: User | null = null;
 
   try {
-    // In development mode, auto-login as admin
+    // In development mode, try to authenticate via cookie first
     if (process.env.NODE_ENV === "development") {
-      console.log("🔓 [Auth] Development mode detected: Bypassing authentication with mock user.");
-      user = {
-        id: 999999,
-        openId: "dev-user-id",
-        name: "Desenvolvedor Local",
-        email: "dev@local.test",
-        loginMethod: "local",
-        role: "admin",
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        lastSignedIn: new Date(),
-      };
-      // Garantir que o usuário exista no BD para não quebrar chaves estrangeiras
-      try {
-        const { upsertUser } = await import("../db");
-        await upsertUser(user);
-      } catch (dbError) {
-        console.warn("⚠️ [Auth] Failed to upsert dev user (Database might be offline):", dbError);
+      // Check if user has a valid session cookie (set by localLogin)
+      const authResult = await sdk.authenticateRequest(opts.req);
+      if (authResult) {
+        user = authResult;
       }
+      // If no session, user stays null (not logged in)
+      // User can login via /login page which calls localLogin
     } else {
       user = await sdk.authenticateRequest(opts.req);
     }
