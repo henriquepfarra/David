@@ -22,13 +22,14 @@ import {
 } from "@/components/ui/sidebar";
 import { APP_LOGO, APP_TITLE, getLoginUrl } from "@/const";
 import { useIsMobile } from "@/hooks/useMobile";
-import { LogOut, PanelLeft, Plus, Search, Settings, MessageSquare, Pin } from "lucide-react";
+import { LogOut, PanelLeft, Plus, Search, Settings, MessageSquare, Pin, MoreVertical, Pencil, Trash2 } from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { DashboardLayoutSkeleton } from './DashboardLayoutSkeleton';
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { ScrollArea } from "./ui/scroll-area";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "./ui/dialog";
 import { trpc } from "@/lib/trpc";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -127,12 +128,37 @@ function DashboardLayoutContent({
   const [searchQuery, setSearchQuery] = useState("");
 
   // Fetch conversations for sidebar
-  const { data: conversations } = trpc.david.listConversations.useQuery();
+  const { data: conversations, refetch: refetchConversations } = trpc.david.listConversations.useQuery();
   const createConversationMutation = trpc.david.createConversation.useMutation({
     onSuccess: (data) => {
       setLocation(`/david?c=${data.id}`);
+      refetchConversations();
     },
   });
+
+  // Mutations for conversation actions
+  const renameConversationMutation = trpc.david.renameConversation.useMutation({
+    onSuccess: () => {
+      refetchConversations();
+      setRenameDialogOpen(false);
+    },
+  });
+
+  const deleteConversationMutation = trpc.david.deleteConversation.useMutation({
+    onSuccess: () => {
+      refetchConversations();
+      setLocation("/david");
+    },
+  });
+
+  const togglePinMutation = trpc.david.togglePin.useMutation({
+    onSuccess: () => refetchConversations(),
+  });
+
+  // States for rename dialog
+  const [renameDialogOpen, setRenameDialogOpen] = useState(false);
+  const [renamingConvId, setRenamingConvId] = useState<number | null>(null);
+  const [newTitle, setNewTitle] = useState("");
 
   // Filter conversations by search
   const filteredConversations = conversations?.filter(conv =>
@@ -294,19 +320,67 @@ function DashboardLayoutContent({
                       {group}
                     </p>
                     {convs?.map((conv) => (
-                      <button
-                        key={conv.id}
-                        onClick={() => setLocation(`/david?c=${conv.id}`)}
-                        className={`w-full text-left px-2 py-2 rounded-lg text-sm hover:bg-accent transition-colors flex items-center gap-2 group ${currentConversationId === conv.id ? "bg-accent" : ""
-                          }`}
-                      >
-                        {conv.isPinned ? (
-                          <Pin className="h-3.5 w-3.5 text-primary shrink-0" />
-                        ) : (
-                          <MessageSquare className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                        )}
-                        <span className="truncate flex-1">{conv.title}</span>
-                      </button>
+                      <div key={conv.id} className="relative group/conv">
+                        <button
+                          onClick={() => setLocation(`/david?c=${conv.id}`)}
+                          className={`w-full text-left px-2 py-2 rounded-lg text-sm hover:bg-accent transition-colors flex items-center gap-2 pr-8 ${currentConversationId === conv.id ? "bg-accent" : ""
+                            }`}
+                        >
+                          {conv.isPinned ? (
+                            <Pin className="h-3.5 w-3.5 text-primary shrink-0" />
+                          ) : (
+                            <MessageSquare className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                          )}
+                          <span className="truncate flex-1">{conv.title}</span>
+                        </button>
+
+                        {/* Context Menu */}
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <button
+                              className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 flex items-center justify-center rounded-md opacity-0 group-hover/conv:opacity-100 hover:bg-muted transition-all"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <MoreVertical className="h-4 w-4 text-muted-foreground" />
+                            </button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="w-40">
+                            <DropdownMenuItem
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                togglePinMutation.mutate({ id: conv.id });
+                              }}
+                            >
+                              <Pin className="h-4 w-4 mr-2" />
+                              {conv.isPinned ? "Desafixar" : "Fixar"}
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setRenamingConvId(conv.id);
+                                setNewTitle(conv.title);
+                                setRenameDialogOpen(true);
+                              }}
+                            >
+                              <Pencil className="h-4 w-4 mr-2" />
+                              Renomear
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (confirm("Excluir esta conversa?")) {
+                                  deleteConversationMutation.mutate({ id: conv.id });
+                                }
+                              }}
+                              className="text-destructive focus:text-destructive"
+                            >
+                              <Trash2 className="h-4 w-4 mr-2" />
+                              Excluir
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
                     ))}
                   </div>
                 ))}
@@ -397,6 +471,48 @@ function DashboardLayoutContent({
         )}
         <main className="flex-1">{children}</main>
       </SidebarInset>
+
+      {/* Rename Dialog */}
+      <Dialog open={renameDialogOpen} onOpenChange={setRenameDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Renomear conversa</DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            <Input
+              value={newTitle}
+              onChange={(e) => setNewTitle(e.target.value)}
+              placeholder="Novo título..."
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && newTitle.trim() && renamingConvId) {
+                  renameConversationMutation.mutate({
+                    conversationId: renamingConvId,
+                    title: newTitle.trim(),
+                  });
+                }
+              }}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRenameDialogOpen(false)}>
+              Cancelar
+            </Button>
+            <Button
+              onClick={() => {
+                if (newTitle.trim() && renamingConvId) {
+                  renameConversationMutation.mutate({
+                    conversationId: renamingConvId,
+                    title: newTitle.trim(),
+                  });
+                }
+              }}
+              disabled={!newTitle.trim()}
+            >
+              Salvar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

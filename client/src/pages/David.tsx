@@ -104,7 +104,27 @@ export default function David() {
   }>({ isOpen: false, processNumber: null, existingConversations: [] });
 
   // Carregar prompts salvos
-  const { data: savedPrompts } = trpc.david.savedPrompts.list.useQuery();
+  const { data: savedPrompts, refetch: refetchPrompts } = trpc.david.savedPrompts.list.useQuery();
+
+  // Estados para modal de prompts
+  const [isPromptsModalOpen, setIsPromptsModalOpen] = useState(false);
+  const [isCreatePromptOpen, setIsCreatePromptOpen] = useState(false);
+  const [newPromptTitle, setNewPromptTitle] = useState("");
+  const [newPromptContent, setNewPromptContent] = useState("");
+
+  // Mutation para criar prompt
+  const createPromptMutation = trpc.david.savedPrompts.create.useMutation({
+    onSuccess: () => {
+      refetchPrompts();
+      setIsCreatePromptOpen(false);
+      setNewPromptTitle("");
+      setNewPromptContent("");
+      toast.success("Prompt criado com sucesso!");
+    },
+    onError: () => {
+      toast.error("Erro ao criar prompt");
+    },
+  });
 
   // Mutation para upload de documentos
   const uploadDocMutation = trpc.processDocuments.upload.useMutation();
@@ -921,33 +941,144 @@ export default function David() {
                       Enviar Processo
                     </Button>
 
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
+                    <Sheet open={isPromptsModalOpen} onOpenChange={setIsPromptsModalOpen}>
+                      <SheetTrigger asChild>
                         <Button variant="ghost" size="sm" className="gap-2 rounded-full h-9 px-3 text-muted-foreground hover:text-primary">
                           <BookMarked className="h-4 w-4" />
                           Prompts
                         </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="start" className="w-64">
-                        <DropdownMenuLabel>Prompts Salvos</DropdownMenuLabel>
-                        <DropdownMenuSeparator />
-                        {savedPrompts && savedPrompts.length > 0 ? (
-                          savedPrompts.map((prompt: any) => (
-                            <DropdownMenuItem
-                              key={prompt.id}
-                              onClick={() => setMessageInput(prompt.content)}
-                              className="cursor-pointer"
+                      </SheetTrigger>
+                      <SheetContent side="bottom" className="h-[70vh] rounded-t-2xl">
+                        {/* Header */}
+                        <div className="flex items-center justify-between py-4 border-b">
+                          <h2 className="text-xl font-bold">Prompts</h2>
+                          <div className="flex items-center gap-2">
+                            <Button
+                              onClick={() => setIsCreatePromptOpen(true)}
+                              className="gap-2 bg-primary hover:bg-primary/90"
                             >
-                              <span className="truncate">{prompt.title}</span>
-                            </DropdownMenuItem>
-                          ))
-                        ) : (
-                          <div className="p-2 text-sm text-muted-foreground text-center">
-                            Nenhum prompt salvo.
+                              <Plus className="h-4 w-4" />
+                              Prompt
+                            </Button>
                           </div>
+                        </div>
+
+                        {/* Create Prompt View */}
+                        {isCreatePromptOpen ? (
+                          <div className="pt-4 pb-6 h-full flex flex-col">
+                            <div className="flex items-center gap-3 mb-6">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => setIsCreatePromptOpen(false)}
+                              >
+                                <ArrowLeft className="h-4 w-4" />
+                              </Button>
+                              <span className="text-lg font-medium">Criar</span>
+                            </div>
+
+                            <div className="flex-1 space-y-4">
+                              <input
+                                type="text"
+                                placeholder="Nome do Prompt"
+                                value={newPromptTitle}
+                                onChange={(e) => setNewPromptTitle(e.target.value)}
+                                className="w-full text-xl font-semibold text-primary bg-transparent border-none outline-none placeholder:text-muted-foreground/50"
+                              />
+                              <Textarea
+                                placeholder="Escreva seu prompt aqui..."
+                                value={newPromptContent}
+                                onChange={(e) => setNewPromptContent(e.target.value)}
+                                className="flex-1 min-h-[200px] resize-none border-none shadow-none focus-visible:ring-0 text-base"
+                              />
+                            </div>
+
+                            <div className="flex items-center justify-between pt-4 border-t mt-auto">
+                              <Button
+                                variant="ghost"
+                                onClick={() => {
+                                  setIsCreatePromptOpen(false);
+                                  setNewPromptTitle("");
+                                  setNewPromptContent("");
+                                }}
+                              >
+                                Cancelar
+                              </Button>
+                              <Button
+                                onClick={() => {
+                                  if (newPromptTitle.trim() && newPromptContent.trim()) {
+                                    createPromptMutation.mutate({
+                                      title: newPromptTitle.trim(),
+                                      content: newPromptContent.trim(),
+                                    });
+                                  }
+                                }}
+                                disabled={!newPromptTitle.trim() || !newPromptContent.trim() || createPromptMutation.isPending}
+                                className="gap-2 bg-primary hover:bg-primary/90"
+                              >
+                                {createPromptMutation.isPending ? (
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                  <Check className="h-4 w-4" />
+                                )}
+                                Salvar
+                              </Button>
+                            </div>
+                          </div>
+                        ) : (
+                          /* Prompts Grid */
+                          <ScrollArea className="h-[calc(100%-60px)] pt-4">
+                            {savedPrompts && savedPrompts.length > 0 ? (
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pb-4">
+                                {savedPrompts.map((prompt: any) => (
+                                  <div
+                                    key={prompt.id}
+                                    className="p-4 rounded-xl border bg-card hover:shadow-md transition-all group"
+                                  >
+                                    <div className="flex items-start justify-between mb-2">
+                                      <h3 className="font-semibold text-foreground truncate flex-1">
+                                        {prompt.title}
+                                      </h3>
+                                      <DropdownMenu>
+                                        <DropdownMenuTrigger asChild>
+                                          <Button variant="ghost" size="sm" className="h-8 gap-1 text-muted-foreground">
+                                            Usar
+                                            <ChevronRight className="h-3 w-3 rotate-90" />
+                                          </Button>
+                                        </DropdownMenuTrigger>
+                                        <DropdownMenuContent align="end">
+                                          <DropdownMenuItem
+                                            onClick={() => {
+                                              setMessageInput(prompt.content);
+                                              setIsPromptsModalOpen(false);
+                                            }}
+                                          >
+                                            Inserir no chat
+                                          </DropdownMenuItem>
+                                        </DropdownMenuContent>
+                                      </DropdownMenu>
+                                    </div>
+                                    <p className="text-sm text-muted-foreground line-clamp-2">
+                                      {prompt.content}
+                                    </p>
+                                  </div>
+                                ))}
+                              </div>
+                            ) : (
+                              <div className="flex flex-col items-center justify-center py-12 text-center">
+                                <BookMarked className="h-12 w-12 text-muted-foreground/50 mb-4" />
+                                <p className="text-muted-foreground">
+                                  Nenhum prompt salvo.
+                                </p>
+                                <p className="text-sm text-muted-foreground/70">
+                                  Crie seu primeiro prompt clicando em "+ Prompt"
+                                </p>
+                              </div>
+                            )}
+                          </ScrollArea>
                         )}
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                      </SheetContent>
+                    </Sheet>
                   </div>
 
                   <div className="flex gap-2 items-center">
