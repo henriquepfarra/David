@@ -830,11 +830,11 @@ export default function David() {
             // Hero / Estado Vazio
             <div className="flex-1 flex flex-col items-center justify-center p-8 text-center animate-in fade-in duration-500">
               <div className="max-w-md space-y-6">
-                <div className="mb-4">
+                <div>
                   <img src="/logo.png" alt="DAVID" className="h-80 w-80 object-contain mx-auto" />
                 </div>
 
-                <div className="space-y-2">
+                <div className="space-y-2 -mt-6">
                   <h1 className="text-3xl font-bold tracking-tight text-primary">
                     Bem-vindo ao DAVID
                   </h1>
