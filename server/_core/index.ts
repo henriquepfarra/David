@@ -192,6 +192,40 @@ async function startServer() {
     }
   });
 
+  // Cleanup endpoint para sendBeacon (chamado ao fechar navegador)
+  app.post("/api/david/cleanup", async (req, res) => {
+    try {
+      const { conversationId } = req.body;
+
+      if (!conversationId) {
+        res.status(400).json({ error: "conversationId required" });
+        return;
+      }
+
+      // Importar funções necessárias
+      const { getConversationGoogleFile, updateConversationGoogleFile } = await import("../db");
+      const { deleteFileFromGoogle } = await import("./fileApi");
+
+      const googleFile = await getConversationGoogleFile(parseInt(conversationId));
+
+      if (googleFile?.googleFileName) {
+        try {
+          await deleteFileFromGoogle(googleFile.googleFileName);
+          console.log(`[Cleanup/Beacon] Arquivo ${googleFile.googleFileName} deletado`);
+        } catch (deleteError) {
+          console.error("[Cleanup/Beacon] Erro ao deletar:", deleteError);
+        }
+      }
+
+      // Limpar referências no banco
+      await updateConversationGoogleFile(parseInt(conversationId), null, null);
+
+      res.status(200).json({ success: true });
+    } catch (error) {
+      console.error("[Cleanup/Beacon] Erro:", error);
+      res.status(500).json({ error: "Cleanup failed" });
+    }
+  });
 
   // Global error handler
   app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {

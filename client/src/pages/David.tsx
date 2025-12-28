@@ -59,6 +59,7 @@ export default function David() {
   const [streamingMessage, setStreamingMessage] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
+  const previousConversationIdRef = useRef<number | null>(null);
 
   // Estados para seleção múltipla
   const [isSelectionMode, setIsSelectionMode] = useState(false);
@@ -127,6 +128,16 @@ export default function David() {
     },
     onError: (error) => {
       toast.error("Erro ao vincular processo: " + error.message);
+    },
+  });
+
+  // Mutation para limpar arquivo Google ao sair da conversa
+  const cleanupGoogleFileMutation = trpc.david.cleanupGoogleFile.useMutation({
+    onSuccess: () => {
+      console.log("[Cleanup] Arquivo Google limpo com sucesso");
+    },
+    onError: (error) => {
+      console.error("[Cleanup] Erro ao limpar arquivo:", error.message);
     },
   });
 
@@ -242,6 +253,39 @@ export default function David() {
       toast.error("Erro ao aplicar prompt: " + error.message);
     },
   });
+
+  // Effect para cleanup ao trocar de conversa
+  useEffect(() => {
+    // Se trocou de conversa e tinha uma anterior com processo vinculado
+    if (
+      previousConversationIdRef.current !== null &&
+      previousConversationIdRef.current !== selectedConversationId
+    ) {
+      // Faz cleanup da conversa anterior
+      cleanupGoogleFileMutation.mutate({
+        conversationId: previousConversationIdRef.current
+      });
+    }
+    // Atualiza referência
+    previousConversationIdRef.current = selectedConversationId;
+  }, [selectedConversationId]);
+
+  // Effect para cleanup ao fechar o navegador
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      if (selectedConversationId) {
+        // Usa sendBeacon para garantir que a requisição seja enviada
+        // mesmo com o navegador fechando
+        const data = JSON.stringify({ conversationId: selectedConversationId });
+        navigator.sendBeacon('/api/david/cleanup', data);
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [selectedConversationId]);
 
   // Função para fazer streaming
   const streamMessage = async (conversationId: number, content: string) => {
