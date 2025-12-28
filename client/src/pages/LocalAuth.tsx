@@ -27,17 +27,20 @@ export default function LocalAuth() {
     };
 
     return (
-        <div className="min-h-screen w-full flex items-center justify-center bg-gray-50 dark:bg-gray-900 p-4">
+        <div className="min-h-screen w-full flex items-center justify-center bg-background p-4">
             <Card className="w-full max-w-md">
                 <CardHeader className="text-center">
-                    <CardTitle className="text-2xl font-bold">DAVID</CardTitle>
+                    <div className="flex justify-center mb-4">
+                        <img src="/logo-seal.png" alt="DAVID" className="h-20 w-20 object-contain" />
+                    </div>
+                    <CardTitle className="text-2xl font-bold text-primary">DAVID</CardTitle>
                     <CardDescription>
-                        Ambiente de Desenvolvimento Local
+                        Assistente Jurídico com Inteligência Artificial
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="flex flex-col gap-4">
                     <div className="bg-amber-50 text-amber-900 p-4 rounded-md text-sm mb-2 border border-amber-200">
-                        Este aplicativo está rodando em modo local. A autenticação externa foi desativada.
+                        Ambiente de Desenvolvimento Local
                     </div>
 
                     <Button
