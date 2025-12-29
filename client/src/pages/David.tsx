@@ -893,248 +893,203 @@ export default function David() {
             {/* Banner de progresso removido - agora fica dentro do input */}
 
             <div className="p-4 border-t bg-background">
-              <div className="max-w-4xl mx-auto border rounded-[2rem] p-4 relative shadow-sm bg-card transition-all focus-within:ring-1 focus-within:ring-primary/50">
-
-                <div className="flex justify-between items-start mb-2 relative">
-                  <Textarea
-                    ref={textareaRef}
-                    value={messageInput}
-                    onChange={(e) => {
-                      setMessageInput(e.target.value);
-                      adjustTextareaHeight();
-                    }}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" && !e.shiftKey) {
-                        e.preventDefault();
-                        handleSendMessage();
-                      }
-                    }}
-                    placeholder="O que posso fazer por você?"
-                    className="border-0 shadow-none resize-none min-h-[60px] w-full p-0 pr-10 focus-visible:ring-0 bg-transparent text-lg placeholder:text-muted-foreground/50"
-                    style={{ maxHeight: "200px" }}
-                  />
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8 text-muted-foreground hover:text-primary absolute top-0 right-0 transition-colors"
-                    title="Melhorar Prompt (IA)"
-                    onClick={handleEnhancePrompt}
-                    disabled={!messageInput.trim() || enhancePromptMutation.isPending}
-                  >
-                    {enhancePromptMutation.isPending ? (
-                      <Loader2 className="h-4 w-4 animate-spin text-primary" />
-                    ) : (
-                      <Wand2 className="h-5 w-5" />
-                    )}
-                  </Button>
-                </div>
-
-                <div className="flex justify-between items-center mt-2">
-                  <div className="flex gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="gap-2 rounded-full h-9 px-4 border-dashed border-primary/30 hover:bg-primary/10 hover:border-primary/50 hover:text-primary transition-all font-medium"
-                      onClick={open}
+              <div className="max-w-4xl mx-auto">
+                {/* Inline Prompts Panel - expands above input */}
+                <AnimatePresence>
+                  {isPromptsModalOpen && (
+                    <motion.div
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: "auto", opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      transition={{ duration: 0.2 }}
+                      className="overflow-hidden"
                     >
-                      <Gavel className="h-4 w-4" />
-                      Enviar Processo
-                    </Button>
-
-                    {/* Prompts Button */}
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="gap-2 rounded-full h-9 px-3 text-muted-foreground hover:text-primary"
-                      onClick={() => setIsPromptsModalOpen(true)}
-                    >
-                      <BookMarked className="h-4 w-4" />
-                      Prompts
-                    </Button>
-
-                    {/* Prompts Modal (Dialog Style like Adapta) */}
-                    <Dialog open={isPromptsModalOpen} onOpenChange={(open) => {
-                      setIsPromptsModalOpen(open);
-                      if (!open) setIsCreatePromptOpen(false);
-                    }}>
-                      <DialogContent className="max-w-3xl h-[70vh] p-0 overflow-hidden">
+                      <div className="border border-b-0 rounded-t-2xl bg-card shadow-lg overflow-hidden">
                         {isCreatePromptOpen ? (
                           /* Create Prompt View */
-                          <div className="flex flex-col h-full">
-                            {/* Header */}
-                            <div className="flex items-center gap-3 px-6 py-4 border-b">
-                              <button
-                                onClick={() => setIsCreatePromptOpen(false)}
-                                className="text-muted-foreground hover:text-foreground transition-colors"
-                              >
+                          <div className="flex flex-col">
+                            <div className="flex items-center gap-3 px-4 py-3 border-b">
+                              <button onClick={() => setIsCreatePromptOpen(false)} className="text-muted-foreground hover:text-foreground">
                                 <ArrowLeft className="h-5 w-5" />
                               </button>
-                              <span className="text-lg font-medium">Criar</span>
-                              <button
-                                onClick={() => setIsPromptsModalOpen(false)}
-                                className="ml-auto text-muted-foreground hover:text-foreground"
-                              >
+                              <span className="font-medium">Criar</span>
+                              <button onClick={() => { setIsPromptsModalOpen(false); setIsCreatePromptOpen(false); }} className="ml-auto text-muted-foreground hover:text-foreground">
                                 <X className="h-5 w-5" />
                               </button>
                             </div>
-
-                            {/* Form */}
-                            <div className="flex-1 p-6 space-y-4 overflow-y-auto">
+                            <div className="p-4 space-y-3">
                               <input
                                 type="text"
                                 placeholder="Nome do Prompt"
                                 value={newPromptTitle}
                                 onChange={(e) => setNewPromptTitle(e.target.value)}
-                                className="w-full text-xl font-semibold text-primary bg-transparent border-none outline-none placeholder:text-muted-foreground/40"
+                                className="w-full text-lg font-semibold text-primary bg-transparent border-none outline-none placeholder:text-muted-foreground/40"
                               />
                               <Textarea
                                 placeholder="Escreva seu prompt aqui..."
                                 value={newPromptContent}
                                 onChange={(e) => setNewPromptContent(e.target.value)}
-                                className="min-h-[300px] resize-none border-0 shadow-none focus-visible:ring-0 text-base p-0 placeholder:text-muted-foreground/40"
+                                className="min-h-[150px] resize-none border-0 shadow-none focus-visible:ring-0 text-base p-0 placeholder:text-muted-foreground/40"
                               />
                             </div>
-
-                            {/* Footer */}
-                            <div className="flex items-center justify-between px-6 py-4 border-t bg-muted/30">
-                              <Button
-                                variant="ghost"
-                                onClick={() => {
-                                  setIsCreatePromptOpen(false);
-                                  setNewPromptTitle("");
-                                  setNewPromptContent("");
-                                }}
-                              >
-                                Cancelar
-                              </Button>
-                              <Button
-                                onClick={() => {
-                                  if (newPromptTitle.trim() && newPromptContent.trim()) {
-                                    createPromptMutation.mutate({
-                                      title: newPromptTitle.trim(),
-                                      content: newPromptContent.trim(),
-                                    });
-                                  }
-                                }}
-                                disabled={!newPromptTitle.trim() || !newPromptContent.trim() || createPromptMutation.isPending}
-                                className="gap-2 bg-primary hover:bg-primary/90"
-                              >
-                                {createPromptMutation.isPending ? (
-                                  <Loader2 className="h-4 w-4 animate-spin" />
-                                ) : (
-                                  <FileText className="h-4 w-4" />
-                                )}
+                            <div className="flex items-center justify-between px-4 py-3 border-t bg-muted/30">
+                              <Button variant="ghost" size="sm" onClick={() => { setIsCreatePromptOpen(false); setNewPromptTitle(""); setNewPromptContent(""); }}>Cancelar</Button>
+                              <Button size="sm" onClick={() => { if (newPromptTitle.trim() && newPromptContent.trim()) { createPromptMutation.mutate({ title: newPromptTitle.trim(), content: newPromptContent.trim() }); } }} disabled={!newPromptTitle.trim() || !newPromptContent.trim() || createPromptMutation.isPending} className="gap-2">
+                                {createPromptMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4" />}
                                 Salvar
                               </Button>
                             </div>
                           </div>
                         ) : (
-                          /* Prompts List View */
-                          <div className="flex flex-col h-full">
-                            {/* Header */}
-                            <div className="flex items-center justify-between px-6 py-4 border-b">
-                              <h2 className="text-lg font-semibold">Prompts</h2>
-                              <div className="flex items-center gap-3">
-                                <Button
-                                  onClick={() => setIsCreatePromptOpen(true)}
-                                  className="gap-2 bg-primary hover:bg-primary/90"
-                                >
+                          /* Prompts List */
+                          <div className="flex flex-col max-h-[400px]">
+                            <div className="flex items-center justify-between px-4 py-3 border-b">
+                              <span className="font-semibold">Prompts</span>
+                              <div className="flex items-center gap-2">
+                                <Button size="sm" onClick={() => setIsCreatePromptOpen(true)} className="gap-1">
                                   <Plus className="h-4 w-4" />
                                   Prompt
                                 </Button>
+                                <button onClick={() => setIsPromptsModalOpen(false)} className="text-muted-foreground hover:text-foreground p-1">
+                                  <X className="h-5 w-5" />
+                                </button>
                               </div>
                             </div>
-
-                            {/* Content */}
-                            <ScrollArea className="flex-1 px-6">
+                            <ScrollArea className="flex-1 max-h-[300px]">
                               {savedPrompts && savedPrompts.length > 0 ? (
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 py-4">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 p-4">
                                   {savedPrompts.map((prompt: any) => (
-                                    <div
-                                      key={prompt.id}
-                                      className="p-4 rounded-lg border hover:border-primary/30 hover:shadow-sm transition-all cursor-pointer group"
-                                      onClick={() => {
-                                        setMessageInput(prompt.content);
-                                        setIsPromptsModalOpen(false);
-                                      }}
-                                    >
-                                      <div className="flex items-start justify-between mb-2">
-                                        <h3 className="font-semibold text-foreground">
-                                          {prompt.title}
-                                        </h3>
-                                        <span className="text-sm text-muted-foreground group-hover:text-primary transition-colors flex items-center gap-1">
-                                          Usar
-                                          <ChevronRight className="h-3 w-3 rotate-90" />
-                                        </span>
+                                    <div key={prompt.id} onClick={() => { setMessageInput(prompt.content); setIsPromptsModalOpen(false); }} className="p-3 rounded-lg border hover:border-primary/40 hover:shadow-sm transition-all cursor-pointer group">
+                                      <div className="flex items-start justify-between mb-1">
+                                        <h3 className="font-medium text-sm">{prompt.title}</h3>
+                                        <span className="text-xs text-muted-foreground group-hover:text-primary flex items-center gap-0.5">Usar <ChevronRight className="h-3 w-3 rotate-90" /></span>
                                       </div>
-                                      <p className="text-sm text-muted-foreground line-clamp-3">
-                                        {prompt.content}
-                                      </p>
+                                      <p className="text-xs text-muted-foreground line-clamp-2">{prompt.content}</p>
                                     </div>
                                   ))}
                                 </div>
                               ) : (
-                                <div className="flex flex-col items-center justify-center py-20 text-center">
-                                  <div className="h-16 w-16 rounded-full bg-muted flex items-center justify-center mb-4">
-                                    <BookMarked className="h-8 w-8 text-muted-foreground" />
+                                <div className="flex flex-col items-center justify-center py-12 text-center">
+                                  <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center mb-3">
+                                    <BookMarked className="h-6 w-6 text-muted-foreground" />
                                   </div>
-                                  <p className="text-primary font-medium">
-                                    Nenhum prompt encontrado
-                                  </p>
+                                  <p className="text-sm text-primary font-medium">Nenhum prompt encontrado</p>
                                 </div>
                               )}
                             </ScrollArea>
                           </div>
                         )}
-                      </DialogContent>
-                    </Dialog>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+
+                {/* Input Container */}
+                <div className={`border p-4 relative shadow-sm bg-card transition-all focus-within:ring-1 focus-within:ring-primary/50 ${isPromptsModalOpen ? 'rounded-b-[2rem]' : 'rounded-[2rem]'}`}>
+
+                  <div className="flex justify-between items-start mb-2 relative">
+                    <Textarea
+                      ref={textareaRef}
+                      value={messageInput}
+                      onChange={(e) => {
+                        setMessageInput(e.target.value);
+                        adjustTextareaHeight();
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && !e.shiftKey) {
+                          e.preventDefault();
+                          handleSendMessage();
+                        }
+                      }}
+                      placeholder="O que posso fazer por você?"
+                      className="border-0 shadow-none resize-none min-h-[60px] w-full p-0 pr-10 focus-visible:ring-0 bg-transparent text-lg placeholder:text-muted-foreground/50"
+                      style={{ maxHeight: "200px" }}
+                    />
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 text-muted-foreground hover:text-primary absolute top-0 right-0 transition-colors"
+                      title="Melhorar Prompt (IA)"
+                      onClick={handleEnhancePrompt}
+                      disabled={!messageInput.trim() || enhancePromptMutation.isPending}
+                    >
+                      {enhancePromptMutation.isPending ? (
+                        <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                      ) : (
+                        <Wand2 className="h-5 w-5" />
+                      )}
+                    </Button>
                   </div>
 
-                  <div className="flex gap-2 items-center">
-                    <Button
-                      onClick={handleRecordClick}
-                      variant={isRecording ? "destructive" : "ghost"}
-                      size="icon"
-                      className={`h-10 w-10 rounded-full transition-all ${isRecording ? 'animate-pulse' : 'text-muted-foreground hover:text-primary hover:bg-accent'}`}
-                      title={isRecording ? "Parar Gravação" : "Gravar áudio"}
-                      disabled={transcribeAudioMutation.isPending}
-                    >
-                      {transcribeAudioMutation.isPending ? (
-                        <Loader2 className="h-5 w-5 animate-spin" />
-                      ) : (
-                        <Mic className={`h-5 w-5 ${isRecording ? 'fill-current' : ''}`} />
-                      )}
-                    </Button>
-                    <Button
-                      onClick={handleSendMessage}
-                      disabled={!messageInput.trim() && !isProcessing}
-                      size="icon"
-                      className={`h-10 w-10 rounded-full transition-all duration-300 ${messageInput.trim() ? 'bg-primary hover:bg-primary/90 text-primary-foreground shadow-md hover:scale-105' : 'bg-muted text-muted-foreground'}`}
-                    >
-                      {isProcessing ? (
-                        <Loader2 className="h-5 w-5 animate-spin" />
-                      ) : (
-                        <Send className="h-5 w-5 ml-0.5" />
-                      )}
-                    </Button>
+                  <div className="flex justify-between items-center mt-2">
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="gap-2 rounded-full h-9 px-4 border-dashed border-primary/30 hover:bg-primary/10 hover:border-primary/50 hover:text-primary transition-all font-medium"
+                        onClick={open}
+                      >
+                        <Gavel className="h-4 w-4" />
+                        Enviar Processo
+                      </Button>
+
+                      {/* Prompts Toggle Button */}
+                      <Button
+                        variant={isPromptsModalOpen ? "secondary" : "ghost"}
+                        size="sm"
+                        className="gap-2 rounded-full h-9 px-3"
+                        onClick={() => setIsPromptsModalOpen(!isPromptsModalOpen)}
+                      >
+                        <BookMarked className="h-4 w-4" />
+                        Prompts
+                      </Button>
+                    </div>
+
+                    <div className="flex gap-2 items-center">
+                      <Button
+                        onClick={handleRecordClick}
+                        variant={isRecording ? "destructive" : "ghost"}
+                        size="icon"
+                        className={`h-10 w-10 rounded-full transition-all ${isRecording ? 'animate-pulse' : 'text-muted-foreground hover:text-primary hover:bg-accent'}`}
+                        title={isRecording ? "Parar Gravação" : "Gravar áudio"}
+                        disabled={transcribeAudioMutation.isPending}
+                      >
+                        {transcribeAudioMutation.isPending ? (
+                          <Loader2 className="h-5 w-5 animate-spin" />
+                        ) : (
+                          <Mic className={`h-5 w-5 ${isRecording ? 'fill-current' : ''}`} />
+                        )}
+                      </Button>
+                      <Button
+                        onClick={handleSendMessage}
+                        disabled={!messageInput.trim() && !isProcessing}
+                        size="icon"
+                        className={`h-10 w-10 rounded-full transition-all duration-300 ${messageInput.trim() ? 'bg-primary hover:bg-primary/90 text-primary-foreground shadow-md hover:scale-105' : 'bg-muted text-muted-foreground'}`}
+                      >
+                        {isProcessing ? (
+                          <Loader2 className="h-5 w-5 animate-spin" />
+                        ) : (
+                          <Send className="h-5 w-5 ml-0.5" />
+                        )}
+                      </Button>
+                    </div>
                   </div>
+
                 </div>
 
-              </div>
-
-              {/* Footer Texto */}
-              <div className="text-center mt-2">
-                <p className="text-xs text-muted-foreground">O DAVID pode cometer erros. Considere verificar as informações importantes.</p>
+                {/* Footer Texto */}
+                <div className="text-center mt-2">
+                  <p className="text-xs text-muted-foreground">O DAVID pode cometer erros. Considere verificar as informações importantes.</p>
+                </div>
               </div>
             </div>
-          </div >
 
 
-
-        </div >
+          </div>
+        </div>
 
         {/* Modal de Edição de Minuta */}
-        < Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen} >
+        <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
           <DialogContent className="max-w-4xl max-h-[80vh]">
             <DialogHeader>
               <DialogTitle>Editar Minuta</DialogTitle>
@@ -1686,7 +1641,7 @@ export default function David() {
             </div>
           </DialogContent>
         </Dialog>
-      </div >
+      </div>
     </DashboardLayout >
   );
 }
