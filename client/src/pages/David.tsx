@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { trpc } from "@/lib/trpc";
 import { useDropzone } from "react-dropzone";
 import { processFile } from "@/lib/pdfProcessor";
@@ -13,8 +13,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input"; // Adicionado Input
+import { Badge } from "@/components/ui/badge"; // Adicionado Badge
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Loader2, Send, Plus, Trash2, FileText, Settings, BookMarked, X, Check, Edit, XCircle, ArrowLeft, Pencil, Upload, MessageSquare, ChevronRight, Pin, PinOff, Gavel, Brain, Mic, Wand2 } from "lucide-react";
+import { Loader2, Send, Plus, Trash2, FileText, Settings, BookMarked, X, Check, Edit, XCircle, ArrowLeft, ArrowDown, ArrowRight, Pencil, Upload, MessageSquare, ChevronRight, ChevronDown, Pin, PinOff, Gavel, Brain, Mic, Wand2, MoreVertical, Eye, CheckSquare, Search } from "lucide-react"; // Adicionado Search
 
 
 
@@ -103,14 +105,55 @@ export default function David() {
     existingConversations: { id: number; title: string }[];
   }>({ isOpen: false, processNumber: null, existingConversations: [] });
 
-  // Carregar prompts salvos
-  const { data: savedPrompts, refetch: refetchPrompts } = trpc.david.savedPrompts.list.useQuery();
+  // Estados de busca e filtros dos prompts
+  const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [tagsFilter, setTagsFilter] = useState(""); // Tags filtro (string separada por vírgula)
+
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(searchQuery), 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  // Carregar prompts salvos (Infinite Scroll)
+  const {
+    data: savedPromptsData,
+    refetch: refetchPrompts,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+    isLoading: isLoadingPrompts
+  } = trpc.david.savedPrompts.listPaginated.useInfiniteQuery(
+    {
+      limit: 20,
+      search: searchQuery, // Passando direto por enquanto (adicionar debounce depois)
+      tags: tagsFilter ? tagsFilter.split(',').map(t => t.trim()).filter(Boolean) : undefined,
+    },
+    {
+      getNextPageParam: (lastPage) => lastPage.nextCursor,
+    }
+  );
+
+  // Flatten pages
+  const savedPrompts = useMemo(() => {
+    return savedPromptsData?.pages.flatMap((page) => page.items) || [];
+  }, [savedPromptsData]);
 
   // Estados para modal de prompts
   const [isPromptsModalOpen, setIsPromptsModalOpen] = useState(false);
   const [isCreatePromptOpen, setIsCreatePromptOpen] = useState(false);
+  const [editingPromptId, setEditingPromptId] = useState<number | null>(null); // null = creating, number = editing
+  const [viewingPrompt, setViewingPrompt] = useState<{ id: number; title: string; content: string; tags?: string[] } | null>(null);
   const [newPromptTitle, setNewPromptTitle] = useState("");
   const [newPromptContent, setNewPromptContent] = useState("");
+  const [newPromptTags, setNewPromptTags] = useState(""); // Tags (string input)
+
+  // Estados para seleção múltipla
+  const [isSelectMode, setIsSelectMode] = useState(false);
+  const [selectedPromptIds, setSelectedPromptIds] = useState<number[]>([]);
+
+  // Estado para dialog de confirmação de exclusão
+  const [deleteConfirmDialog, setDeleteConfirmDialog] = useState<{ isOpen: boolean; promptId?: number; promptIds?: number[] }>({ isOpen: false });
 
   // Mutation para criar prompt
   const createPromptMutation = trpc.david.savedPrompts.create.useMutation({
@@ -119,10 +162,23 @@ export default function David() {
       setIsCreatePromptOpen(false);
       setNewPromptTitle("");
       setNewPromptContent("");
+      setNewPromptTags("");
       toast.success("Prompt criado com sucesso!");
     },
     onError: () => {
       toast.error("Erro ao criar prompt");
+    },
+  });
+
+  // Mutation para excluir prompt
+  const deletePromptMutation = trpc.david.savedPrompts.delete.useMutation({
+    onSuccess: () => {
+      refetchPrompts();
+      setViewingPrompt(null);
+      toast.success("Prompt excluído com sucesso!");
+    },
+    onError: () => {
+      toast.error("Erro ao excluir prompt");
     },
   });
 
@@ -893,8 +949,8 @@ export default function David() {
             {/* Banner de progresso removido - agora fica dentro do input */}
 
             <div className="p-4 border-t bg-background">
-              <div className="max-w-4xl mx-auto">
-                {/* Inline Prompts Panel - expands above input */}
+              <div className="max-w-4xl mx-auto relative">
+                {/* Inline Prompts Panel - expands UPWARD from input */}
                 <AnimatePresence>
                   {isPromptsModalOpen && (
                     <motion.div
@@ -902,22 +958,22 @@ export default function David() {
                       animate={{ height: "auto", opacity: 1 }}
                       exit={{ height: 0, opacity: 0 }}
                       transition={{ duration: 0.2 }}
-                      className="overflow-hidden"
+                      className="absolute bottom-full left-0 right-0 overflow-hidden z-10 mb-[-3rem]"
                     >
-                      <div className="border border-b-0 rounded-t-2xl bg-card shadow-lg overflow-hidden">
+                      <div className="border border-b-0 rounded-t-2xl bg-gray-100 shadow-xl overflow-hidden pb-16">
                         {isCreatePromptOpen ? (
-                          /* Create Prompt View */
-                          <div className="flex flex-col">
+                          /* Create Prompt View - content only, footer is separate bar below */
+                          <div className="flex flex-col" style={{ height: '55vh', maxHeight: '55vh' }}>
                             <div className="flex items-center gap-3 px-4 py-3 border-b">
                               <button onClick={() => setIsCreatePromptOpen(false)} className="text-muted-foreground hover:text-foreground">
                                 <ArrowLeft className="h-5 w-5" />
                               </button>
-                              <span className="font-medium">Criar</span>
+                              <span className="font-medium">{editingPromptId ? 'Editar' : 'Criar'}</span>
                               <button onClick={() => { setIsPromptsModalOpen(false); setIsCreatePromptOpen(false); }} className="ml-auto text-muted-foreground hover:text-foreground">
                                 <X className="h-5 w-5" />
                               </button>
                             </div>
-                            <div className="p-4 space-y-3">
+                            <ScrollArea className="flex-1 p-4 space-y-3">
                               <input
                                 type="text"
                                 placeholder="Nome do Prompt"
@@ -925,46 +981,190 @@ export default function David() {
                                 onChange={(e) => setNewPromptTitle(e.target.value)}
                                 className="w-full text-lg font-semibold text-primary bg-transparent border-none outline-none placeholder:text-muted-foreground/40"
                               />
+                              <input
+                                type="text"
+                                placeholder="Tags (separadas por vírgula)"
+                                value={newPromptTags}
+                                onChange={(e) => setNewPromptTags(e.target.value)}
+                                className="w-full text-sm text-muted-foreground bg-transparent border-none outline-none placeholder:text-muted-foreground/40"
+                              />
                               <Textarea
                                 placeholder="Escreva seu prompt aqui..."
                                 value={newPromptContent}
                                 onChange={(e) => setNewPromptContent(e.target.value)}
-                                className="min-h-[150px] resize-none border-0 shadow-none focus-visible:ring-0 text-base p-0 placeholder:text-muted-foreground/40"
+                                className="min-h-[200px] resize-none border-0 shadow-none focus-visible:ring-0 text-base p-0 placeholder:text-muted-foreground/40"
                               />
+                            </ScrollArea>
+                          </div>
+                        ) : viewingPrompt ? (
+                          /* View Prompt View - content only, footer is separate bar below */
+                          <div className="flex flex-col" style={{ height: '55vh', maxHeight: '55vh' }}>
+                            <div className="flex items-center gap-3 px-4 py-3 border-b">
+                              <button onClick={() => setViewingPrompt(null)} className="text-muted-foreground hover:text-foreground">
+                                <ArrowLeft className="h-5 w-5" />
+                              </button>
+                              <span className="font-medium">Visualizar Prompt</span>
+                              <button onClick={() => { setIsPromptsModalOpen(false); setViewingPrompt(null); }} className="ml-auto text-muted-foreground hover:text-foreground">
+                                <X className="h-5 w-5" />
+                              </button>
                             </div>
-                            <div className="flex items-center justify-between px-4 py-3 border-t bg-muted/30">
-                              <Button variant="ghost" size="sm" onClick={() => { setIsCreatePromptOpen(false); setNewPromptTitle(""); setNewPromptContent(""); }}>Cancelar</Button>
-                              <Button size="sm" onClick={() => { if (newPromptTitle.trim() && newPromptContent.trim()) { createPromptMutation.mutate({ title: newPromptTitle.trim(), content: newPromptContent.trim() }); } }} disabled={!newPromptTitle.trim() || !newPromptContent.trim() || createPromptMutation.isPending} className="gap-2">
-                                {createPromptMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4" />}
-                                Salvar
-                              </Button>
-                            </div>
+                            <ScrollArea className="flex-1 p-4">
+                              <h2 className="text-xl font-bold mb-4">{viewingPrompt.title}</h2>
+                              <p className="text-muted-foreground whitespace-pre-wrap">{viewingPrompt.content}</p>
+                            </ScrollArea>
                           </div>
                         ) : (
                           /* Prompts List */
-                          <div className="flex flex-col max-h-[400px]">
+                          <div className="flex flex-col" style={{ height: '55vh', maxHeight: '55vh' }}>
                             <div className="flex items-center justify-between px-4 py-3 border-b">
-                              <span className="font-semibold">Prompts</span>
-                              <div className="flex items-center gap-2">
-                                <Button size="sm" onClick={() => setIsCreatePromptOpen(true)} className="gap-1">
-                                  <Plus className="h-4 w-4" />
-                                  Prompt
-                                </Button>
-                                <button onClick={() => setIsPromptsModalOpen(false)} className="text-muted-foreground hover:text-foreground p-1">
-                                  <X className="h-5 w-5" />
-                                </button>
-                              </div>
+                              {isSelectMode ? (
+                                <>
+                                  <div className="flex items-center gap-2">
+                                    <Button variant="ghost" size="sm" onClick={() => { setIsSelectMode(false); setSelectedPromptIds([]); }} className="text-muted-foreground">
+                                      Cancelar
+                                    </Button>
+                                    <span className="font-medium text-sm">{selectedPromptIds.length} selecionado{selectedPromptIds.length !== 1 ? 's' : ''}</span>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => {
+                                        if (savedPrompts && selectedPromptIds.length === savedPrompts.length) {
+                                          setSelectedPromptIds([]);
+                                        } else if (savedPrompts) {
+                                          setSelectedPromptIds(savedPrompts.map((p: any) => p.id));
+                                        }
+                                      }}
+                                    >
+                                      {savedPrompts && selectedPromptIds.length === savedPrompts.length ? 'Deselecionar todos' : 'Selecionar todos'}
+                                    </Button>
+                                    <Button
+                                      variant="destructive"
+                                      size="sm"
+                                      disabled={selectedPromptIds.length === 0}
+                                      onClick={() => setDeleteConfirmDialog({ isOpen: true, promptIds: selectedPromptIds })}
+                                      className="gap-1"
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                      Apagar
+                                    </Button>
+                                  </div>
+                                </>
+                              ) : (
+                                <>
+                                  <span className="font-semibold">Prompts</span>
+                                  <div className="flex items-center gap-2">
+                                    <Button size="sm" onClick={() => { setEditingPromptId(null); setNewPromptTitle(""); setNewPromptContent(""); setIsCreatePromptOpen(true); }} className="gap-1">
+                                      <Plus className="h-4 w-4" />
+                                      Prompt
+                                    </Button>
+                                    <button onClick={() => setIsPromptsModalOpen(false)} className="text-muted-foreground hover:text-foreground p-1">
+                                      <X className="h-5 w-5" />
+                                    </button>
+                                  </div>
+                                </>
+                              )}
                             </div>
-                            <ScrollArea className="flex-1 max-h-[300px]">
+
+                            {/* Search & Filters */}
+                            {!isSelectMode && (
+                              <div className="px-4 pb-3 flex gap-2">
+                                <div className="relative flex-1">
+                                  <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                                  <Input
+                                    placeholder="Buscar prompts..."
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                    className="pl-9 h-9"
+                                  />
+                                </div>
+                                <div className="w-1/3">
+                                  <Input
+                                    placeholder="Tags filter..."
+                                    value={tagsFilter}
+                                    onChange={(e) => setTagsFilter(e.target.value)}
+                                    className="h-9"
+                                  />
+                                </div>
+                              </div>
+                            )}
+                            <ScrollArea className="flex-1">
                               {savedPrompts && savedPrompts.length > 0 ? (
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3 p-4">
                                   {savedPrompts.map((prompt: any) => (
-                                    <div key={prompt.id} onClick={() => { setMessageInput(prompt.content); setIsPromptsModalOpen(false); }} className="p-3 rounded-lg border hover:border-primary/40 hover:shadow-sm transition-all cursor-pointer group">
-                                      <div className="flex items-start justify-between mb-1">
-                                        <h3 className="font-medium text-sm">{prompt.title}</h3>
-                                        <span className="text-xs text-muted-foreground group-hover:text-primary flex items-center gap-0.5">Usar <ChevronRight className="h-3 w-3 rotate-90" /></span>
+                                    <div
+                                      key={prompt.id}
+                                      className={`p-4 rounded-xl border shadow-sm transition-all cursor-pointer group relative ${isSelectMode
+                                        ? selectedPromptIds.includes(prompt.id) ? 'bg-primary/5 border-primary ring-1 ring-primary' : 'bg-white hover:bg-muted/50'
+                                        : 'bg-white hover:shadow-md'
+                                        }`}
+                                      onClick={() => {
+                                        if (isSelectMode) {
+                                          if (selectedPromptIds.includes(prompt.id)) {
+                                            setSelectedPromptIds(selectedPromptIds.filter(id => id !== prompt.id));
+                                          } else {
+                                            setSelectedPromptIds([...selectedPromptIds, prompt.id]);
+                                          }
+                                        }
+                                      }}
+                                    >
+                                      <div className="flex gap-3">
+                                        {isSelectMode && (
+                                          <div className={`mt-0.5 h-5 w-5 rounded border flex items-center justify-center transition-colors ${selectedPromptIds.includes(prompt.id) ? 'bg-primary border-primary' : 'border-muted-foreground bg-white'}`}>
+                                            {selectedPromptIds.includes(prompt.id) && <Check className="h-3.5 w-3.5 text-white" />}
+                                          </div>
+                                        )}
+                                        <div className="flex-1 min-w-0">
+                                          <div className="flex items-start justify-between mb-2">
+                                            <h3 className="font-semibold text-sm text-foreground flex-1 pr-2 truncate">{prompt.title}</h3>
+                                            {!isSelectMode && (
+                                              <div className="flex items-center gap-1">
+                                                {/* Menu de opções - aparece só no hover */}
+                                                <DropdownMenu>
+                                                  <DropdownMenuTrigger asChild>
+                                                    <button className="p-1 rounded opacity-0 group-hover:opacity-100 hover:bg-gray-100 transition-all" onClick={(e) => e.stopPropagation()}>
+                                                      <MoreVertical className="h-4 w-4 text-muted-foreground" />
+                                                    </button>
+                                                  </DropdownMenuTrigger>
+                                                  <DropdownMenuContent align="end">
+                                                    <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setViewingPrompt({ id: prompt.id, title: prompt.title, content: prompt.content, tags: prompt.tags as string[] | undefined }); }}>
+                                                      <Eye className="h-4 w-4 mr-2" /> Visualizar
+                                                    </DropdownMenuItem>
+                                                    <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setEditingPromptId(prompt.id); setNewPromptTitle(prompt.title); setNewPromptContent(prompt.content); setNewPromptTags(prompt.tags?.join(", ") || ""); setIsCreatePromptOpen(true); }}>
+                                                      <Edit className="h-4 w-4 mr-2" /> Editar
+                                                    </DropdownMenuItem>
+                                                    <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setIsSelectMode(true); setSelectedPromptIds([prompt.id]); }}>
+                                                      <CheckSquare className="h-4 w-4 mr-2" /> Selecionar vários
+                                                    </DropdownMenuItem>
+                                                    <DropdownMenuSeparator />
+                                                    <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setDeleteConfirmDialog({ isOpen: true, promptId: prompt.id }); }} className="text-destructive">
+                                                      <Trash2 className="h-4 w-4 mr-2" /> Excluir
+                                                    </DropdownMenuItem>
+                                                  </DropdownMenuContent>
+                                                </DropdownMenu>
+                                                {/* Botão Usar */}
+                                                <button
+                                                  onClick={(e) => { e.stopPropagation(); setMessageInput(prompt.content); setIsPromptsModalOpen(false); }}
+                                                  className="flex items-center gap-1 px-3 py-1 rounded-full border border-amber-200 bg-amber-50 text-xs font-medium text-amber-700 hover:bg-amber-100 hover:border-amber-300 transition-colors"
+                                                >
+                                                  Usar <ArrowDown className="h-3 w-3" />
+                                                </button>
+                                              </div>
+                                            )}
+                                          </div>
+                                          <p className="text-xs text-muted-foreground line-clamp-2">{prompt.content}</p>
+                                          {prompt.tags && prompt.tags.length > 0 && (
+                                            <div className="flex flex-wrap gap-1 mt-2">
+                                              {prompt.tags.map((tag: string) => (
+                                                <Badge key={tag} variant="outline" className="text-[10px] px-1 py-0 h-5">
+                                                  {tag}
+                                                </Badge>
+                                              ))}
+                                            </div>
+                                          )}
+                                        </div>
                                       </div>
-                                      <p className="text-xs text-muted-foreground line-clamp-2">{prompt.content}</p>
                                     </div>
                                   ))}
                                 </div>
@@ -976,6 +1176,13 @@ export default function David() {
                                   <p className="text-sm text-primary font-medium">Nenhum prompt encontrado</p>
                                 </div>
                               )}
+                              {hasNextPage && (
+                                <div className="p-4 pt-0">
+                                  <Button variant="ghost" className="w-full text-xs" onClick={() => fetchNextPage()} disabled={isFetchingNextPage}>
+                                    {isFetchingNextPage ? <Loader2 className="h-4 w-4 animate-spin" /> : "Carregar mais"}
+                                  </Button>
+                                </div>
+                              )}
                             </ScrollArea>
                           </div>
                         )}
@@ -984,98 +1191,170 @@ export default function David() {
                   )}
                 </AnimatePresence>
 
-                {/* Input Container */}
-                <div className={`border p-4 relative shadow-sm bg-card transition-all focus-within:ring-1 focus-within:ring-primary/50 ${isPromptsModalOpen ? 'rounded-b-[2rem]' : 'rounded-[2rem]'}`}>
-
-                  <div className="flex justify-between items-start mb-2 relative">
-                    <Textarea
-                      ref={textareaRef}
-                      value={messageInput}
-                      onChange={(e) => {
-                        setMessageInput(e.target.value);
-                        adjustTextareaHeight();
-                      }}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter" && !e.shiftKey) {
-                          e.preventDefault();
-                          handleSendMessage();
-                        }
-                      }}
-                      placeholder="O que posso fazer por você?"
-                      className="border-0 shadow-none resize-none min-h-[60px] w-full p-0 pr-10 focus-visible:ring-0 bg-transparent text-lg placeholder:text-muted-foreground/50"
-                      style={{ maxHeight: "200px" }}
-                    />
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8 text-muted-foreground hover:text-primary absolute top-0 right-0 transition-colors"
-                      title="Melhorar Prompt (IA)"
-                      onClick={handleEnhancePrompt}
-                      disabled={!messageInput.trim() || enhancePromptMutation.isPending}
-                    >
-                      {enhancePromptMutation.isPending ? (
-                        <Loader2 className="h-4 w-4 animate-spin text-primary" />
-                      ) : (
-                        <Wand2 className="h-5 w-5" />
-                      )}
-                    </Button>
-                  </div>
-
-                  <div className="flex justify-between items-center mt-2">
-                    <div className="flex gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="gap-2 rounded-full h-9 px-4 border-dashed border-primary/30 hover:bg-primary/10 hover:border-primary/50 hover:text-primary transition-all font-medium"
-                        onClick={open}
-                      >
-                        <Gavel className="h-4 w-4" />
-                        Enviar Processo
-                      </Button>
-
-                      {/* Prompts Toggle Button */}
-                      <Button
-                        variant={isPromptsModalOpen ? "secondary" : "ghost"}
-                        size="sm"
-                        className="gap-2 rounded-full h-9 px-3"
-                        onClick={() => setIsPromptsModalOpen(!isPromptsModalOpen)}
-                      >
-                        <BookMarked className="h-4 w-4" />
-                        Prompts
-                      </Button>
-                    </div>
-
-                    <div className="flex gap-2 items-center">
-                      <Button
-                        onClick={handleRecordClick}
-                        variant={isRecording ? "destructive" : "ghost"}
-                        size="icon"
-                        className={`h-10 w-10 rounded-full transition-all ${isRecording ? 'animate-pulse' : 'text-muted-foreground hover:text-primary hover:bg-accent'}`}
-                        title={isRecording ? "Parar Gravação" : "Gravar áudio"}
-                        disabled={transcribeAudioMutation.isPending}
-                      >
-                        {transcribeAudioMutation.isPending ? (
-                          <Loader2 className="h-5 w-5 animate-spin" />
-                        ) : (
-                          <Mic className={`h-5 w-5 ${isRecording ? 'fill-current' : ''}`} />
-                        )}
+                {/* Input/Action Bar Container */}
+                {isCreatePromptOpen ? (
+                  /* Action bar when creating a prompt - styled like input */
+                  <div className="border p-4 relative shadow-sm bg-white rounded-[2rem] transition-all duration-200 z-30">
+                    <div className="flex items-center justify-between">
+                      <Button variant="ghost" size="sm" onClick={() => { setIsCreatePromptOpen(false); setNewPromptTitle(""); setNewPromptContent(""); }}>
+                        Cancelar
                       </Button>
                       <Button
-                        onClick={handleSendMessage}
-                        disabled={!messageInput.trim() && !isProcessing}
-                        size="icon"
-                        className={`h-10 w-10 rounded-full transition-all duration-300 ${messageInput.trim() ? 'bg-primary hover:bg-primary/90 text-primary-foreground shadow-md hover:scale-105' : 'bg-muted text-muted-foreground'}`}
+                        onClick={() => {
+                          if (newPromptTitle.trim() && newPromptContent.trim()) {
+                            createPromptMutation.mutate({
+                              title: newPromptTitle.trim(),
+                              content: newPromptContent.trim(),
+                              tags: newPromptTags.split(',').map(t => t.trim()).filter(Boolean)
+                            });
+                          }
+                        }}
+                        disabled={!newPromptTitle.trim() || !newPromptContent.trim() || createPromptMutation.isPending}
+                        className="gap-2"
                       >
-                        {isProcessing ? (
-                          <Loader2 className="h-5 w-5 animate-spin" />
-                        ) : (
-                          <Send className="h-5 w-5 ml-0.5" />
-                        )}
+                        {createPromptMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4" />}
+                        Salvar
                       </Button>
                     </div>
                   </div>
+                ) : viewingPrompt ? (
+                  /* Action bar when viewing a prompt - styled like input */
+                  <div className="border p-4 relative shadow-sm bg-white rounded-[2rem] transition-all duration-200 z-30">
+                    <div className="flex items-center justify-between">
+                      <Button variant="ghost" size="sm" onClick={() => setViewingPrompt(null)}>
+                        Cancelar
+                      </Button>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => {
+                            setDeleteConfirmDialog({ isOpen: true, promptId: viewingPrompt.id });
+                          }}
+                          className="p-2 rounded hover:bg-destructive/10 text-destructive transition-colors"
+                          title="Excluir"
+                        >
+                          <Trash2 className="h-5 w-5" />
+                        </button>
+                        <button
+                          onClick={() => {
+                            setEditingPromptId(viewingPrompt.id);
+                            setNewPromptTitle(viewingPrompt.title);
+                            setNewPromptContent(viewingPrompt.content);
+                            setNewPromptTags(viewingPrompt.tags?.join(", ") || "");
+                            setViewingPrompt(null);
+                            setIsCreatePromptOpen(true);
+                          }}
+                          className="p-2 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                          title="Editar"
+                        >
+                          <Edit className="h-5 w-5" />
+                        </button>
+                        <Button
+                          onClick={() => {
+                            setMessageInput(viewingPrompt.content);
+                            setIsPromptsModalOpen(false);
+                            setViewingPrompt(null);
+                          }}
+                          className="gap-1"
+                        >
+                          <ArrowRight className="h-4 w-4" /> Usar
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  /* Regular input container */
+                  <div className={`border p-4 relative shadow-sm bg-white rounded-[2rem] transition-all duration-200 z-30 ${isPromptsModalOpen ? 'opacity-60 pointer-events-none' : 'focus-within:ring-1 focus-within:ring-primary/50'}`}>
 
-                </div>
+                    <div className="flex justify-between items-start mb-2 relative">
+                      <Textarea
+                        ref={textareaRef}
+                        value={messageInput}
+                        onChange={(e) => {
+                          setMessageInput(e.target.value);
+                          adjustTextareaHeight();
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" && !e.shiftKey) {
+                            e.preventDefault();
+                            handleSendMessage();
+                          }
+                        }}
+                        placeholder="O que posso fazer por você?"
+                        className="border-0 shadow-none resize-none min-h-[60px] w-full p-0 pr-10 focus-visible:ring-0 bg-transparent text-lg placeholder:text-muted-foreground/50"
+                        style={{ maxHeight: "200px" }}
+                      />
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-muted-foreground hover:text-primary absolute top-0 right-0 transition-colors"
+                        title="Melhorar Prompt (IA)"
+                        onClick={handleEnhancePrompt}
+                        disabled={!messageInput.trim() || enhancePromptMutation.isPending}
+                      >
+                        {enhancePromptMutation.isPending ? (
+                          <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                        ) : (
+                          <Wand2 className="h-5 w-5" />
+                        )}
+                      </Button>
+                    </div>
+
+                    <div className="flex justify-between items-center mt-2">
+                      <div className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="gap-2 rounded-full h-9 px-4 border-dashed border-primary/30 hover:bg-primary/10 hover:border-primary/50 hover:text-primary transition-all font-medium"
+                          onClick={open}
+                        >
+                          <Gavel className="h-4 w-4" />
+                          Enviar Processo
+                        </Button>
+
+                        {/* Prompts Toggle Button */}
+                        <Button
+                          variant={isPromptsModalOpen ? "secondary" : "ghost"}
+                          size="sm"
+                          className="gap-2 rounded-full h-9 px-3"
+                          onClick={() => setIsPromptsModalOpen(!isPromptsModalOpen)}
+                        >
+                          <BookMarked className="h-4 w-4" />
+                          Prompts
+                        </Button>
+                      </div>
+
+                      <div className="flex gap-2 items-center">
+                        <Button
+                          onClick={handleRecordClick}
+                          variant={isRecording ? "destructive" : "ghost"}
+                          size="icon"
+                          className={`h-10 w-10 rounded-full transition-all ${isRecording ? 'animate-pulse' : 'text-muted-foreground hover:text-primary hover:bg-accent'}`}
+                          title={isRecording ? "Parar Gravação" : "Gravar áudio"}
+                          disabled={transcribeAudioMutation.isPending}
+                        >
+                          {transcribeAudioMutation.isPending ? (
+                            <Loader2 className="h-5 w-5 animate-spin" />
+                          ) : (
+                            <Mic className={`h-5 w-5 ${isRecording ? 'fill-current' : ''}`} />
+                          )}
+                        </Button>
+                        <Button
+                          onClick={handleSendMessage}
+                          disabled={!messageInput.trim() && !isProcessing}
+                          size="icon"
+                          className={`h-10 w-10 rounded-full transition-all duration-300 ${messageInput.trim() ? 'bg-primary hover:bg-primary/90 text-primary-foreground shadow-md hover:scale-105' : 'bg-muted text-muted-foreground'}`}
+                        >
+                          {isProcessing ? (
+                            <Loader2 className="h-5 w-5 animate-spin" />
+                          ) : (
+                            <Send className="h-5 w-5 ml-0.5" />
+                          )}
+                        </Button>
+                      </div>
+                    </div>
+
+                  </div>
+                )}
 
                 {/* Footer Texto */}
                 <div className="text-center mt-2">
@@ -1087,6 +1366,42 @@ export default function David() {
 
           </div>
         </div>
+
+        {/* Dialog de Confirmação de Exclusão */}
+        <Dialog open={deleteConfirmDialog.isOpen} onOpenChange={(open) => !open && setDeleteConfirmDialog({ isOpen: false })}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Confirmar Exclusão</DialogTitle>
+              <DialogDescription>
+                {deleteConfirmDialog.promptIds && deleteConfirmDialog.promptIds.length > 1
+                  ? `Tem certeza que deseja excluir ${deleteConfirmDialog.promptIds.length} prompts selecionados?`
+                  : 'Tem certeza que deseja excluir este prompt?'}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="flex justify-end gap-2 mt-4">
+              <Button variant="outline" onClick={() => setDeleteConfirmDialog({ isOpen: false })}>
+                Cancelar
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={() => {
+                  if (deleteConfirmDialog.promptIds && deleteConfirmDialog.promptIds.length > 0) {
+                    // Delete multiple prompts
+                    deleteConfirmDialog.promptIds.forEach(id => deletePromptMutation.mutate({ id }));
+                    setSelectedPromptIds([]);
+                    setIsSelectMode(false);
+                  } else if (deleteConfirmDialog.promptId) {
+                    // Delete single prompt
+                    deletePromptMutation.mutate({ id: deleteConfirmDialog.promptId });
+                  }
+                  setDeleteConfirmDialog({ isOpen: false });
+                }}
+              >
+                Excluir
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
 
         {/* Modal de Edição de Minuta */}
         <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
@@ -1512,7 +1827,7 @@ export default function David() {
                   </Button>
                 </div>
               ) : (
-                savedPrompts.map((prompt) => (
+                savedPrompts.map((prompt: any) => (
                   <div
                     key={prompt.id}
                     className="border rounded-lg p-4 hover:bg-accent cursor-pointer transition-colors"

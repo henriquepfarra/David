@@ -14,6 +14,7 @@ import {
   getConversationMessages,
   createSavedPrompt,
   getUserSavedPrompts,
+  getSavedPromptsPaginated,
   getSavedPromptById,
   updateSavedPrompt,
   deleteSavedPrompt,
@@ -757,6 +758,7 @@ export const davidRouter = router({
           content: z.string(),
           description: z.string().optional(),
           executionMode: z.enum(["chat", "full_context"]).optional(),
+          tags: z.array(z.string()).optional(),
         })
       )
       .mutation(async ({ ctx, input }) => {
@@ -771,6 +773,20 @@ export const davidRouter = router({
     list: protectedProcedure.query(async ({ ctx }) => {
       return await getUserSavedPrompts(ctx.user.id);
     }),
+
+    listPaginated: protectedProcedure
+      .input(z.object({
+        limit: z.number().min(1).max(100).default(50),
+        cursor: z.number().optional(), // ID do último item
+        search: z.string().optional(),
+        tags: z.array(z.string()).optional(),
+      }))
+      .query(async ({ ctx, input }) => {
+        return await getSavedPromptsPaginated({
+          userId: ctx.user.id,
+          ...input,
+        });
+      }),
 
     seedDefaultTutela: protectedProcedure.mutation(async ({ ctx }) => {
       // Verifica se já existe
@@ -869,6 +885,7 @@ Diretrizes de Execução:
           content: z.string().optional(),
           description: z.string().optional(),
           executionMode: z.enum(["chat", "full_context"]).optional(),
+          tags: z.array(z.string()).optional(),
         })
       )
       .mutation(async ({ ctx, input }) => {

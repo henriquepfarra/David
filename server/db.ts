@@ -531,6 +531,72 @@ export async function getUserSavedPrompts(userId: number): Promise<SavedPrompt[]
     .orderBy(desc(savedPrompts.createdAt));
 }
 
+export async function getSavedPromptsPaginated(options: {
+  userId: number;
+  limit: number;
+  cursor?: number; // ID do último item para paginação
+  search?: string;
+  tags?: string[];
+}) {
+  const db = await getDb();
+  if (!db) return { items: [], nextCursor: undefined };
+
+  const { like, or, lt, sql } = await import("drizzle-orm");
+
+  const conditions = [eq(savedPrompts.userId, options.userId)];
+
+  // Paginação (Items mais antigos que o cursor)
+  if (options.cursor) {
+    conditions.push(lt(savedPrompts.id, options.cursor));
+  }
+
+  // Busca (Título ou Conteúdo)
+  if (options.search) {
+    const searchPattern = `%${options.search}%`;
+    conditions.push(or(
+      like(savedPrompts.title, searchPattern),
+      like(savedPrompts.content, searchPattern)
+    ));
+  }
+
+  // Filtro por Tags (JSON)
+  // Requer MySQL 5.7+
+  if (options.tags && options.tags.length > 0) {
+    // Para simplificar, verificamos se contem pelo menos uma das tags (OR logic) ou todas (AND logic)?
+    // Geralmente filtro é AND.
+    // Drizzle não tem suporte nativo tipado para JSON_CONTAINS ou JSON_OVERLAPS, usar sql raw.
+    // Vamos assumir filtro inclusivo (qualquer tag da lista serve) ou exclusivo? 
+    // Vamos fazer: se o usuário seleciona tags, ele quer prompts que tenham aquelas tags.
+    // Implementação simples: verificar se a string JSON contem o termo. Não é ideal mas funciona pra MVP.
+    // Ideal: JSON_CONTAINS(tags, '"tag"').
+
+    // Vamos iterar e adicionar conditions
+    for (const tag of options.tags) {
+      conditions.push(sql`JSON_SEARCH(${savedPrompts.tags}, 'one', ${tag}) IS NOT NULL`);
+    }
+  }
+
+  const limit = options.limit + 1; // Buscar 1 a mais para saber se tem próximo
+
+  const items = await db
+    .select()
+    .from(savedPrompts)
+    .where(and(...conditions))
+    .orderBy(desc(savedPrompts.id)) // Ordenação estável por ID (assume ID auto-incremento correlacionado com tempo)
+    .limit(limit);
+
+  let nextCursor: number | undefined = undefined;
+  if (items.length > options.limit) {
+    const nextItem = items.pop();
+    nextCursor = nextItem?.id;
+  }
+
+  return {
+    items,
+    nextCursor,
+  };
+}
+
 export async function getSavedPromptById(id: number): Promise<SavedPrompt | undefined> {
   const db = await getDb();
   if (!db) return undefined;

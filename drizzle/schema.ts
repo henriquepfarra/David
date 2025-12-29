@@ -213,6 +213,7 @@ export const savedPrompts = mysqlTable("savedPrompts", {
   description: text("description"), // Descrição do que o prompt faz
   isDefault: int("isDefault").default(0).notNull(), // Se é um prompt padrão do sistema
   executionMode: mysqlEnum("executionMode", ["chat", "full_context"]).default("chat").notNull(), // chat = RAG/simples, full_context = Injeta todo o processo
+  tags: json("tags").$type<string[]>(), // Tags/Etiquetas para organização
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 }, (table) => ({
