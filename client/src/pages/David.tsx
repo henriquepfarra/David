@@ -1,4 +1,6 @@
 import { useState, useRef, useEffect, useMemo } from "react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList, CommandSeparator } from "@/components/ui/command";
 import { trpc } from "@/lib/trpc";
 import { useDropzone } from "react-dropzone";
 import { processFile } from "@/lib/pdfProcessor";
@@ -16,7 +18,7 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input"; // Adicionado Input
 import { Badge } from "@/components/ui/badge"; // Adicionado Badge
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Loader2, Send, Plus, Trash2, FileText, Settings, BookMarked, X, Check, Edit, XCircle, ArrowLeft, ArrowDown, ArrowRight, Pencil, Upload, MessageSquare, ChevronRight, ChevronDown, Pin, PinOff, Gavel, Brain, Mic, Wand2, MoreVertical, Eye, CheckSquare, Search } from "lucide-react"; // Adicionado Search
+import { Loader2, Send, Plus, Trash2, FileText, Settings, BookMarked, X, Check, Edit, XCircle, ArrowLeft, ArrowDown, ArrowRight, Pencil, Upload, MessageSquare, ChevronRight, ChevronDown, Pin, PinOff, Gavel, Brain, Mic, Wand2, MoreVertical, Eye, CheckSquare, Search, Folder, FolderOpen } from "lucide-react";
 
 
 
@@ -28,7 +30,11 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
 } from "@/components/ui/dropdown-menu";
+
 import {
   Dialog,
   DialogContent,
@@ -108,7 +114,8 @@ export default function David() {
   // Estados de busca e filtros dos prompts
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
-  const [tagsFilter, setTagsFilter] = useState(""); // Tags filtro (string separada por vírgula)
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null); // null = Todas, "uncategorized" = Geral (sem pasta), string = Nome da pasta
 
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearch(searchQuery), 300);
@@ -126,8 +133,8 @@ export default function David() {
   } = trpc.david.savedPrompts.listPaginated.useInfiniteQuery(
     {
       limit: 20,
-      search: searchQuery, // Passando direto por enquanto (adicionar debounce depois)
-      tags: tagsFilter ? tagsFilter.split(',').map(t => t.trim()).filter(Boolean) : undefined,
+      search: searchQuery,
+      category: selectedCategory === "uncategorized" ? null : (selectedCategory || undefined),
     },
     {
       getNextPageParam: (lastPage) => lastPage.nextCursor,
@@ -143,10 +150,13 @@ export default function David() {
   const [isPromptsModalOpen, setIsPromptsModalOpen] = useState(false);
   const [isCreatePromptOpen, setIsCreatePromptOpen] = useState(false);
   const [editingPromptId, setEditingPromptId] = useState<number | null>(null); // null = creating, number = editing
-  const [viewingPrompt, setViewingPrompt] = useState<{ id: number; title: string; content: string; tags?: string[] } | null>(null);
+  const [viewingPrompt, setViewingPrompt] = useState<{ id: number; title: string; content: string; category?: string | null; tags?: string[] } | null>(null);
   const [newPromptTitle, setNewPromptTitle] = useState("");
   const [newPromptContent, setNewPromptContent] = useState("");
-  const [newPromptTags, setNewPromptTags] = useState(""); // Tags (string input)
+  const [newPromptCategory, setNewPromptCategory] = useState<string>("none");
+  const [customCategory, setCustomCategory] = useState("");
+  const [isCreatingCollection, setIsCreatingCollection] = useState(false);
+  const [newCollectionName, setNewCollectionName] = useState("");
 
   // Estados para seleção múltipla
   const [isSelectMode, setIsSelectMode] = useState(false);
@@ -159,14 +169,31 @@ export default function David() {
   const createPromptMutation = trpc.david.savedPrompts.create.useMutation({
     onSuccess: () => {
       refetchPrompts();
+      refetchCollections();
       setIsCreatePromptOpen(false);
       setNewPromptTitle("");
       setNewPromptContent("");
-      setNewPromptTags("");
+      setNewPromptCategory("none");
+      setCustomCategory("");
+      refetchCollections(); // Atualiza coleções caso prompt criado com nova coleção
       toast.success("Prompt criado com sucesso!");
     },
     onError: () => {
       toast.error("Erro ao criar prompt");
+    },
+  });
+
+  // Mutation para criar coleção
+  const createCollectionMutation = trpc.david.promptCollections.create.useMutation({
+    onSuccess: (data) => {
+      refetchCollections();
+      setCurrentCollectionId(data.id); // Navega para a nova coleção
+      setNewCollectionName("");
+      setIsCreatingCollection(false);
+      toast.success("Coleção criada!");
+    },
+    onError: () => {
+      toast.error("Erro ao criar coleção");
     },
   });
 
@@ -182,6 +209,26 @@ export default function David() {
     },
   });
 
+  // Mutation para atualizar prompt
+  const updatePromptMutation = trpc.david.savedPrompts.update.useMutation({
+    onSuccess: () => {
+      refetchPrompts();
+      refetchCollections();
+      setIsCreatePromptOpen(false);
+      setNewPromptTitle("");
+      setNewPromptContent("");
+      setNewPromptCategory("none");
+      setCustomCategory("");
+      setEditingPromptId(null);
+      toast.success("Prompt atualizado!");
+    },
+    onError: () => {
+      toast.error("Erro ao atualizar prompt");
+    },
+  });
+
+
+
   // Mutation para upload de documentos
   const uploadDocMutation = trpc.processDocuments.upload.useMutation();
 
@@ -192,6 +239,27 @@ export default function David() {
     { id: selectedConversationId! },
     { enabled: !!selectedConversationId }
   );
+
+  // Coleções de prompts
+  const { data: promptCollections, refetch: refetchCollections } = trpc.david.promptCollections.list.useQuery();
+
+  // Estado de navegação de coleções
+  const [currentCollectionId, setCurrentCollectionId] = useState<number | null>(null);
+  const currentCollection = promptCollections?.find(c => c.id === currentCollectionId);
+
+  // Filtrar prompts: raiz (null) = sem coleção, ou prompts da coleção selecionada
+  const filteredPrompts = useMemo(() => {
+    if (!savedPrompts) return [];
+
+    if (currentCollectionId === null) {
+      // Raiz: mostrar apenas prompts SEM coleção
+      return savedPrompts.filter((p: any) => p.collectionId === null || p.collectionId === undefined);
+    } else {
+      // Dentro de uma coleção: mostrar apenas prompts DESSA coleção
+      return savedPrompts.filter((p: any) => p.collectionId === currentCollectionId);
+    }
+  }, [savedPrompts, currentCollectionId]);
+
 
   // Mutations
   const createConversationMutation = trpc.david.createConversation.useMutation({
@@ -974,20 +1042,38 @@ export default function David() {
                               </button>
                             </div>
                             <ScrollArea className="flex-1 p-4 space-y-3">
-                              <input
-                                type="text"
-                                placeholder="Nome do Prompt"
-                                value={newPromptTitle}
-                                onChange={(e) => setNewPromptTitle(e.target.value)}
-                                className="w-full text-lg font-semibold text-primary bg-transparent border-none outline-none placeholder:text-muted-foreground/40"
-                              />
-                              <input
-                                type="text"
-                                placeholder="Tags (separadas por vírgula)"
-                                value={newPromptTags}
-                                onChange={(e) => setNewPromptTags(e.target.value)}
-                                className="w-full text-sm text-muted-foreground bg-transparent border-none outline-none placeholder:text-muted-foreground/40"
-                              />
+                              <div className="flex items-center justify-between gap-4">
+                                <input
+                                  type="text"
+                                  placeholder="Nome do Prompt"
+                                  value={newPromptTitle}
+                                  onChange={(e) => setNewPromptTitle(e.target.value)}
+                                  className="flex-1 text-lg font-semibold text-primary bg-transparent border-none outline-none placeholder:text-muted-foreground/40"
+                                />
+                                {/* Seletor de Coleção - lado direito */}
+                                <Select value={newPromptCategory} onValueChange={setNewPromptCategory}>
+                                  <SelectTrigger className="w-[160px] h-8 text-sm bg-white/60 shrink-0">
+                                    <SelectValue placeholder="Sem coleção" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="none">Sem coleção</SelectItem>
+                                    {promptCollections?.map((col) => (
+                                      <SelectItem key={col.id} value={String(col.id)}>{col.name}</SelectItem>
+                                    ))}
+                                    <SelectItem value="__new__">+ Criar nova...</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                              {newPromptCategory === "__new__" && (
+                                <Input
+                                  placeholder="Nome da nova coleção"
+                                  value={customCategory}
+                                  onChange={(e) => setCustomCategory(e.target.value)}
+                                  className="h-8 text-sm"
+                                  autoFocus
+                                />
+                              )}
+
                               <Textarea
                                 placeholder="Escreva seu prompt aqui..."
                                 value={newPromptContent}
@@ -1053,9 +1139,120 @@ export default function David() {
                                 </>
                               ) : (
                                 <>
-                                  <span className="font-semibold">Prompts</span>
+                                  <div className="flex items-center gap-2 flex-1">
+                                    <span className="font-semibold">Prompts</span>
+                                    {isSearchOpen ? (
+                                      <div className="flex items-center gap-1 relative animate-in fade-in slide-in-from-left-2">
+                                        <Search className="absolute left-2 top-2 h-4 w-4 text-muted-foreground" />
+                                        <Input
+                                          autoFocus
+                                          value={searchQuery}
+                                          onChange={(e) => setSearchQuery(e.target.value)}
+                                          className="pl-8 pr-7 h-9 w-[320px] text-sm"
+                                          placeholder="Buscar..."
+                                        />
+                                        <Button variant="ghost" size="icon" className="absolute right-0 top-0.5 h-7 w-7" onClick={() => { setIsSearchOpen(false); setSearchQuery(""); }}>
+                                          <X className="h-3.5 w-3.5" />
+                                        </Button>
+                                      </div>
+                                    ) : (
+                                      <Button variant="ghost" size="icon" onClick={() => setIsSearchOpen(true)} className="h-8 w-8 text-muted-foreground hover:text-foreground">
+                                        <Search className="h-4 w-4 stroke-[2.5]" />
+                                      </Button>
+                                    )}
+                                  </div>
+
+
                                   <div className="flex items-center gap-2">
-                                    <Button size="sm" onClick={() => { setEditingPromptId(null); setNewPromptTitle(""); setNewPromptContent(""); setIsCreatePromptOpen(true); }} className="gap-1">
+                                    <Popover>
+                                      <PopoverTrigger asChild>
+                                        <Button size="sm" className="gap-2 bg-blue-900 hover:bg-blue-800 text-white">
+                                          {currentCollection?.name || "Coleções"}
+                                          <ChevronDown className="h-3 w-3 opacity-80" />
+                                        </Button>
+                                      </PopoverTrigger>
+                                      <PopoverContent className="w-[220px] p-0" align="end">
+                                        <Command>
+                                          <CommandInput placeholder="Buscar coleção..." />
+                                          <CommandList>
+                                            <CommandEmpty>Nenhuma coleção encontrada.</CommandEmpty>
+                                            <CommandGroup heading="Minhas Coleções">
+                                              {/* Lista de coleções */}
+                                              {promptCollections?.map((col) => (
+                                                <CommandItem
+                                                  key={col.id}
+                                                  onSelect={() => setCurrentCollectionId(col.id)}
+                                                  className="hover:bg-slate-100 data-[selected]:bg-blue-100"
+                                                >
+                                                  <Folder className="mr-2 h-4 w-4 text-blue-600" />
+                                                  <span className="flex-1 truncate">{col.name}</span>
+                                                  <span className="text-xs text-slate-500 ml-2">{col.promptCount}</span>
+                                                </CommandItem>
+                                              ))}
+                                              {(!promptCollections || promptCollections.length === 0) && (
+                                                <div className="px-2 py-3 text-sm text-muted-foreground text-center">
+                                                  Nenhuma coleção criada
+                                                </div>
+                                              )}
+                                            </CommandGroup>
+                                            <CommandSeparator />
+                                            <CommandGroup>
+                                              {isCreatingCollection ? (
+                                                <div className="px-2 py-1.5">
+                                                  <Input
+                                                    placeholder="Nome da coleção..."
+                                                    value={newCollectionName}
+                                                    onChange={(e) => setNewCollectionName(e.target.value)}
+                                                    onKeyDown={(e) => {
+                                                      if (e.key === 'Enter' && newCollectionName.trim()) {
+                                                        createCollectionMutation.mutate({ name: newCollectionName.trim() });
+                                                      } else if (e.key === 'Escape') {
+                                                        setNewCollectionName("");
+                                                        setIsCreatingCollection(false);
+                                                      }
+                                                    }}
+                                                    className="h-8 text-sm"
+                                                    autoFocus
+                                                  />
+                                                  <div className="flex gap-1 mt-1">
+                                                    <Button
+                                                      size="sm"
+                                                      variant="ghost"
+                                                      className="h-7 text-xs flex-1"
+                                                      onClick={() => { setNewCollectionName(""); setIsCreatingCollection(false); }}
+                                                    >
+                                                      Cancelar
+                                                    </Button>
+                                                    <Button
+                                                      size="sm"
+                                                      className="h-7 text-xs flex-1 bg-blue-900 hover:bg-blue-800 text-white"
+                                                      disabled={!newCollectionName.trim() || createCollectionMutation.isPending}
+                                                      onClick={() => {
+                                                        if (newCollectionName.trim()) {
+                                                          createCollectionMutation.mutate({ name: newCollectionName.trim() });
+                                                        }
+                                                      }}
+                                                    >
+                                                      {createCollectionMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : "Criar"}
+                                                    </Button>
+                                                  </div>
+                                                </div>
+                                              ) : (
+                                                <CommandItem
+                                                  onSelect={() => setIsCreatingCollection(true)}
+                                                  className="text-blue-900 hover:bg-blue-50"
+                                                >
+                                                  <Plus className="mr-2 h-4 w-4" />
+                                                  Nova Coleção
+                                                </CommandItem>
+                                              )}
+                                            </CommandGroup>
+                                          </CommandList>
+                                        </Command>
+                                      </PopoverContent>
+                                    </Popover>
+
+                                    <Button size="sm" onClick={() => { setEditingPromptId(null); setNewPromptTitle(""); setNewPromptContent(""); setIsCreatePromptOpen(true); }} className="gap-1 bg-blue-900 hover:bg-blue-800 text-white">
                                       <Plus className="h-4 w-4" />
                                       Prompt
                                     </Button>
@@ -1067,32 +1264,30 @@ export default function David() {
                               )}
                             </div>
 
-                            {/* Search & Filters */}
-                            {!isSelectMode && (
-                              <div className="px-4 pb-3 flex gap-2">
-                                <div className="relative flex-1">
-                                  <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                                  <Input
-                                    placeholder="Buscar prompts..."
-                                    value={searchQuery}
-                                    onChange={(e) => setSearchQuery(e.target.value)}
-                                    className="pl-9 h-9"
-                                  />
-                                </div>
-                                <div className="w-1/3">
-                                  <Input
-                                    placeholder="Tags filter..."
-                                    value={tagsFilter}
-                                    onChange={(e) => setTagsFilter(e.target.value)}
-                                    className="h-9"
-                                  />
+                            {/* Área de navegação de pasta */}
+                            {currentCollectionId !== null && (
+                              <div className="flex items-center gap-2 px-4 py-2 border-b bg-slate-50">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="gap-1 text-muted-foreground hover:text-foreground"
+                                  onClick={() => setCurrentCollectionId(null)}
+                                >
+                                  <ArrowLeft className="h-4 w-4" />
+                                  Voltar
+                                </Button>
+                                <div className="flex items-center gap-2 text-sm font-medium">
+                                  <Folder className="h-4 w-4 text-blue-600" />
+                                  {currentCollection?.name}
+                                  <span className="text-muted-foreground">({filteredPrompts.length})</span>
                                 </div>
                               </div>
                             )}
+
                             <ScrollArea className="flex-1">
-                              {savedPrompts && savedPrompts.length > 0 ? (
+                              {filteredPrompts && filteredPrompts.length > 0 ? (
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3 p-4">
-                                  {savedPrompts.map((prompt: any) => (
+                                  {filteredPrompts.map((prompt: any) => (
                                     <div
                                       key={prompt.id}
                                       className={`p-4 rounded-xl border shadow-sm transition-all cursor-pointer group relative ${isSelectMode
@@ -1128,12 +1323,39 @@ export default function David() {
                                                     </button>
                                                   </DropdownMenuTrigger>
                                                   <DropdownMenuContent align="end">
-                                                    <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setViewingPrompt({ id: prompt.id, title: prompt.title, content: prompt.content, tags: prompt.tags as string[] | undefined }); }}>
+                                                    <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setViewingPrompt({ id: prompt.id, title: prompt.title, content: prompt.content, category: prompt.category, tags: prompt.tags as string[] | undefined }); }}>
                                                       <Eye className="h-4 w-4 mr-2" /> Visualizar
                                                     </DropdownMenuItem>
-                                                    <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setEditingPromptId(prompt.id); setNewPromptTitle(prompt.title); setNewPromptContent(prompt.content); setNewPromptTags(prompt.tags?.join(", ") || ""); setIsCreatePromptOpen(true); }}>
+                                                    <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setEditingPromptId(prompt.id); setNewPromptTitle(prompt.title); setNewPromptContent(prompt.content); setNewPromptCategory(prompt.category || "uncategorized"); setIsCreatePromptOpen(true); }}>
                                                       <Edit className="h-4 w-4 mr-2" /> Editar
                                                     </DropdownMenuItem>
+
+                                                    <DropdownMenuSub>
+                                                      <DropdownMenuSubTrigger>
+                                                        <div className="flex items-center">
+                                                          <FolderOpen className="mr-2 h-4 w-4" /> Mover para
+                                                        </div>
+                                                      </DropdownMenuSubTrigger>
+                                                      <DropdownMenuSubContent>
+                                                        {/* Só mostra "Retirar da coleção" se o prompt está em uma coleção */}
+                                                        {prompt.collectionId && (
+                                                          <>
+                                                            <DropdownMenuItem onClick={(e) => { e.stopPropagation(); updatePromptMutation.mutate({ id: prompt.id, collectionId: null }); }}>
+                                                              <X className="h-4 w-4 mr-2 text-muted-foreground" />
+                                                              Retirar da coleção
+                                                            </DropdownMenuItem>
+                                                            <DropdownMenuSeparator />
+                                                          </>
+                                                        )}
+                                                        {promptCollections?.filter(col => col.id !== prompt.collectionId).map((col) => (
+                                                          <DropdownMenuItem key={col.id} onClick={(e) => { e.stopPropagation(); updatePromptMutation.mutate({ id: prompt.id, collectionId: col.id }); }}>
+                                                            <Folder className="h-4 w-4 mr-2 text-blue-600" />
+                                                            {col.name}
+                                                          </DropdownMenuItem>
+                                                        ))}
+                                                      </DropdownMenuSubContent>
+                                                    </DropdownMenuSub>
+
                                                     <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setIsSelectMode(true); setSelectedPromptIds([prompt.id]); }}>
                                                       <CheckSquare className="h-4 w-4 mr-2" /> Selecionar vários
                                                     </DropdownMenuItem>
@@ -1193,27 +1415,55 @@ export default function David() {
 
                 {/* Input/Action Bar Container */}
                 {isCreatePromptOpen ? (
-                  /* Action bar when creating a prompt - styled like input */
-                  <div className="border p-4 relative shadow-sm bg-white rounded-[2rem] transition-all duration-200 z-30">
+                  /* Action bar when creating/editing a prompt */
+                  <div className="border p-4 relative shadow-sm bg-gray-100 rounded-[2rem] transition-all duration-200 z-30">
                     <div className="flex items-center justify-between">
-                      <Button variant="ghost" size="sm" onClick={() => { setIsCreatePromptOpen(false); setNewPromptTitle(""); setNewPromptContent(""); }}>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setIsCreatePromptOpen(false);
+                          setNewPromptTitle("");
+                          setNewPromptContent("");
+                          setNewPromptCategory("none");
+                          setCustomCategory("");
+                          setEditingPromptId(null);
+                        }}
+                      >
                         Cancelar
                       </Button>
                       <Button
+                        size="sm"
+                        className="gap-2 bg-blue-900 hover:bg-blue-800 text-white"
                         onClick={() => {
+                          let finalCategory: string | undefined = undefined;
+                          if (newPromptCategory === "__new__") {
+                            finalCategory = customCategory.trim() || undefined;
+                          } else if (newPromptCategory !== "none") {
+                            finalCategory = newPromptCategory;
+                          }
+
                           if (newPromptTitle.trim() && newPromptContent.trim()) {
-                            createPromptMutation.mutate({
-                              title: newPromptTitle.trim(),
-                              content: newPromptContent.trim(),
-                              tags: newPromptTags.split(',').map(t => t.trim()).filter(Boolean)
-                            });
+                            if (editingPromptId) {
+                              updatePromptMutation.mutate({
+                                id: editingPromptId,
+                                title: newPromptTitle.trim(),
+                                content: newPromptContent.trim(),
+                                category: finalCategory,
+                              });
+                            } else {
+                              createPromptMutation.mutate({
+                                title: newPromptTitle.trim(),
+                                content: newPromptContent.trim(),
+                                category: finalCategory,
+                              });
+                            }
                           }
                         }}
-                        disabled={!newPromptTitle.trim() || !newPromptContent.trim() || createPromptMutation.isPending}
-                        className="gap-2"
+                        disabled={!newPromptTitle.trim() || !newPromptContent.trim() || (newPromptCategory === "__new__" && !customCategory.trim()) || createPromptMutation.isPending || updatePromptMutation.isPending}
                       >
-                        {createPromptMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4" />}
-                        Salvar
+                        {(createPromptMutation.isPending || updatePromptMutation.isPending) ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4" />}
+                        {editingPromptId ? 'Salvar Alterações' : 'Salvar Prompt'}
                       </Button>
                     </div>
                   </div>
@@ -1239,7 +1489,7 @@ export default function David() {
                             setEditingPromptId(viewingPrompt.id);
                             setNewPromptTitle(viewingPrompt.title);
                             setNewPromptContent(viewingPrompt.content);
-                            setNewPromptTags(viewingPrompt.tags?.join(", ") || "");
+                            setNewPromptCategory(viewingPrompt.category || "uncategorized");
                             setViewingPrompt(null);
                             setIsCreatePromptOpen(true);
                           }}

@@ -511,7 +511,67 @@ export async function getConversationMessages(conversationId: number): Promise<M
     .orderBy(messages.createdAt);
 }
 
+// ============================================
+// Coleções de Prompts
+// ============================================
+
+import { promptCollections, InsertPromptCollection, PromptCollection } from "../drizzle/schema";
+
+export async function createPromptCollection(data: InsertPromptCollection) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  const [collection] = await db.insert(promptCollections).values(data).$returningId();
+  return collection.id;
+}
+
+export async function getUserPromptCollections(userId: number): Promise<(PromptCollection & { promptCount: number })[]> {
+  const db = await getDb();
+  if (!db) return [];
+
+  const { count, sql } = await import("drizzle-orm");
+
+  // Query com contagem de prompts por coleção
+  const collections = await db
+    .select({
+      id: promptCollections.id,
+      userId: promptCollections.userId,
+      name: promptCollections.name,
+      createdAt: promptCollections.createdAt,
+      updatedAt: promptCollections.updatedAt,
+      promptCount: sql<number>`(
+        SELECT COUNT(*) FROM savedPrompts 
+        WHERE savedPrompts.collectionId = ${promptCollections.id}
+      )`.as("promptCount"),
+    })
+    .from(promptCollections)
+    .where(eq(promptCollections.userId, userId))
+    .orderBy(promptCollections.name);
+
+  return collections;
+}
+
+export async function deletePromptCollection(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  // Move prompts da coleção para a raiz (null)
+  await db.update(savedPrompts).set({ collectionId: null }).where(eq(savedPrompts.collectionId, id));
+
+  // Delete a coleção
+  await db.delete(promptCollections).where(eq(promptCollections.id, id));
+}
+
+export async function updatePromptCollection(id: number, name: string) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  await db.update(promptCollections).set({ name }).where(eq(promptCollections.id, id));
+}
+
+// ============================================
 // Prompts Salvos
+// ============================================
 export async function createSavedPrompt(data: InsertSavedPrompt) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
@@ -536,12 +596,12 @@ export async function getSavedPromptsPaginated(options: {
   limit: number;
   cursor?: number; // ID do último item para paginação
   search?: string;
-  tags?: string[];
+  category?: string | null;
 }) {
   const db = await getDb();
   if (!db) return { items: [], nextCursor: undefined };
 
-  const { like, or, lt, sql } = await import("drizzle-orm");
+  const { like, or, lt, and, isNull } = await import("drizzle-orm");
 
   const conditions = [eq(savedPrompts.userId, options.userId)];
 
@@ -559,21 +619,11 @@ export async function getSavedPromptsPaginated(options: {
     ));
   }
 
-  // Filtro por Tags (JSON)
-  // Requer MySQL 5.7+
-  if (options.tags && options.tags.length > 0) {
-    // Para simplificar, verificamos se contem pelo menos uma das tags (OR logic) ou todas (AND logic)?
-    // Geralmente filtro é AND.
-    // Drizzle não tem suporte nativo tipado para JSON_CONTAINS ou JSON_OVERLAPS, usar sql raw.
-    // Vamos assumir filtro inclusivo (qualquer tag da lista serve) ou exclusivo? 
-    // Vamos fazer: se o usuário seleciona tags, ele quer prompts que tenham aquelas tags.
-    // Implementação simples: verificar se a string JSON contem o termo. Não é ideal mas funciona pra MVP.
-    // Ideal: JSON_CONTAINS(tags, '"tag"').
-
-    // Vamos iterar e adicionar conditions
-    for (const tag of options.tags) {
-      conditions.push(sql`JSON_SEARCH(${savedPrompts.tags}, 'one', ${tag}) IS NOT NULL`);
-    }
+  // Filtro por Categoria
+  if (options.category === null) {
+    conditions.push(isNull(savedPrompts.category));
+  } else if (typeof options.category === "string") {
+    conditions.push(eq(savedPrompts.category, options.category));
   }
 
   const limit = options.limit + 1; // Buscar 1 a mais para saber se tem próximo
@@ -595,6 +645,27 @@ export async function getSavedPromptsPaginated(options: {
     items,
     nextCursor,
   };
+}
+
+export async function getUniqueCategories(userId: number) {
+  const db = await getDb();
+  if (!db) return [];
+
+  const { count, isNotNull } = await import("drizzle-orm");
+
+  return await db
+    .select({
+      name: savedPrompts.category,
+      count: count(savedPrompts.id),
+    })
+    .from(savedPrompts)
+    .where(
+      and(
+        eq(savedPrompts.userId, userId),
+        isNotNull(savedPrompts.category)
+      )
+    )
+    .groupBy(savedPrompts.category);
 }
 
 export async function getSavedPromptById(id: number): Promise<SavedPrompt | undefined> {

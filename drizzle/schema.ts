@@ -203,21 +203,37 @@ export const messages = mysqlTable("messages", {
 export type Message = typeof messages.$inferSelect;
 export type InsertMessage = typeof messages.$inferInsert;
 
+// Coleções de prompts (pastas)
+export const promptCollections = mysqlTable("promptCollections", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(),
+  name: varchar("name", { length: 100 }).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+}, (table) => ({
+  userIdIdx: index("promptCollections_userId_idx").on(table.userId),
+}));
+
+export type PromptCollection = typeof promptCollections.$inferSelect;
+export type InsertPromptCollection = typeof promptCollections.$inferInsert;
+
 // Prompts especializados salvos pelo usuário
 export const savedPrompts = mysqlTable("savedPrompts", {
   id: int("id").autoincrement().primaryKey(),
   userId: int("userId").notNull(),
+  collectionId: int("collectionId"), // FK para promptCollections (null = raiz)
   title: varchar("title", { length: 300 }).notNull(),
-  category: varchar("category", { length: 100 }), // tutela, sentenca, decisao, analise
+  category: varchar("category", { length: 100 }), // DEPRECATED - usar collectionId
   content: longtext("content").notNull(), // O prompt completo
   description: text("description"), // Descrição do que o prompt faz
   isDefault: int("isDefault").default(0).notNull(), // Se é um prompt padrão do sistema
-  executionMode: mysqlEnum("executionMode", ["chat", "full_context"]).default("chat").notNull(), // chat = RAG/simples, full_context = Injeta todo o processo
+  executionMode: mysqlEnum("executionMode", ["chat", "full_context"]).default("chat").notNull(),
   tags: json("tags").$type<string[]>(), // Tags/Etiquetas para organização
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 }, (table) => ({
   userIdIdx: index("savedPrompts_userId_idx").on(table.userId),
+  collectionIdIdx: index("savedPrompts_collectionId_idx").on(table.collectionId),
 }));
 
 export type SavedPrompt = typeof savedPrompts.$inferSelect;

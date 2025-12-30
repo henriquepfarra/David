@@ -18,6 +18,7 @@ import {
   getSavedPromptById,
   updateSavedPrompt,
   deleteSavedPrompt,
+  getUniqueCategories,
   getProcessForContext,
   getDavidConfig,
   upsertDavidConfig,
@@ -748,13 +749,49 @@ export const davidRouter = router({
       }
     }),
 
+  // Coleções de Prompts
+  promptCollections: router({
+    create: protectedProcedure
+      .input(z.object({ name: z.string().min(1).max(100) }))
+      .mutation(async ({ ctx, input }) => {
+        const { createPromptCollection } = await import("./db");
+        const id = await createPromptCollection({
+          userId: ctx.user.id,
+          name: input.name,
+        });
+        return { id };
+      }),
+
+    list: protectedProcedure.query(async ({ ctx }) => {
+      const { getUserPromptCollections } = await import("./db");
+      return await getUserPromptCollections(ctx.user.id);
+    }),
+
+    delete: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ input }) => {
+        const { deletePromptCollection } = await import("./db");
+        await deletePromptCollection(input.id);
+        return { success: true };
+      }),
+
+    update: protectedProcedure
+      .input(z.object({ id: z.number(), name: z.string().min(1).max(100) }))
+      .mutation(async ({ input }) => {
+        const { updatePromptCollection } = await import("./db");
+        await updatePromptCollection(input.id, input.name);
+        return { success: true };
+      }),
+  }),
+
   // Prompts salvos
   savedPrompts: router({
     create: protectedProcedure
       .input(
         z.object({
           title: z.string(),
-          category: z.string().optional(),
+          collectionId: z.number().optional().nullable(),
+          category: z.string().optional(), // DEPRECATED
           content: z.string(),
           description: z.string().optional(),
           executionMode: z.enum(["chat", "full_context"]).optional(),
@@ -764,8 +801,13 @@ export const davidRouter = router({
       .mutation(async ({ ctx, input }) => {
         const id = await createSavedPrompt({
           userId: ctx.user.id,
-          ...input,
+          title: input.title,
+          content: input.content,
+          collectionId: input.collectionId ?? undefined,
+          category: input.category,
+          description: input.description,
           executionMode: input.executionMode || "chat",
+          tags: input.tags,
         });
         return { id };
       }),
@@ -774,12 +816,16 @@ export const davidRouter = router({
       return await getUserSavedPrompts(ctx.user.id);
     }),
 
+    getCategoryStats: protectedProcedure.query(async ({ ctx }) => {
+      return await getUniqueCategories(ctx.user.id);
+    }),
+
     listPaginated: protectedProcedure
       .input(z.object({
         limit: z.number().min(1).max(100).default(50),
         cursor: z.number().optional(), // ID do último item
         search: z.string().optional(),
-        tags: z.array(z.string()).optional(),
+        category: z.string().nullable().optional(),
       }))
       .query(async ({ ctx, input }) => {
         return await getSavedPromptsPaginated({
@@ -881,7 +927,8 @@ Diretrizes de Execução:
         z.object({
           id: z.number(),
           title: z.string().optional(),
-          category: z.string().optional(),
+          collectionId: z.number().nullable().optional(),
+          category: z.string().nullable().optional(), // DEPRECATED
           content: z.string().optional(),
           description: z.string().optional(),
           executionMode: z.enum(["chat", "full_context"]).optional(),
