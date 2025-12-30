@@ -2,9 +2,10 @@ import { COOKIE_NAME } from "@shared/const";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { protectedProcedure, publicProcedure, router } from "./_core/trpc";
+import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import * as db from "./db";
-import { generateDraft } from "./draftGenerator";
+
 import { fetchDriveContentCached } from "./driveHelper";
 import { listAvailableModels } from "./llmModels";
 import { davidRouter } from "./davidRouter";
@@ -32,6 +33,14 @@ export const appRouter = router({
       } as const;
     }),
     localLogin: publicProcedure.mutation(async ({ ctx }) => {
+      // Segurança: Esta rota SÓ deve funcionar em desenvolvimento
+      if (process.env.NODE_ENV === "production") {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "Local login is only available in development environment",
+        });
+      }
+
       // Create a dummy user session for local development
       const mockUser = {
         openId: "dev-user-id",
@@ -396,65 +405,6 @@ export const appRouter = router({
       .mutation(async ({ ctx, input }) => {
         await db.deleteKnowledgeBase(input.id, ctx.user.id);
         return { success: true };
-      }),
-  }),
-
-  // Geração de minutas com IA (DAVID)
-  draftGenerator: router({
-    generate: protectedProcedure
-      .input(z.object({
-        processId: z.number(),
-        draftType: z.enum(["sentenca", "decisao", "despacho", "acordao"]),
-        title: z.string(),
-      }))
-      .mutation(async ({ ctx, input }) => {
-        // Buscar dados do processo
-        const process = await db.getProcessById(input.processId, ctx.user.id);
-        if (!process) {
-          throw new Error("Processo não encontrado");
-        }
-
-        // Buscar configurações do usuário
-        const settings = await db.getUserSettings(ctx.user.id);
-
-        // Buscar conteúdo do Google Drive (Teses e Diretrizes)
-        const driveContent = await fetchDriveContentCached();
-
-        // Buscar base de conhecimento do usuário
-        const knowledgeBase = await db.getUserKnowledgeBase(ctx.user.id);
-        const knowledgeBaseContent = knowledgeBase
-          .map(kb => `[${kb.title}]\n${kb.content}`)
-          .join("\n\n---\n\n");
-
-        // Gerar minuta com IA
-        const content = await generateDraft({
-          draftType: input.draftType,
-          processNumber: process.processNumber,
-          court: process.court || undefined,
-          judge: process.judge || undefined,
-          plaintiff: process.plaintiff || undefined,
-          defendant: process.defendant || undefined,
-          subject: process.subject || undefined,
-          facts: process.facts || undefined,
-          evidence: process.evidence || undefined,
-          requests: process.requests || undefined,
-          customApiKey: settings?.llmApiKey || undefined,
-          customModel: settings?.llmModel || undefined,
-          customSystemPrompt: settings?.customSystemPrompt || undefined,
-          knowledgeBase: knowledgeBaseContent || undefined,
-          driveContent: driveContent || undefined,
-        });
-
-        // Salvar minuta no banco
-        await db.createDraft({
-          processId: input.processId,
-          userId: ctx.user.id,
-          draftType: input.draftType,
-          title: input.title,
-          content,
-        });
-
-        return { success: true, content };
       }),
   }),
 });

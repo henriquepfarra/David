@@ -1,10 +1,16 @@
 # TODO - DAVID (Assistente Jurídico IA)
 
-> **Última atualização**: 27/12/2025
+> **Última atualização**: 30/12/2025
 
 ---
 
 ## ✅ Concluído
+
+### Manutenção e Refatoração (30/12/2025)
+- [x] **Limpeza de UI**: Remoção de 21 componentes e libs não utilizados (Shadcn UI orphans)
+- [x] **Limpeza de Backend**: Remoção de rotas obsoletas (`draftGenerator`) e scripts de debug
+- [x] **Segurança de Tipos**: Refatoração do `server/db.ts` eliminando 100% dos `any` types
+- [x] **Segurança de Acesso**: Proteção da rota `localLogin` (apenas DEV)
 
 ### Infraestrutura Core
 - [x] Schema do banco de dados com Drizzle ORM
@@ -56,6 +62,8 @@
 - [x] Página Memória do DAVID
 - [x] Página de Processos
 - [x] Botão "Enviar Processo" (renomeado)
+- [x] Referência visual do processo anexado no chat
+- [x] Indicador de "processo ativo" mais claro
 
 ---
 
@@ -65,11 +73,7 @@
 - [x] File API retorna `fileUri` para sessão
 - [ ] Armazenar `fileUri` por conversa para consultas múltiplas
 - [ ] Deletar arquivo do Google ao sair do chat
-- [ ] Alerta se processo já existe em outro chat
-
-### UX do Chat
-- [ ] Referência visual do processo anexado no chat
-- [ ] Indicador de "processo ativo" mais claro
+- [x] Alerta se processo já existe em outro chat
 
 ---
 

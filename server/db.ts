@@ -1,7 +1,10 @@
 import { eq, and } from "drizzle-orm";
 import { drizzle, MySql2Database } from "drizzle-orm/mysql2";
 import { createPool } from "mysql2/promise";
-import { InsertUser, users } from "../drizzle/schema";
+import {
+  InsertUser, users,
+  InsertProcess, InsertDraft, InsertJurisprudence, InsertUserSettings, InsertKnowledgeBase
+} from "../drizzle/schema";
 import * as schema from "../drizzle/schema";
 import { ENV } from './_core/env';
 
@@ -147,7 +150,7 @@ export async function getProcessById(id: number, userId: number) {
   return result[0];
 }
 
-export async function createProcess(data: any) {
+export async function createProcess(data: InsertProcess) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
   const { processes } = await import("../drizzle/schema");
@@ -155,7 +158,7 @@ export async function createProcess(data: any) {
   return { id: header.insertId };
 }
 
-export async function updateProcess(id: number, userId: number, data: any) {
+export async function updateProcess(id: number, userId: number, data: Partial<InsertProcess>) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
   const { processes } = await import("../drizzle/schema");
@@ -187,7 +190,7 @@ export async function getUserDrafts(userId: number) {
   return db.select().from(drafts).where(eq(drafts.userId, userId)).orderBy(drafts.createdAt);
 }
 
-export async function createDraft(data: any) {
+export async function createDraft(data: InsertDraft) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
   const { drafts } = await import("../drizzle/schema");
@@ -195,7 +198,7 @@ export async function createDraft(data: any) {
   return result;
 }
 
-export async function updateDraft(id: number, userId: number, data: any) {
+export async function updateDraft(id: number, userId: number, data: Partial<InsertDraft>) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
   const { drafts } = await import("../drizzle/schema");
@@ -219,7 +222,7 @@ export async function getUserJurisprudence(userId: number) {
   return db.select().from(jurisprudence).where(eq(jurisprudence.userId, userId)).orderBy(jurisprudence.createdAt);
 }
 
-export async function createJurisprudence(data: any) {
+export async function createJurisprudence(data: InsertJurisprudence) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
   const { jurisprudence } = await import("../drizzle/schema");
@@ -227,7 +230,7 @@ export async function createJurisprudence(data: any) {
   return result;
 }
 
-export async function updateJurisprudence(id: number, userId: number, data: any) {
+export async function updateJurisprudence(id: number, userId: number, data: Partial<InsertJurisprudence>) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
   const { jurisprudence } = await import("../drizzle/schema");
@@ -263,7 +266,7 @@ export async function getUserSettings(userId: number) {
   };
 }
 
-export async function upsertUserSettings(userId: number, data: any) {
+export async function upsertUserSettings(userId: number, data: Partial<InsertUserSettings>) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
   const { userSettings } = await import("../drizzle/schema");
@@ -272,6 +275,7 @@ export async function upsertUserSettings(userId: number, data: any) {
   // Converter undefined para null para limpar valores no banco
   const normalizedData: any = {};
   for (const key in data) {
+    // @ts-ignore
     normalizedData[key] = data[key] === undefined ? null : data[key];
   }
 
@@ -287,7 +291,7 @@ export async function upsertUserSettings(userId: number, data: any) {
 }
 
 // Base de Conhecimento
-export async function createKnowledgeBase(data: any) {
+export async function createKnowledgeBase(data: InsertKnowledgeBase) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
   const { knowledgeBase } = await import("../drizzle/schema");
