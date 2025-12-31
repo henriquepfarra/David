@@ -47,8 +47,15 @@ import { generateConversationTitle } from "./titleGenerator";
 import { DEFAULT_DAVID_SYSTEM_PROMPT } from "@shared/defaultPrompts";
 import { executeSavedPrompt } from "./_core/promptExecutor";
 
-// Core do DAVID (Identidade + Estilo - Universal)
-import { CORE_IDENTITY, CORE_TONE, CORE_GATEKEEPER, CORE_TRACEABILITY } from "./prompts/core";
+// Core do DAVID (Identidade + Estilo + Segurança - Universal)
+import {
+  CORE_IDENTITY,
+  CORE_TONE,
+  CORE_GATEKEEPER,
+  CORE_TRACEABILITY,
+  CORE_ZERO_TOLERANCE,
+  CORE_TRANSPARENCY
+} from "./prompts/core";
 // Módulo específico (Cartucho JEC)
 import { JEC_CONTEXT } from "./modules/jec/context";
 
@@ -485,13 +492,15 @@ export const davidRouter = router({
       }
 
       // MONTAGEM DINÂMICA DO CÉREBRO (Brain Assembly)
-      // Core (Universal) + Módulo (JEC) + Contextos Dinâmicos
+      // Core (Universal) + Módulo (JEC)
       const baseSystemPrompt = `
 ${CORE_IDENTITY}
-${JEC_CONTEXT}
 ${CORE_TONE}
 ${CORE_GATEKEEPER}
 ${CORE_TRACEABILITY}
+${CORE_ZERO_TOLERANCE}
+${CORE_TRANSPARENCY}
+${JEC_CONTEXT}
 `;
 
       // Se o usuário mandou um override, usa ele. Se não, usa o "Frankenstein" montado acima.
@@ -726,13 +735,15 @@ ${CORE_TRACEABILITY}
       }
 
       // MONTAGEM DINÂMICA DO CÉREBRO (Brain Assembly)
-      // Core (Universal) + Módulo (JEC) + Contextos Dinâmicos
+      // Core (Universal) + Módulo (JEC)
       const baseSystemPrompt = `
 ${CORE_IDENTITY}
-${JEC_CONTEXT}
 ${CORE_TONE}
 ${CORE_GATEKEEPER}
 ${CORE_TRACEABILITY}
+${CORE_ZERO_TOLERANCE}
+${CORE_TRANSPARENCY}
+${JEC_CONTEXT}
 `;
 
       // Se o usuário mandou um override, usa ele. Se não, usa o "Frankenstein" montado acima.

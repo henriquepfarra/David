@@ -21,7 +21,17 @@ import { getConversationById, getConversationMessages, createMessage, getProcess
 import { invokeLLMStream as streamFn } from "../_core/llm";
 import { sdk } from "./sdk";
 
-
+// Core do DAVID (Identidade + Estilo + Segurança - Universal)
+import {
+  CORE_IDENTITY,
+  CORE_TONE,
+  CORE_GATEKEEPER,
+  CORE_TRACEABILITY,
+  CORE_ZERO_TOLERANCE,
+  CORE_TRANSPARENCY
+} from "../prompts/core";
+// Módulo específico (Cartucho JEC)
+import { JEC_CONTEXT } from "../modules/jec/context";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -133,16 +143,15 @@ async function startServer() {
       }
 
       // MONTAGEM DINÂMICA DO CÉREBRO (Brain Assembly)
-      // Importar Core e Módulo
-      const { CORE_IDENTITY, CORE_TONE, CORE_GATEKEEPER, CORE_TRACEABILITY } = await import("../prompts/core");
-      const { JEC_CONTEXT } = await import("../modules/jec/context");
-
+      // Core (Universal) + Módulo (JEC)
       const baseSystemPrompt = `
 ${CORE_IDENTITY}
-${JEC_CONTEXT}
 ${CORE_TONE}
 ${CORE_GATEKEEPER}
 ${CORE_TRACEABILITY}
+${CORE_ZERO_TOLERANCE}
+${CORE_TRANSPARENCY}
+${JEC_CONTEXT}
 `;
 
       const systemPrompt = systemPromptOverride || baseSystemPrompt;
