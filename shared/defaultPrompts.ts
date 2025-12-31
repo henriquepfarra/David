@@ -1,6 +1,13 @@
 /**
  * Prompts padrão do sistema
  * Compartilhado entre servidor e cliente
+ * 
+ * @deprecated Este arquivo foi substituído pela arquitetura modular:
+ * - server/prompts/core.ts (Identidade, Estilo, Gatekeeper, Rastreabilidade)
+ * - server/modules/jec/context.ts (Contexto JEC)
+ * 
+ * MANTIDO APENAS para fallback em config.get e possível uso no frontend.
+ * Será removido na faxina final.
  */
 
 export const DEFAULT_DAVID_SYSTEM_PROMPT = `Você é DAVID, um assistente jurídico especializado em processos judiciais brasileiros.

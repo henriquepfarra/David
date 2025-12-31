@@ -132,10 +132,20 @@ async function startServer() {
         }
       }
 
-      // System prompt
-      const DEFAULT_DAVID_SYSTEM_PROMPT = `Você é DAVID, um assistente jurídico especializado em processos judiciais brasileiros.\n\nSua função é auxiliar na análise de processos, geração de minutas e orientação jurídica com base em:\n1. Dados do processo fornecido pelo usuário\n2. Legislação brasileira (CPC, CDC, CC, etc.)\n3. Jurisprudência do TJSP e tribunais superiores\n4. Boas práticas jurídicas\n\nDiretrizes:\n- Seja preciso, técnico e fundamentado\n- Cite sempre a base legal (artigos, leis)\n- Quando sugerir jurisprudência, forneça perfis de busca específicos\n- NUNCA invente jurisprudência ou dados\n- Seja crítico e realista sobre pontos fortes e fracos\n- Use linguagem jurídica clara e acessível\n- Quando houver processo selecionado, utilize seus dados no contexto\n\nFormato de resposta:\n- Use markdown para estruturar\n- Destaque pontos importantes em **negrito**\n- Use listas quando apropriado\n- Cite dispositivos legais entre parênteses (ex: Art. 300, CPC)`;
+      // MONTAGEM DINÂMICA DO CÉREBRO (Brain Assembly)
+      // Importar Core e Módulo
+      const { CORE_IDENTITY, CORE_TONE, CORE_GATEKEEPER, CORE_TRACEABILITY } = await import("../prompts/core");
+      const { JEC_CONTEXT } = await import("../modules/jec/context");
 
-      const systemPrompt = systemPromptOverride || DEFAULT_DAVID_SYSTEM_PROMPT;
+      const baseSystemPrompt = `
+${CORE_IDENTITY}
+${JEC_CONTEXT}
+${CORE_TONE}
+${CORE_GATEKEEPER}
+${CORE_TRACEABILITY}
+`;
+
+      const systemPrompt = systemPromptOverride || baseSystemPrompt;
       const llmMessages: Array<{ role: "system" | "user" | "assistant"; content: string }> = [
         { role: "system", content: systemPrompt + processContext },
       ];

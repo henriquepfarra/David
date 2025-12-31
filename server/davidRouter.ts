@@ -43,9 +43,14 @@ import { observable } from "@trpc/server/observable";
 import { extractThesisFromDraft } from "./thesisExtractor";
 import { generateConversationTitle } from "./titleGenerator";
 
-// System prompt padrão do DAVID
+// System prompt padrão do DAVID (mantido para fallback em config.get)
 import { DEFAULT_DAVID_SYSTEM_PROMPT } from "@shared/defaultPrompts";
 import { executeSavedPrompt } from "./_core/promptExecutor";
+
+// Core do DAVID (Identidade + Estilo - Universal)
+import { CORE_IDENTITY, CORE_TONE, CORE_GATEKEEPER, CORE_TRACEABILITY } from "./prompts/core";
+// Módulo específico (Cartucho JEC)
+import { JEC_CONTEXT } from "./modules/jec/context";
 
 export const davidRouter = router({
   // Criar nova conversa
@@ -479,8 +484,18 @@ export const davidRouter = router({
         }
       }
 
-      // Montar mensagens para a IA
-      const systemPrompt = input.systemPromptOverride || DEFAULT_DAVID_SYSTEM_PROMPT;
+      // MONTAGEM DINÂMICA DO CÉREBRO (Brain Assembly)
+      // Core (Universal) + Módulo (JEC) + Contextos Dinâmicos
+      const baseSystemPrompt = `
+${CORE_IDENTITY}
+${JEC_CONTEXT}
+${CORE_TONE}
+${CORE_GATEKEEPER}
+${CORE_TRACEABILITY}
+`;
+
+      // Se o usuário mandou um override, usa ele. Se não, usa o "Frankenstein" montado acima.
+      const systemPrompt = input.systemPromptOverride || baseSystemPrompt;
       const llmMessages: Array<{ role: "system" | "user" | "assistant"; content: string }> = [
         { role: "system", content: systemPrompt + knowledgeBaseContext + processContext + processDocsContext + similarCasesContext },
       ];
@@ -710,8 +725,18 @@ export const davidRouter = router({
         }
       }
 
-      // Montar mensagens para a IA
-      const systemPrompt = input.systemPromptOverride || DEFAULT_DAVID_SYSTEM_PROMPT;
+      // MONTAGEM DINÂMICA DO CÉREBRO (Brain Assembly)
+      // Core (Universal) + Módulo (JEC) + Contextos Dinâmicos
+      const baseSystemPrompt = `
+${CORE_IDENTITY}
+${JEC_CONTEXT}
+${CORE_TONE}
+${CORE_GATEKEEPER}
+${CORE_TRACEABILITY}
+`;
+
+      // Se o usuário mandou um override, usa ele. Se não, usa o "Frankenstein" montado acima.
+      const systemPrompt = input.systemPromptOverride || baseSystemPrompt;
       const llmMessages: Array<{ role: "system" | "user" | "assistant"; content: string }> = [
         { role: "system", content: systemPrompt + knowledgeBaseContext + processContext + processDocsContext + similarCasesContext },
       ];
