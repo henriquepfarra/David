@@ -35,7 +35,8 @@ import {
   CORE_ORCHESTRATOR,
   CORE_MOTOR_A,
   CORE_MOTOR_B,
-  CORE_MOTOR_C
+  CORE_MOTOR_C,
+  CORE_MOTOR_D
 } from "../prompts/engines";
 // Módulo específico (Cartucho JEC)
 import { JEC_CONTEXT } from "../modules/jec/context";
@@ -163,6 +164,7 @@ ${CORE_ORCHESTRATOR}
 ${CORE_MOTOR_A}
 ${CORE_MOTOR_B}
 ${CORE_MOTOR_C}
+${CORE_MOTOR_D}
 `;
 
       const systemPrompt = systemPromptOverride || baseSystemPrompt;
