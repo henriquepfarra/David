@@ -31,7 +31,12 @@ import {
   CORE_TRANSPARENCY
 } from "../prompts/core";
 // Orquestrador + Motores
-import { CORE_ORCHESTRATOR, CORE_MOTOR_A } from "../prompts/engines";
+import {
+  CORE_ORCHESTRATOR,
+  CORE_MOTOR_A,
+  CORE_MOTOR_B,
+  CORE_MOTOR_C
+} from "../prompts/engines";
 // Módulo específico (Cartucho JEC)
 import { JEC_CONTEXT } from "../modules/jec/context";
 
@@ -156,6 +161,8 @@ ${CORE_TRANSPARENCY}
 ${JEC_CONTEXT}
 ${CORE_ORCHESTRATOR}
 ${CORE_MOTOR_A}
+${CORE_MOTOR_B}
+${CORE_MOTOR_C}
 `;
 
       const systemPrompt = systemPromptOverride || baseSystemPrompt;
