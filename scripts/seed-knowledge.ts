@@ -12,12 +12,12 @@
 // Carregar variáveis de ambiente antes de qualquer import
 import "dotenv/config";
 
-import * as fs from "node:fs";
-import * as path from "node:path";
-import { getDb } from "../server/db";
-import { knowledgeBase } from "../drizzle/schema";
+import { existsSync, readFileSync } from "node:fs";
+import { resolve } from "node:path";
+import { getDb } from "../server/db.js";
+import { knowledgeBase } from "../drizzle/schema.js";
 import { eq } from "drizzle-orm";
-import { generateEmbedding } from "../server/_core/embeddings";
+import { generateEmbedding } from "../server/_core/embeddings.js";
 
 // Tipo do documento no JSON
 interface SystemDoc {
@@ -28,7 +28,7 @@ interface SystemDoc {
     tags: string[];
 }
 
-async function seedSystemKnowledge() {
+async function seedSystemKnowledge(): Promise<void> {
     console.log("🌱 Iniciando Semeadura de Conhecimento do Sistema...\n");
 
     // Obter conexão com banco de dados
@@ -37,19 +37,19 @@ async function seedSystemKnowledge() {
     if (!db) {
         console.error("❌ Conexão com banco de dados não disponível!");
         console.log("   Verifique a variável DATABASE_URL no arquivo .env");
-        process.exit(1);
+        throw new Error("Database connection failed");
     }
 
     // 1. Ler o Arquivo Mestre
-    const filePath = path.join(process.cwd(), "server", "data", "system_knowledge.json");
+    const filePath = resolve("server", "data", "system_knowledge.json");
 
-    if (!fs.existsSync(filePath)) {
+    if (!existsSync(filePath)) {
         console.error("❌ Arquivo system_knowledge.json não encontrado!");
         console.log("   Esperado em:", filePath);
-        process.exit(1);
+        throw new Error("system_knowledge.json not found");
     }
 
-    const rawData = fs.readFileSync(filePath, "utf-8");
+    const rawData = readFileSync(filePath, "utf-8");
     const docs: SystemDoc[] = JSON.parse(rawData);
 
     console.log(`📚 Encontrados ${docs.length} documentos para processar.\n`);
@@ -136,8 +136,14 @@ async function seedSystemKnowledge() {
     console.log(`   🔄 Atualizados: ${updated}`);
     console.log(`   💤 Ignorados: ${skipped}`);
     console.log("=".repeat(50));
-
-    process.exit(0);
 }
 
-seedSystemKnowledge();
+seedSystemKnowledge()
+    .then(() => {
+        console.log("\n✅ Script finalizado com sucesso");
+        process.exit(0);
+    })
+    .catch((err) => {
+        console.error("\n❌ Script falhou:", err);
+        process.exit(1);
+    });
