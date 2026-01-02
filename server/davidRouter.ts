@@ -54,7 +54,8 @@ import {
   CORE_GATEKEEPER,
   CORE_TRACEABILITY,
   CORE_ZERO_TOLERANCE,
-  CORE_TRANSPARENCY
+  CORE_TRANSPARENCY,
+  CORE_STYLE
 } from "./prompts/core";
 // Orquestrador + Motores
 import {
@@ -508,6 +509,7 @@ ${CORE_GATEKEEPER}
 ${CORE_TRACEABILITY}
 ${CORE_ZERO_TOLERANCE}
 ${CORE_TRANSPARENCY}
+${CORE_STYLE}
 ${JEC_CONTEXT}
 ${CORE_ORCHESTRATOR}
 ${CORE_MOTOR_A}
@@ -516,8 +518,11 @@ ${CORE_MOTOR_C}
 ${CORE_MOTOR_D}
 `;
 
-      // Se o usuário mandou um override, usa ele. Se não, usa o "Frankenstein" montado acima.
-      const systemPrompt = input.systemPromptOverride || baseSystemPrompt;
+      // Preferências de Estilo do Gabinete (CONCATENA, não substitui)
+      const stylePreferences = input.systemPromptOverride
+        ? `\n[PREFERÊNCIAS DE ESTILO DO GABINETE]\n${input.systemPromptOverride}`
+        : "";
+      const systemPrompt = baseSystemPrompt + stylePreferences;
       const llmMessages: Array<{ role: "system" | "user" | "assistant"; content: string }> = [
         { role: "system", content: systemPrompt + knowledgeBaseContext + processContext + processDocsContext + similarCasesContext },
       ];
@@ -748,7 +753,7 @@ ${CORE_MOTOR_D}
       }
 
       // MONTAGEM DINÂMICA DO CÉREBRO (Brain Assembly)
-      // Core (Universal) + Módulo (JEC) + Orquestrador + Motores
+      // Core (Universal) + Estilo + Módulo (JEC) + Orquestrador + Motores
       const baseSystemPrompt = `
 ${CORE_IDENTITY}
 ${CORE_TONE}
@@ -756,6 +761,7 @@ ${CORE_GATEKEEPER}
 ${CORE_TRACEABILITY}
 ${CORE_ZERO_TOLERANCE}
 ${CORE_TRANSPARENCY}
+${CORE_STYLE}
 ${JEC_CONTEXT}
 ${CORE_ORCHESTRATOR}
 ${CORE_MOTOR_A}
@@ -764,8 +770,11 @@ ${CORE_MOTOR_C}
 ${CORE_MOTOR_D}
 `;
 
-      // Se o usuário mandou um override, usa ele. Se não, usa o "Frankenstein" montado acima.
-      const systemPrompt = input.systemPromptOverride || baseSystemPrompt;
+      // Preferências de Estilo do Gabinete (CONCATENA, não substitui)
+      const stylePreferences = input.systemPromptOverride
+        ? `\n[PREFERÊNCIAS DE ESTILO DO GABINETE]\n${input.systemPromptOverride}`
+        : "";
+      const systemPrompt = baseSystemPrompt + stylePreferences;
       const llmMessages: Array<{ role: "system" | "user" | "assistant"; content: string }> = [
         { role: "system", content: systemPrompt + knowledgeBaseContext + processContext + processDocsContext + similarCasesContext },
       ];
