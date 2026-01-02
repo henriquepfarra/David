@@ -30,6 +30,8 @@ import {
   CORE_ZERO_TOLERANCE,
   CORE_TRANSPARENCY
 } from "../prompts/core";
+// Orquestrador (Setor de Modo)
+import { CORE_ORCHESTRATOR } from "../prompts/engines";
 // Módulo específico (Cartucho JEC)
 import { JEC_CONTEXT } from "../modules/jec/context";
 
@@ -143,7 +145,7 @@ async function startServer() {
       }
 
       // MONTAGEM DINÂMICA DO CÉREBRO (Brain Assembly)
-      // Core (Universal) + Módulo (JEC)
+      // Core (Universal) + Módulo (JEC) + Orquestrador
       const baseSystemPrompt = `
 ${CORE_IDENTITY}
 ${CORE_TONE}
@@ -152,6 +154,7 @@ ${CORE_TRACEABILITY}
 ${CORE_ZERO_TOLERANCE}
 ${CORE_TRANSPARENCY}
 ${JEC_CONTEXT}
+${CORE_ORCHESTRATOR}
 `;
 
       const systemPrompt = systemPromptOverride || baseSystemPrompt;
