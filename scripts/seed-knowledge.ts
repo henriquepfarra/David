@@ -9,9 +9,12 @@
  * Executar: pnpm run seed:knowledge
  */
 
+// Carregar variáveis de ambiente antes de qualquer import
+import "dotenv/config";
+
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { db } from "../server/db";
+import { getDb } from "../server/db";
 import { knowledgeBase } from "../drizzle/schema";
 import { eq } from "drizzle-orm";
 import { generateEmbedding } from "../server/_core/embeddings";
@@ -28,8 +31,12 @@ interface SystemDoc {
 async function seedSystemKnowledge() {
     console.log("🌱 Iniciando Semeadura de Conhecimento do Sistema...\n");
 
+    // Obter conexão com banco de dados
+    const db = await getDb();
+
     if (!db) {
         console.error("❌ Conexão com banco de dados não disponível!");
+        console.log("   Verifique a variável DATABASE_URL no arquivo .env");
         process.exit(1);
     }
 
