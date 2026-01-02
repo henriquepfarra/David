@@ -300,7 +300,7 @@ export default function Configuracoes() {
                   <div className="flex items-center justify-between">
                     <CardTitle className="flex items-center gap-2 text-base">
                       <Brain className="h-4 w-4" />
-                      🧠 Instruções do DAVID
+                      ✏️ Preferências de Estilo do Gabinete
                     </CardTitle>
                     <Button
                       type="button"
@@ -314,13 +314,13 @@ export default function Configuracoes() {
                     </Button>
                   </div>
                   <CardDescription className="text-xs">
-                    Defina como o DAVID deve se comportar e responder
+                    O DAVID já possui um sistema de raciocínio jurídico avançado. Use este campo apenas para preferências de estilo de escrita do seu gabinete.
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="flex-1 flex flex-col gap-3 pt-0">
                   <Textarea
                     id="system-prompt"
-                    placeholder="Edite as instruções do DAVID..."
+                    placeholder="Ex: Prefiro 'demandante' a 'autor'. Use sempre parágrafos curtos..."
                     value={customSystemPrompt}
                     onChange={(e) => setCustomSystemPrompt(e.target.value)}
                     className="font-mono text-xs flex-1 resize-none min-h-0"
@@ -339,7 +339,7 @@ export default function Configuracoes() {
                       ) : (
                         <>
                           <Save className="mr-2 h-3 w-3" />
-                          Salvar Instruções
+                          Salvar Preferências
                         </>
                       )}
                     </Button>
