@@ -1,3 +1,4 @@
+/// <reference types="node" />
 /**
  * Script de Seeding da Base de Conhecimento do Sistema
  * 
