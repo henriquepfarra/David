@@ -134,10 +134,14 @@ export type InsertProcessDocumentChunk = typeof processDocumentChunks.$inferInse
 export const knowledgeBase = mysqlTable("knowledgeBase", {
   id: int("id").autoincrement().primaryKey(),
   userId: int("userId").notNull(),
+  systemId: varchar("systemId", { length: 100 }).unique(), // ID único para documentos do sistema (ex: SUMULA_STJ_54) - usado para upsert
   title: varchar("title", { length: 300 }).notNull(),
   content: longtext("content").notNull(),
   fileType: varchar("fileType", { length: 50 }), // pdf, docx, txt
-  documentType: mysqlEnum("documentType", ["minuta_modelo", "decisao_referencia", "tese", "enunciado", "jurisprudencia", "outro"]).notNull().default("outro"), // Tipo específico do documento
+  documentType: mysqlEnum("documentType", [
+    "minuta_modelo", "decisao_referencia", "tese", "enunciado",
+    "jurisprudencia", "outro", "sumula", "tema_repetitivo"
+  ]).notNull().default("outro"), // Tipo específico do documento
   source: mysqlEnum("source", ["sistema", "usuario"]).notNull().default("usuario"), // Origem do documento (sistema = pré-carregado, usuario = adicionado pelo usuário)
   category: varchar("category", { length: 100 }), // decisoes, teses, referencias
   tags: text("tags"),
@@ -146,6 +150,7 @@ export const knowledgeBase = mysqlTable("knowledgeBase", {
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 }, (table) => ({
   userIdIdx: index("knowledgeBase_userId_idx").on(table.userId),
+  systemIdIdx: index("knowledgeBase_systemId_idx").on(table.systemId),
 }));
 
 export type KnowledgeBase = typeof knowledgeBase.$inferSelect;

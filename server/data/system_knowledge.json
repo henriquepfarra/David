@@ -1,0 +1,13 @@
+[
+    {
+        "id": "EXEMPLO_001",
+        "titulo": "Exemplo de Documento Seed",
+        "conteudo": "Este é um exemplo de documento que será carregado automaticamente no sistema. Substitua por Súmulas, Enunciados ou Teses reais.",
+        "tipo": "outro",
+        "tags": [
+            "exemplo",
+            "seed",
+            "teste"
+        ]
+    }
+]
