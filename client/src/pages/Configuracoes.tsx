@@ -94,7 +94,8 @@ export default function Configuracoes() {
 
   useEffect(() => {
     if (settings) {
-      const prompt = settings.customSystemPrompt || DEFAULT_DAVID_SYSTEM_PROMPT;
+      // Carrega o valor salvo OU string vazia (não usa DEFAULT)
+      const prompt = settings.customSystemPrompt || "";
       setCustomSystemPrompt(prompt);
       setOriginalPrompt(prompt);
 
@@ -306,11 +307,12 @@ export default function Configuracoes() {
                       type="button"
                       variant="ghost"
                       size="sm"
-                      onClick={() => setCustomSystemPrompt(DEFAULT_DAVID_SYSTEM_PROMPT)}
+                      onClick={() => setCustomSystemPrompt("")}
                       className="text-xs h-7"
+                      title="Limpar preferências personalizadas"
                     >
                       <RefreshCw className="mr-1 h-3 w-3" />
-                      Restaurar
+                      Limpar
                     </Button>
                   </div>
                   <CardDescription className="text-xs">
@@ -320,10 +322,18 @@ export default function Configuracoes() {
                 <CardContent className="flex-1 flex flex-col gap-3 pt-0">
                   <Textarea
                     id="system-prompt"
-                    placeholder="Ex: Prefiro 'demandante' a 'autor'. Use sempre parágrafos curtos..."
+                    placeholder={`Exemplos de preferências (este texto desaparece ao digitar):
+
+• Prefiro "demandante" em vez de "autor"
+• Use parágrafos curtos (máximo 4 linhas)
+• Sempre numere os dispositivos da sentença
+• Evite a expressão "data venia"
+• "Ante o exposto, JULGO PROCEDENTE..."
+
+Deixe vazio se não tiver preferências específicas.`}
                     value={customSystemPrompt}
                     onChange={(e) => setCustomSystemPrompt(e.target.value)}
-                    className="font-mono text-xs flex-1 resize-none min-h-0"
+                    className="font-mono text-xs flex-1 resize-none min-h-0 placeholder:text-muted-foreground/50 placeholder:italic"
                   />
                   <div className="flex justify-end">
                     <Button
