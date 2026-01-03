@@ -68,8 +68,9 @@ async function seedSystemKnowledge(): Promise<void> {
             });
 
             if (existing) {
-                // Verifica se precisa atualizar
-                if (existing.content !== doc.conteudo || existing.title !== doc.titulo) {
+                // Verifica se precisa atualizar (conteúdo diferente OU sem embedding)
+                const needsEmbedding = !existing.embedding || (Array.isArray(existing.embedding) && existing.embedding.length === 0);
+                if (existing.content !== doc.conteudo || existing.title !== doc.titulo || needsEmbedding) {
                     // Gera embedding para o texto atualizado
                     const textToEmbed = `${doc.titulo}\n${doc.conteudo}\nTags: ${doc.tags.join(", ")}`;
                     let embedding: number[] | null = null;

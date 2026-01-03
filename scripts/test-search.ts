@@ -1,67 +1,63 @@
-import { drizzle } from "drizzle-orm/mysql2";
-import { knowledgeBase } from "../drizzle/schema";
-import { searchSimilarDocuments } from "../server/_core/textSearch";
+/// <reference types="node" />
+/**
+ * Script de teste da busca híbrida
+ */
 
-const db = drizzle(process.env.DATABASE_URL!);
+import "dotenv/config";
+import { hybridSearch, formatForContext } from "../server/_core/knowledgeSearch.js";
 
 async function testSearch() {
-  console.log("🔍 Testando busca por similaridade...\n");
+  console.log("🔍 TESTANDO BUSCA HÍBRIDA\n");
+  console.log("=".repeat(60));
 
-  // Buscar todos os documentos
-  const allDocs = await db.select().from(knowledgeBase);
-  console.log(`📄 Total de documentos: ${allDocs.length}\n`);
-
-  // Teste 1: Busca sobre "dano moral negativação"
-  const query1 = "dano moral por negativação indevida";
-  console.log(`Query 1: "${query1}"`);
-  
-  const results1 = searchSimilarDocuments(
-    allDocs.map(doc => ({
-      id: doc.id,
-      title: doc.title,
-      content: doc.content,
-      documentType: doc.documentType || undefined,
-    })),
-    query1,
-    {
-      limit: 5,
-      minSimilarity: 0.1, // Threshold mais baixo para teste
+  // Teste 1: Busca exata por número
+  console.log("\n📌 TESTE 1: Súmula 54 (busca exata)");
+  console.log("-".repeat(60));
+  const result1 = await hybridSearch("Súmula 54", undefined, 3);
+  if (result1.length === 0) {
+    console.log("Nenhum resultado encontrado");
+  } else {
+    for (const doc of result1) {
+      console.log(`• ${doc.title}`);
+      console.log(`  ${doc.content.substring(0, 200)}...`);
+      console.log(`  Similaridade: ${doc.similarity?.toFixed(4) || "N/A (exata)"}`);
     }
-  );
+  }
 
-  console.log(`\n✅ Encontrados ${results1.length} documentos:\n`);
-  results1.forEach((doc, index) => {
-    console.log(`${index + 1}. ${doc.title}`);
-    console.log(`   Similaridade: ${(doc.similarity * 100).toFixed(2)}%`);
-    console.log(`   Tipo: ${doc.documentType || "N/A"}`);
-    console.log(`   Preview: ${doc.content.substring(0, 150)}...\n`);
-  });
-
-  // Teste 2: Busca sobre "tutela urgência"
-  const query2 = "tutela de urgência liminar";
-  console.log(`\n\nQuery 2: "${query2}"`);
-  
-  const results2 = searchSimilarDocuments(
-    allDocs.map(doc => ({
-      id: doc.id,
-      title: doc.title,
-      content: doc.content,
-      documentType: doc.documentType || undefined,
-    })),
-    query2,
-    {
-      limit: 5,
-      minSimilarity: 0.1,
+  // Teste 2: Busca exata por número
+  console.log("\n\n📌 TESTE 2: Súmula 7 (busca exata)");
+  console.log("-".repeat(60));
+  const result2 = await hybridSearch("Súmula 7", undefined, 3);
+  if (result2.length === 0) {
+    console.log("Nenhum resultado encontrado");
+  } else {
+    for (const doc of result2) {
+      console.log(`• ${doc.title}`);
+      console.log(`  ${doc.content.substring(0, 200)}...`);
+      console.log(`  Similaridade: ${doc.similarity?.toFixed(4) || "N/A (exata)"}`);
     }
-  );
+  }
 
-  console.log(`\n✅ Encontrados ${results2.length} documentos:\n`);
-  results2.forEach((doc, index) => {
-    console.log(`${index + 1}. ${doc.title}`);
-    console.log(`   Similaridade: ${(doc.similarity * 100).toFixed(2)}%`);
-    console.log(`   Tipo: ${doc.documentType || "N/A"}\n`);
-  });
+  // Teste 3: Busca semântica por conceito
+  console.log("\n\n📌 TESTE 3: juros moratórios (busca semântica)");
+  console.log("-".repeat(60));
+  const result3 = await hybridSearch("juros moratórios dano moral", undefined, 5);
+  if (result3.length === 0) {
+    console.log("Nenhum resultado encontrado");
+  } else {
+    for (const doc of result3) {
+      console.log(`• ${doc.title}`);
+      console.log(`  ${doc.content.substring(0, 200)}...`);
+      console.log(`  Similaridade: ${doc.similarity?.toFixed(4)}`);
+    }
+  }
 
+  // Mostrar formatação para contexto
+  console.log("\n\n📋 FORMATO PARA CONTEXTO DA LLM:");
+  console.log("-".repeat(60));
+  console.log(formatForContext(result3, 800));
+
+  console.log("\n✅ Teste concluído!");
   process.exit(0);
 }
 
