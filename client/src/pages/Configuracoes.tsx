@@ -15,7 +15,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { trpc } from "@/lib/trpc";
-import { FileText, Loader2, Save, Upload, Edit, Trash2, RefreshCw, Key, Brain, BookOpen, Database, Check } from "lucide-react";
+import { FileText, Loader2, Save, Upload, Edit, Trash2, RefreshCw, Key, Brain, BookOpen, Database, Check, Search } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { DEFAULT_DAVID_SYSTEM_PROMPT } from "@shared/defaultPrompts";
@@ -453,63 +453,71 @@ Deixe vazio se não tiver preferências específicas.`}
                       O DAVID é seu assistente jurídico de alta performance. Ele lê seus processos com precisão, <strong>faz análises detalhadas</strong>, consulta súmulas e precedentes automaticamente e produz <strong>minutas com qualidade de gabinete</strong> — tudo de forma inteligente e transparente.
                     </p>
                     <div className="grid md:grid-cols-3 gap-4">
-                      <div className="bg-white dark:bg-slate-800 p-4 rounded-lg border border-slate-200 dark:border-slate-700 text-center">
-                        <div className="text-2xl mb-2">📄</div>
+                      {/* Card Leitura */}
+                      <div className="group relative bg-white/60 dark:bg-slate-800/60 backdrop-blur-sm p-5 rounded-xl border border-slate-200/80 dark:border-slate-700/50 text-center hover:shadow-lg hover:scale-[1.02] transition-all duration-300">
+                        <div className="w-12 h-12 mx-auto mb-3 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-lg shadow-blue-500/25">
+                          <FileText className="h-6 w-6 text-white" />
+                        </div>
                         <p className="font-semibold text-sm text-foreground">LEITURA</p>
-                        <p className="text-xs text-muted-foreground mt-1">Lê PDFs como um humano: texto, tabelas, até imagens.</p>
-                        <p className="text-[10px] text-green-600 dark:text-green-400 mt-2 font-medium">✅ Automático</p>
+                        <p className="text-xs text-muted-foreground mt-2 leading-relaxed">Lê PDFs como um humano: texto, tabelas, até imagens.</p>
+                        <div className="mt-3 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-green-100 dark:bg-green-900/50 text-[11px] font-medium text-green-700 dark:text-green-300">
+                          <span className="w-1.5 h-1.5 rounded-full bg-green-500"></span>
+                          Automático
+                        </div>
                       </div>
-                      <div className="bg-white dark:bg-slate-800 p-4 rounded-lg border border-slate-200 dark:border-slate-700 text-center">
-                        <div className="text-2xl mb-2">🔍</div>
+                      {/* Card Memória */}
+                      <div className="group relative bg-white/60 dark:bg-slate-800/60 backdrop-blur-sm p-5 rounded-xl border border-slate-200/80 dark:border-slate-700/50 text-center hover:shadow-lg hover:scale-[1.02] transition-all duration-300">
+                        <div className="w-12 h-12 mx-auto mb-3 rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center shadow-lg shadow-violet-500/25">
+                          <Search className="h-6 w-6 text-white" />
+                        </div>
                         <p className="font-semibold text-sm text-foreground">MEMÓRIA</p>
-                        <p className="text-xs text-muted-foreground mt-1">Lembra de súmulas, teses e precedentes relevantes.</p>
-                        <p className="text-[10px] text-green-600 dark:text-green-400 mt-2 font-medium">✅ Automático</p>
+                        <p className="text-xs text-muted-foreground mt-2 leading-relaxed">Lembra de súmulas, teses e precedentes relevantes.</p>
+                        <div className="mt-3 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-green-100 dark:bg-green-900/50 text-[11px] font-medium text-green-700 dark:text-green-300">
+                          <span className="w-1.5 h-1.5 rounded-full bg-green-500"></span>
+                          Automático
+                        </div>
                       </div>
-                      <div className="bg-white dark:bg-slate-800 p-4 rounded-lg border border-primary/30 dark:border-primary/50 text-center relative">
-                        <div className="absolute -top-2 -right-2 bg-primary text-white text-[9px] px-2 py-0.5 rounded-full font-medium">Configurável</div>
-                        <div className="text-2xl mb-2">🧠</div>
+                      {/* Card Cérebro */}
+                      <div className="group relative bg-gradient-to-br from-primary/5 to-primary/10 dark:from-primary/10 dark:to-primary/20 backdrop-blur-sm p-5 rounded-xl border-2 border-primary/30 dark:border-primary/40 text-center hover:shadow-lg hover:shadow-primary/10 hover:scale-[1.02] transition-all duration-300">
+                        <div className="absolute -top-2.5 -right-2.5 bg-primary text-white text-[10px] px-2.5 py-1 rounded-full font-semibold shadow-lg">Configurável</div>
+                        <div className="w-12 h-12 mx-auto mb-3 rounded-xl bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center shadow-lg shadow-primary/25">
+                          <Brain className="h-6 w-6 text-white" />
+                        </div>
                         <p className="font-semibold text-sm text-foreground">CÉREBRO</p>
-                        <p className="text-xs text-muted-foreground mt-1">Pensa e escreve suas minutas com raciocínio jurídico.</p>
-                        <p className="text-[10px] text-primary mt-2 font-medium">🔑 Você escolhe</p>
+                        <p className="text-xs text-muted-foreground mt-2 leading-relaxed">Pensa e escreve suas minutas com raciocínio jurídico.</p>
+                        <div className="mt-3 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-primary/10 dark:bg-primary/20 text-[11px] font-medium text-primary">
+                          <Key className="w-3 h-3" />
+                          Você escolhe
+                        </div>
                       </div>
                     </div>
-                    <p className="text-xs text-muted-foreground mt-4 bg-blue-50 dark:bg-blue-950/50 p-2 rounded border border-blue-100 dark:border-blue-900">
+                    <p className="text-xs text-muted-foreground mt-4 bg-blue-50 dark:bg-blue-950/50 p-2.5 rounded-lg border border-blue-100 dark:border-blue-900 leading-relaxed">
                       💡 <strong>Por que deixamos o Cérebro na sua mão?</strong> Cada magistrado tem seu fluxo. Alguns preferem modelos mais rápidos, outros priorizam profundidade. Você escolhe a IA que melhor se adapta ao seu estilo de trabalho.
                     </p>
                   </div>
 
-                  {/* Indicador de Status */}
-                  {!llmApiKey ? (
-                    <div className="bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-800 rounded-lg p-4">
-                      <p className="text-sm text-amber-900 dark:text-amber-100 flex items-center gap-2">
-                        <span className="h-2 w-2 rounded-full bg-amber-500 animate-pulse"></span>
-                        <strong>Configuração Necessária</strong>
-                      </p>
-                      <p className="text-xs text-amber-700 dark:text-amber-300 mt-1 ml-4">
-                        Configure sua chave de API para utilizar o DAVID. Escolha um provedor abaixo.
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-lg p-4">
-                      <p className="text-sm text-green-900 dark:text-green-100 flex items-center gap-2">
-                        <span className="h-2 w-2 rounded-full bg-green-500"></span>
-                        <strong>Provedor Ativo: {llmProvider.charAt(0).toUpperCase() + llmProvider.slice(1)}</strong>
-                      </p>
-                      <p className="text-xs text-green-700 dark:text-green-300 mt-1 ml-4 flex items-center gap-2">
-                        Modelo selecionado: <Badge variant="outline" className="bg-green-100 dark:bg-green-900 border-green-300">{llmModel || "Automático"}</Badge>
-                      </p>
-                    </div>
-                  )}
-
-                  <hr className="border-border/50" />
 
                   {/* Configuração do Cérebro (LLM) */}
                   <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <Label className="text-base flex items-center gap-2">
-                        <Brain className="h-4 w-4 text-primary" />
-                        🧠 CÉREBRO (IA Principal)
-                      </Label>
+                    <div className="flex items-center justify-between flex-wrap gap-2">
+                      <div className="flex items-center gap-3">
+                        <Label className="text-base flex items-center gap-2">
+                          <Brain className="h-4 w-4 text-primary" />
+                          🧠 CÉREBRO (IA Principal)
+                        </Label>
+                        {llmApiKey && (
+                          <Badge variant="outline" className="bg-green-50 dark:bg-green-900/30 border-green-300 dark:border-green-700 text-green-700 dark:text-green-300 text-[10px] gap-1">
+                            <span className="w-1.5 h-1.5 rounded-full bg-green-500"></span>
+                            {llmProvider.charAt(0).toUpperCase() + llmProvider.slice(1)} • {llmModel || "Padrão"}
+                          </Badge>
+                        )}
+                        {!llmApiKey && (
+                          <Badge variant="outline" className="bg-amber-50 dark:bg-amber-900/30 border-amber-300 dark:border-amber-700 text-amber-700 dark:text-amber-300 text-[10px] gap-1 animate-pulse">
+                            <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+                            Configuração necessária
+                          </Badge>
+                        )}
+                      </div>
 
                       {/* Links Dinâmicos por Provedor */}
                       {llmProvider === 'groq' && (
