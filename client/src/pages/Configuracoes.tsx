@@ -443,22 +443,39 @@ Deixe vazio se não tiver preferências específicas.`}
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-6">
-                  {/* Explicação Didática */}
-                  <div className="bg-slate-50 dark:bg-slate-900/50 p-4 rounded-lg border border-slate-200 dark:border-slate-800">
-                    <h3 className="font-semibold flex items-center gap-2 mb-2 text-primary">
-                      <Brain className="h-4 w-4" />
-                      Como funciona o Cérebro do DAVID?
+                  {/* Explicação: Como o DAVID Funciona */}
+                  <div className="bg-gradient-to-br from-slate-50 to-blue-50/30 dark:from-slate-900/50 dark:to-blue-950/30 p-5 rounded-xl border border-slate-200 dark:border-slate-800">
+                    <h3 className="font-semibold flex items-center gap-2 mb-3 text-lg">
+                      <Brain className="h-5 w-5 text-primary" />
+                      Como o DAVID Funciona
                     </h3>
-                    <div className="grid md:grid-cols-2 gap-4 text-sm text-muted-foreground">
-                      <div>
-                        <p className="font-medium text-foreground mb-1">🧠 Cérebro (Raciocínio)</p>
-                        <p>É o modelo de IA que "pensa" e escreve as respostas. Você pode usar modelos potentes (ex: <strong>GPT-4.1, Gemini 3, Claude Sonnet 4</strong>) ou opções rápidas.</p>
+                    <p className="text-sm text-muted-foreground mb-4">
+                      O DAVID é seu assistente jurídico de alta performance. Ele lê seus processos com precisão, <strong>faz análises detalhadas</strong>, consulta súmulas e precedentes automaticamente e produz <strong>minutas com qualidade de gabinete</strong> — tudo de forma inteligente e transparente.
+                    </p>
+                    <div className="grid md:grid-cols-3 gap-4">
+                      <div className="bg-white dark:bg-slate-800 p-4 rounded-lg border border-slate-200 dark:border-slate-700 text-center">
+                        <div className="text-2xl mb-2">📄</div>
+                        <p className="font-semibold text-sm text-foreground">LEITURA</p>
+                        <p className="text-xs text-muted-foreground mt-1">Lê PDFs como um humano: texto, tabelas, até imagens.</p>
+                        <p className="text-[10px] text-green-600 dark:text-green-400 mt-2 font-medium">✅ Automático</p>
                       </div>
-                      <div>
-                        <p className="font-medium text-foreground mb-1">📄 Leitura de Documentos</p>
-                        <p>Permite que o DAVID <strong>leia seus PDFs na íntegra</strong> — textos, imagens, tabelas, prints de conversas. Tudo é analisado visualmente, como um humano faria.</p>
+                      <div className="bg-white dark:bg-slate-800 p-4 rounded-lg border border-slate-200 dark:border-slate-700 text-center">
+                        <div className="text-2xl mb-2">🔍</div>
+                        <p className="font-semibold text-sm text-foreground">MEMÓRIA</p>
+                        <p className="text-xs text-muted-foreground mt-1">Lembra de súmulas, teses e precedentes relevantes.</p>
+                        <p className="text-[10px] text-green-600 dark:text-green-400 mt-2 font-medium">✅ Automático</p>
+                      </div>
+                      <div className="bg-white dark:bg-slate-800 p-4 rounded-lg border border-primary/30 dark:border-primary/50 text-center relative">
+                        <div className="absolute -top-2 -right-2 bg-primary text-white text-[9px] px-2 py-0.5 rounded-full font-medium">Configurável</div>
+                        <div className="text-2xl mb-2">🧠</div>
+                        <p className="font-semibold text-sm text-foreground">CÉREBRO</p>
+                        <p className="text-xs text-muted-foreground mt-1">Pensa e escreve suas minutas com raciocínio jurídico.</p>
+                        <p className="text-[10px] text-primary mt-2 font-medium">🔑 Você escolhe</p>
                       </div>
                     </div>
+                    <p className="text-xs text-muted-foreground mt-4 bg-blue-50 dark:bg-blue-950/50 p-2 rounded border border-blue-100 dark:border-blue-900">
+                      💡 <strong>Por que deixamos o Cérebro na sua mão?</strong> Cada magistrado tem seu fluxo. Alguns preferem modelos mais rápidos, outros priorizam profundidade. Você escolhe a IA que melhor se adapta ao seu estilo de trabalho.
+                    </p>
                   </div>
 
                   {/* Indicador de Status */}
@@ -631,74 +648,6 @@ Deixe vazio se não tiver preferências específicas.`}
                     </div>
                   </div>
 
-                  <hr className="border-border/50" />
-
-                  {/* Configuração da Leitura de Documentos (File API) */}
-                  <div className="space-y-4 pt-4">
-                    <div className="flex items-center justify-between">
-                      <Label className="text-base flex items-center gap-2">
-                        <FileText className="h-4 w-4 text-blue-500" />
-                        📄 LEITURA DE DOCUMENTOS (File API)
-                      </Label>
-                      <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noreferrer" className="text-xs text-blue-500 hover:underline flex items-center gap-1">
-                        Obter Chave Gemini <Upload className="h-3 w-3 rotate-45" />
-                      </a>
-                    </div>
-
-                    <div className="bg-blue-50 dark:bg-blue-950/30 p-3 rounded-lg border border-blue-100 dark:border-blue-900/50 text-xs text-blue-800 dark:text-blue-200 mb-2">
-                      📄 <strong>Leitura Visual:</strong> O DAVID "enxerga" todo o conteúdo do PDF — textos, imagens, tabelas, gráficos e até prints de conversas. Escolha um modelo abaixo (modelos mais baratos funcionam bem para leitura).
-                    </div>
-
-                    <div className="grid md:grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="readerApiKey" className="text-xs text-muted-foreground">Chave Gemini para Leitura</Label>
-                        <div className="relative">
-                          <Input
-                            id="readerApiKey"
-                            type="password"
-                            value={readerApiKey}
-                            onChange={(e) => setReaderApiKey(e.target.value)}
-                            placeholder="AIza..."
-                            className={`pr-10 ${readerApiKey?.startsWith('AIza') ? 'border-green-500 ring-green-500/20' : ''}`}
-                          />
-                          {readerApiKey?.startsWith('AIza') ? (
-                            <Check className="absolute right-3 top-2.5 h-4 w-4 text-green-500" />
-                          ) : (
-                            <Key className="absolute right-3 top-2.5 h-4 w-4 text-muted-foreground opacity-50" />
-                          )}
-                        </div>
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label htmlFor="readerModel" className="text-xs text-muted-foreground">Modelo de Leitura</Label>
-                        <Select value={readerModel} onValueChange={setReaderModel}>
-                          <SelectTrigger id="readerModel">
-                            <SelectValue placeholder="Selecione..." />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="gemini-2.0-flash-lite">
-                              <span className="flex items-center gap-2">
-                                <span className="w-2 h-2 rounded-full bg-green-500"></span>
-                                Gemini 2.0 Flash Lite - $0.075/1M ✓ Mais Barato
-                              </span>
-                            </SelectItem>
-                            <SelectItem value="gemini-2.0-flash">
-                              Gemini 2.0 Flash - $0.10/1M (Equilibrado)
-                            </SelectItem>
-                            <SelectItem value="gemini-2.5-flash-lite">
-                              Gemini 2.5 Flash Lite - $0.10/1M
-                            </SelectItem>
-                            <SelectItem value="gemini-2.5-flash">
-                              Gemini 2.5 Flash - $0.30/1M (1M contexto)
-                            </SelectItem>
-                            <SelectItem value="gemini-3-flash-preview">
-                              Gemini 3 Flash Preview - $0.50/1M (Mais Inteligente)
-                            </SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-                  </div>
 
                 </div>
 
