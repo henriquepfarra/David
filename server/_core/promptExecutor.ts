@@ -63,10 +63,15 @@ ${matchedPrompt.content}`;
         where: eq(userSettings.userId, input.userId)
     });
 
+    // Validação: usuário DEVE configurar sua própria chave de API para o Cérebro
+    if (!settings?.llmApiKey) {
+        throw new Error("⚙️ Configuração necessária: Você precisa configurar sua Chave de API do Cérebro. Vá em Configurações → Chaves de API e adicione sua chave.");
+    }
+
     try {
         const response = await invokeLLM({
             messages: [{ role: "system", content: finalSystemPrompt }],
-            apiKey: settings?.llmApiKey || undefined,
+            apiKey: settings.llmApiKey,
             model: settings?.llmModel || undefined,
             provider: (settings?.llmProvider as any) || undefined
         });

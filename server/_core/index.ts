@@ -120,8 +120,18 @@ async function startServer() {
 
       // Buscar configurações de LLM do usuário
       const settings = await getUserSettings(user.id);
+
+      // Validação: usuário DEVE configurar sua própria chave de API para o Cérebro
+      if (!settings?.llmApiKey) {
+        res.status(400).json({
+          error: "⚙️ Configuração necessária: Você precisa configurar sua Chave de API do Cérebro. Vá em Configurações → Chaves de API e adicione sua chave.",
+          code: "API_KEY_REQUIRED"
+        });
+        return;
+      }
+
       const llmConfig = {
-        apiKey: settings?.llmApiKey || undefined,
+        apiKey: settings.llmApiKey,
         model: settings?.llmModel || undefined,
         provider: settings?.llmProvider || undefined
       };

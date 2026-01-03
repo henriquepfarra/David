@@ -168,8 +168,17 @@ export const appRouter = router({
 
         // Buscar configurações customizadas do usuário (API Key)
         const settings = await db.getUserSettings(ctx.user.id);
+
+        // Validação: usuário DEVE configurar sua própria chave de API para o Cérebro
+        if (!settings?.llmApiKey) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "⚙️ Configuração necessária: Você precisa configurar sua Chave de API do Cérebro. Vá em Configurações → Chaves de API e adicione sua chave."
+          });
+        }
+
         const llmConfig = {
-          apiKey: settings?.llmApiKey || undefined,
+          apiKey: settings.llmApiKey,
           model: settings?.llmModel || undefined,
           provider: settings?.llmProvider || undefined
         };
