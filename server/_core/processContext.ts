@@ -20,14 +20,14 @@ export async function getProcessContext(
         where: eq(userSettings.userId, userId),
     });
 
-    const embeddingKey = settings?.readerApiKey || undefined;
+    // Nota: embeddings agora usam OPENAI_API_KEY do servidor (não precisa de chave do usuário)
 
     if (mode === "audit") {
         // Modo Auditoria ou Analise1: Recuperar TODO o contexto ordenado
         return await getFullProcessContext(processId);
     } else {
         // Modo RAG: Recuperar chunks relevantes via busca vetorial
-        return await getRelevantChunks(processId, query, embeddingKey);
+        return await getRelevantChunks(processId, query);
     }
 }
 
@@ -60,13 +60,12 @@ async function getFullProcessContext(processId: number): Promise<string> {
  */
 async function getRelevantChunks(
     processId: number,
-    query: string,
-    apiKey?: string
+    query: string
 ): Promise<string> {
-    // 1. Gerar embedding da query
+    // 1. Gerar embedding da query (usa OPENAI_API_KEY do servidor)
     let queryEmbedding: number[];
     try {
-        queryEmbedding = await generateEmbedding(query, apiKey);
+        queryEmbedding = await generateEmbedding(query);
     } catch (error) {
         console.error("Erro ao gerar embedding da query:", error);
         return ""; // Fallback: sem contexto semântico

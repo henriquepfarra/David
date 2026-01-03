@@ -186,7 +186,7 @@ export const appRouter = router({
               // Usar File API para leitura visual do PDF
               const { readPdfWithVision } = await import("./_core/fileApi");
               const result = await readPdfWithVision(buffer, {
-                apiKey: settings?.readerApiKey || undefined,
+                apiKey: settings?.readerApiKey || ENV.geminiApiKey || undefined,
                 model: settings?.readerModel || "gemini-2.0-flash-lite",
               });
               textToAnalyze = result.content;

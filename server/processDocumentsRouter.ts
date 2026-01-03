@@ -4,6 +4,7 @@ import { createProcessDocument, getProcessDocuments, deleteProcessDocument } fro
 import { storagePut } from "./storage";
 import mammoth from "mammoth";
 import { TRPCError } from "@trpc/server";
+import { ENV } from "./_core/env";
 
 /**
  * Router para gerenciar documentos vinculados a processos específicos
@@ -54,7 +55,7 @@ export const processDocumentsRouter = router({
             if (db) {
               const settingsResult = await db.select().from(userSettings).where(eq(userSettings.userId, ctx.user.id)).limit(1);
               const settings = settingsResult[0];
-              apiKey = settings?.readerApiKey || undefined;
+              apiKey = settings?.readerApiKey || ENV.geminiApiKey || undefined;
               model = settings?.readerModel || "gemini-2.0-flash-lite";
             }
 
@@ -99,7 +100,7 @@ export const processDocumentsRouter = router({
           if (db) {
             const settingsResult = await db.select().from(userSettings).where(eq(userSettings.userId, ctx.user.id)).limit(1);
             const settings = settingsResult[0];
-            apiKey = settings?.readerApiKey || undefined;
+            apiKey = settings?.readerApiKey || ENV.geminiApiKey || undefined;
           }
 
           // Iterar sobre cada página
@@ -112,7 +113,7 @@ export const processDocumentsRouter = router({
               let embedding: number[] = [];
               try {
                 // Gerar vetor semântico
-                embedding = await generateEmbedding(chunk.content, apiKey);
+                embedding = await generateEmbedding(chunk.content);
               } catch (e) {
                 console.warn(`Falha ao gerar embedding para doc ${documentId} pag ${page.pageNumber}`);
               }
