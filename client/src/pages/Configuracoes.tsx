@@ -450,7 +450,7 @@ Deixe vazio se não tiver preferências específicas.`}
                       Como o DAVID Funciona
                     </h3>
                     <p className="text-sm text-muted-foreground mb-4">
-                      O DAVID é seu assistente jurídico de alta performance. Ele lê seus processos com precisão, <strong>faz análises detalhadas</strong>, consulta súmulas e precedentes automaticamente e produz <strong>minutas com qualidade de gabinete</strong> — tudo de forma inteligente e transparente.
+                      <strong>O DAVID foi construído com o que há de mais moderno em IA.</strong> Combina <strong>múltiplos modelos especializados</strong> — um para leitura de documentos, outro para memória jurídica, e o cérebro, responsável por pensar e escrever. O resultado? <strong>Alta performance jurídica, do seu jeito.</strong>
                     </p>
                     <div className="grid md:grid-cols-3 gap-4">
                       {/* Card Leitura */}
