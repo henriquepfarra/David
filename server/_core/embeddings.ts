@@ -1,52 +1,52 @@
 import { ENV } from "./env";
 
 /**
- * Gera embedding de um texto usando a API da OpenAI
- * Retorna um vetor numérico que representa semanticamente o texto
+ * Gera embedding usando OpenAI (text-embedding-3-small)
+ * Melhor custo-benefício do mercado para embeddings.
  * 
- * NOTA: Embeddings requerem uma chave da OpenAI (text-embedding-3-small)
- * Pode ser a mesma chave usada para LLM ou uma chave separada
+ * Esta função usa a chave OPENAI_API_KEY do servidor (não do usuário)
+ * para garantir consistência nos vetores de busca.
  */
-export async function generateEmbedding(text: string, apiKey?: string): Promise<number[]> {
-  const key = apiKey || ENV.geminiApiKey;
+export async function generateEmbedding(text: string): Promise<number[]> {
+  const apiKey = ENV.openaiApiKey;
 
-  if (!key) {
+  if (!apiKey) {
     throw new Error(
-      "API key não configurada para embeddings. Configure GEMINI_API_KEY ou forneça uma chave."
+      "OPENAI_API_KEY não configurada no servidor. Configure no .env ou variáveis de ambiente."
     );
   }
 
   try {
-    // Usar Google Gemini embedding API
-    const response = await fetch(
-      "https://generativelanguage.googleapis.com/v1beta/models/text-embedding-004:embedContent?key=" + key,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: "models/text-embedding-004",
-          content: {
-            parts: [{ text: text.replace(/\n/g, " ") }]
-          }
-        }),
-      }
-    );
+    // Limpar texto para economizar tokens
+    const cleanText = text.replace(/\n/g, " ").replace(/\s+/g, " ").trim();
+
+    const response = await fetch("https://api.openai.com/v1/embeddings", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model: "text-embedding-3-small",
+        input: cleanText,
+        dimensions: 1536, // Padrão robusto
+      }),
+    });
 
     if (!response.ok) {
-      throw new Error(`Erro na API Gemini (Embeddings): ${response.status} - ${await response.text()}`);
+      const errorText = await response.text();
+      throw new Error(`Erro OpenAI Embeddings: ${response.status} - ${errorText}`);
     }
 
     const data = await response.json();
 
-    if (!data.embedding || !data.embedding.values) {
-      throw new Error("Resposta inválida da API de embeddings Gemini");
+    if (!data.data || !data.data[0] || !data.data[0].embedding) {
+      throw new Error("Resposta inválida da API de embeddings OpenAI");
     }
 
-    return data.embedding.values;
+    return data.data[0].embedding;
   } catch (error) {
-    console.error("[Embeddings] Erro ao gerar embedding:", error);
+    console.error("[Embeddings] Erro ao gerar vetor:", error);
     throw error;
   }
 }
@@ -54,10 +54,13 @@ export async function generateEmbedding(text: string, apiKey?: string): Promise<
 /**
  * Calcula similaridade de cosseno entre dois vetores
  * Retorna valor entre -1 e 1 (quanto maior, mais similar)
+ * 1.0 = Idêntico, 0.0 = Nada a ver
  */
 export function cosineSimilarity(vecA: number[], vecB: number[]): number {
   if (vecA.length !== vecB.length) {
-    throw new Error("Vetores devem ter o mesmo tamanho");
+    // Proteção contra vetores de tamanhos diferentes (ex: troca de provedor)
+    console.warn(`[Similaridade] Vetores com tamanhos diferentes! A: ${vecA.length}, B: ${vecB.length}`);
+    return 0;
   }
 
   let dotProduct = 0;
@@ -85,18 +88,22 @@ export function cosineSimilarity(vecA: number[], vecB: number[]): number {
  * Retorna documentos ordenados por similaridade (mais similar primeiro)
  */
 export async function searchSimilarDocuments(
-  documents: Array<{ id: number; title: string; content: string; embedding: string | null }>,
+  documents: Array<{ id: number; title: string; content: string; embedding: unknown }>,
   query: string,
   limit: number = 5
 ): Promise<Array<{ id: number; title: string; content: string; similarity: number }>> {
-  // Gerar embedding da query
+  // Gerar embedding da query usando OpenAI
   const queryEmbedding = await generateEmbedding(query);
 
   // Calcular similaridade com cada documento
   const results = documents
     .filter((doc) => doc.embedding) // Apenas documentos com embedding
     .map((doc) => {
-      const docEmbedding = JSON.parse(doc.embedding!);
+      // O Drizzle retorna JSON, garantir que seja array de números
+      const docEmbedding = Array.isArray(doc.embedding)
+        ? doc.embedding
+        : (doc.embedding as number[]);
+
       const similarity = cosineSimilarity(queryEmbedding, docEmbedding);
       return {
         id: doc.id,
