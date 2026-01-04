@@ -65,6 +65,7 @@ export default function David() {
   const [messageInput, setMessageInput] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
   const [streamingMessage, setStreamingMessage] = useState("");
+  const [pendingUserMessage, setPendingUserMessage] = useState<string | null>(null); // Mensagem otimista do usuário
   const scrollRef = useRef<HTMLDivElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   const previousConversationIdRef = useRef<number | null>(null);
@@ -518,10 +519,16 @@ export default function David() {
             const data = JSON.parse(trimmed.slice(6));
 
             if (data.type === "chunk") {
+              // Limpar mensagem pendente quando recebe primeiro chunk (resposta começou)
+              if (pendingUserMessage) {
+                setPendingUserMessage(null);
+                refetchMessages(); // Atualizar para mostrar mensagem do usuário confirmada
+              }
               setStreamingMessage((prev) => prev + data.content);
             } else if (data.type === "done") {
               setIsStreaming(false);
               setStreamingMessage("");
+              setPendingUserMessage(null);
               refetchMessages();
             } else if (data.type === "error") {
               toast.error("Erro ao gerar resposta");
@@ -669,6 +676,7 @@ export default function David() {
 
     const userMessage = messageInput;
     setMessageInput("");
+    setPendingUserMessage(userMessage); // Mostrar mensagem imediatamente (otimista)
 
     // Se não tiver conversa selecionada, cria uma nova primeiro
     if (!selectedConversationId) {
@@ -949,6 +957,26 @@ export default function David() {
                   </div>
                 ))}
 
+                {/* Mensagem pendente do usuário (otimista - aparece imediatamente) */}
+                {pendingUserMessage && (
+                  <div className="flex justify-end">
+                    <Card className="p-4 max-w-[80%] bg-primary text-primary-foreground">
+                      <p className="whitespace-pre-wrap">{pendingUserMessage}</p>
+                      <p className="text-xs opacity-70 mt-2">Enviando...</p>
+                    </Card>
+                  </div>
+                )}
+
+                {/* Indicador "Pensando..." enquanto espera primeiro chunk */}
+                {isStreaming && !streamingMessage && (
+                  <div className="flex justify-start">
+                    <Card className="p-4 bg-muted flex items-center gap-3">
+                      <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                      <span className="text-sm text-muted-foreground">Pensando...</span>
+                    </Card>
+                  </div>
+                )}
+
                 {/* Mensagem em streaming */}
                 {isStreaming && streamingMessage && (
                   <div className="flex justify-start">
@@ -958,13 +986,6 @@ export default function David() {
                         <Loader2 className="h-3 w-3 animate-spin" />
                         <p className="text-xs opacity-70">Gerando...</p>
                       </div>
-                    </Card>
-                  </div>
-                )}
-                {isStreaming && (
-                  <div className="flex justify-start">
-                    <Card className="p-4 bg-muted">
-                      <Loader2 className="h-4 w-4 animate-spin" />
                     </Card>
                   </div>
                 )}

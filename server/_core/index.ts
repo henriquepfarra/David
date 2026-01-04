@@ -89,21 +89,9 @@ async function startServer() {
 
       let user;
       try {
-        if (process.env.NODE_ENV === "development") {
-          user = {
-            id: 999999,
-            openId: "dev-user-id",
-            name: "Desenvolvedor Local",
-            email: "dev@local.test",
-            loginMethod: "local",
-            role: "admin",
-            createdAt: new Date(),
-            updatedAt: new Date(),
-            lastSignedIn: new Date(),
-          };
-        } else {
-          user = await sdk.authenticateRequest(req);
-        }
+        // Usar SDK real para autenticação (mesmo em desenvolvimento)
+        // Isso garante consistência com o tRPC context
+        user = await sdk.authenticateRequest(req);
       } catch (error: any) {
         console.error("[Stream] Auth failed:", error);
         res.status(401).json({ error: "Unauthorized", details: error.message });
@@ -137,6 +125,7 @@ async function startServer() {
       };
 
       const conversation = await getConversationById(conversationId);
+      console.log(`[Stream] conversationId: ${conversationId}, userId: ${user.id}, found: ${!!conversation}, ownerId: ${conversation?.userId}`);
       if (!conversation || conversation.userId !== user.id) {
         res.status(404).json({ error: "Conversa não encontrada" });
         return;
@@ -201,10 +190,15 @@ ${CORE_MOTOR_D}
 
       // Configurar SSE
       res.setHeader("Content-Type", "text/event-stream");
-      res.setHeader("Cache-Control", "no-cache");
+      res.setHeader("Cache-Control", "no-cache, no-transform");
       res.setHeader("Connection", "keep-alive");
+      res.setHeader("X-Accel-Buffering", "no"); // Desabilita buffering do Nginx/proxies
+      res.flushHeaders(); // Força envio imediato dos headers
 
       let fullResponse = "";
+      let chunkCount = 0;
+      const startTime = Date.now();
+      console.log(`[Stream] Starting LLM stream with model: ${llmConfig.model || 'default'}, provider: ${llmConfig.provider || 'default'}`);
 
       try {
         // streamFn is now statically imported
@@ -215,9 +209,14 @@ ${CORE_MOTOR_D}
           model: llmConfig.model,
           provider: llmConfig.provider
         })) {
+          if (chunkCount === 0) {
+            console.log(`[Stream] First chunk received after ${Date.now() - startTime}ms`);
+          }
+          chunkCount++;
           fullResponse += chunk;
           res.write(`data: ${JSON.stringify({ type: "chunk", content: chunk })}\n\n`);
         }
+        console.log(`[Stream] Completed. Total chunks: ${chunkCount}, Total time: ${Date.now() - startTime}ms`);
 
         // Salvar resposta completa
         await createMessage({
