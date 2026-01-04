@@ -59,8 +59,16 @@ import DashboardLayout from "@/components/DashboardLayout";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 
 export default function David() {
-  const [, setLocation] = useLocation();
-  const [selectedConversationId, setSelectedConversationId] = useState<number | null>(null);
+  const [location, setLocation] = useLocation();
+
+  // Ler conversationId da URL (param ?c=id)
+  const urlConversationId = (() => {
+    const params = new URLSearchParams(location.split("?")[1] || "");
+    const cParam = params.get("c");
+    return cParam ? parseInt(cParam, 10) : null;
+  })();
+
+  const [selectedConversationId, setSelectedConversationId] = useState<number | null>(urlConversationId);
   const [selectedProcessId, setSelectedProcessId] = useState<number | undefined>();
   const [messageInput, setMessageInput] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
@@ -69,6 +77,17 @@ export default function David() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   const previousConversationIdRef = useRef<number | null>(null);
+
+  // Sincronizar selectedConversationId com URL quando usuário clicar na sidebar
+  useEffect(() => {
+    if (urlConversationId !== selectedConversationId) {
+      setSelectedConversationId(urlConversationId);
+      // Limpar mensagem pendente e estados de streaming ao mudar de conversa
+      setPendingUserMessage(null);
+      setStreamingMessage("");
+      setIsStreaming(false);
+    }
+  }, [urlConversationId]);
 
   // Estados para seleção múltipla
   const [isSelectionMode, setIsSelectionMode] = useState(false);
@@ -277,9 +296,20 @@ export default function David() {
     onSuccess: () => {
       refetchMessages();
       toast.success("Processo vinculado à conversa");
+      // Gerar título automático quando processo é vinculado
+      if (selectedConversationId) {
+        generateTitleMutation.mutate({ conversationId: selectedConversationId });
+      }
     },
     onError: (error) => {
       toast.error("Erro ao vincular processo: " + error.message);
+    },
+  });
+
+  // Mutation para gerar título automático da conversa
+  const generateTitleMutation = trpc.david.generateTitle.useMutation({
+    onSuccess: () => {
+      refetchConversations(); // Atualiza lista de conversas na sidebar
     },
   });
 
@@ -530,6 +560,10 @@ export default function David() {
               setStreamingMessage("");
               setPendingUserMessage(null);
               refetchMessages();
+              // Gerar título automático após primeira resposta (se título é genérico)
+              if (conversationId && conversationData?.conversation?.title === "Nova conversa") {
+                generateTitleMutation.mutate({ conversationId });
+              }
             } else if (data.type === "error") {
               toast.error("Erro ao gerar resposta");
               setIsStreaming(false);
@@ -885,6 +919,27 @@ export default function David() {
           {selectedConversationId ? (
             <ScrollArea className="flex-1 p-4" ref={scrollRef}>
               <div className="space-y-4 max-w-4xl mx-auto">
+                {/* Mensagem de boas-vindas (apenas se conversa não tem mensagens) */}
+                {conversationData?.messages.length === 0 && !pendingUserMessage && !isStreaming && (
+                  <div className="flex justify-start">
+                    <Card className="p-5 max-w-[80%] bg-gradient-to-br from-primary/5 to-primary/10 border-primary/20">
+                      <div className="flex items-start gap-3">
+                        <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                          <span className="text-xl">👋</span>
+                        </div>
+                        <div>
+                          <p className="font-medium text-foreground mb-2">
+                            Olá! Sou o <span className="text-primary font-semibold">DAVID</span>, seu assistente jurídico.
+                          </p>
+                          <p className="text-sm text-muted-foreground">
+                            Envie um <strong>processo</strong> para análise ou digite sua <strong>dúvida</strong> para começarmos.
+                          </p>
+                        </div>
+                      </div>
+                    </Card>
+                  </div>
+                )}
+
                 {conversationData?.messages.map((message) => (
                   <div
                     key={message.id}

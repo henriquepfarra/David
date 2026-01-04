@@ -36,6 +36,7 @@ import {
   getUserKnowledgeBase,
   getProcessDocuments,
   findConversationsByProcessNumber,
+  getUserSettings,
 } from "./db";
 import { searchSimilarDocuments } from "./_core/textSearch";
 import { invokeLLM, invokeLLMStream, transcribeAudio } from "./_core/llm";
@@ -179,6 +180,73 @@ export const davidRouter = router({
 
       await updateConversationTitle(input.conversationId, input.title);
       return { success: true };
+    }),
+
+  // Gerar título automático da conversa
+  generateTitle: protectedProcedure
+    .input(z.object({ conversationId: z.number() }))
+    .mutation(async ({ ctx, input }) => {
+      const conversation = await getConversationById(input.conversationId);
+      if (!conversation || conversation.userId !== ctx.user.id) {
+        throw new Error("Conversa não encontrada");
+      }
+
+      // Se tem processo vinculado, usar número do processo
+      if (conversation.processId) {
+        const process = await getProcessForContext(conversation.processId);
+        if (process?.processNumber) {
+          await updateConversationTitle(input.conversationId, `Processo ${process.processNumber}`);
+          return { title: `Processo ${process.processNumber}`, source: "process" };
+        }
+      }
+
+      // Senão, gerar título com IA baseado nas mensagens
+      const messages = await getConversationMessages(input.conversationId);
+      if (messages.length === 0) {
+        return { title: "Nova conversa", source: "default" };
+      }
+
+      // Pegar primeira mensagem do usuário para contexto
+      const firstUserMessage = messages.find(m => m.role === "user");
+      if (!firstUserMessage) {
+        return { title: "Nova conversa", source: "default" };
+      }
+
+      // Buscar configurações de LLM do usuário
+      const settings = await getUserSettings(ctx.user.id);
+      if (!settings?.llmApiKey) {
+        // Sem API key, usar primeiras palavras
+        const words = firstUserMessage.content.split(" ").slice(0, 5).join(" ");
+        await updateConversationTitle(input.conversationId, words.length > 50 ? words.substring(0, 47) + "..." : words);
+        return { title: words, source: "truncate" };
+      }
+
+      try {
+        const response = await invokeLLM({
+          messages: [
+            {
+              role: "system",
+              content: "Você é um gerador de títulos. Gere um título curto (máximo 5 palavras) para esta conversa jurídica. Responda APENAS com o título, sem aspas, sem explicações."
+            },
+            { role: "user", content: firstUserMessage.content.substring(0, 500) }
+          ],
+          apiKey: settings.llmApiKey,
+          model: settings.llmModel || undefined,
+          provider: settings.llmProvider || undefined
+        });
+
+        const title = typeof response.choices[0]?.message?.content === 'string'
+          ? response.choices[0].message.content.trim().substring(0, 100)
+          : "Nova conversa";
+
+        await updateConversationTitle(input.conversationId, title);
+        return { title, source: "ai" };
+      } catch (error) {
+        console.error("[generateTitle] Erro ao gerar título:", error);
+        const words = firstUserMessage.content.split(" ").slice(0, 5).join(" ");
+        await updateConversationTitle(input.conversationId, words.length > 50 ? words.substring(0, 47) + "..." : words);
+        return { title: words, source: "fallback" };
+      }
     }),
 
   // Deletar conversa
