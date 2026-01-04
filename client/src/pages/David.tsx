@@ -263,6 +263,14 @@ export default function David() {
     { enabled: !!selectedConversationId }
   );
 
+  // Forçar refetch quando conversa muda (garante que dados sejam carregados)
+  useEffect(() => {
+    if (selectedConversationId) {
+      console.log("[David.tsx] Refetching messages for conversation:", selectedConversationId);
+      refetchMessages();
+    }
+  }, [selectedConversationId, refetchMessages]);
+
   // Coleções de prompts
   const { data: promptCollections, refetch: refetchCollections } = trpc.david.promptCollections.list.useQuery();
 
@@ -1058,7 +1066,7 @@ export default function David() {
               </div>
             </ScrollArea>
           ) : (
-            // Hero / Estado Vazio
+            // HOME - Estado sem conversa selecionada
             <div className="flex-1 flex flex-col items-center justify-center p-8 text-center animate-in fade-in duration-500">
               <div className="max-w-md space-y-6">
                 <div>
@@ -1072,6 +1080,35 @@ export default function David() {
                   <p className="text-muted-foreground text-lg">
                     Seu assistente jurídico inteligente para análise de processos e geração de minutas
                   </p>
+                </div>
+
+                {/* Botões de ação */}
+                <div className="flex flex-col sm:flex-row gap-3 justify-center pt-4">
+                  <Button
+                    size="lg"
+                    className="gap-2"
+                    onClick={() => {
+                      // Criar nova conversa e navegar para ela
+                      createConversationMutation.mutate({ title: "Nova conversa" }, {
+                        onSuccess: (data) => {
+                          setLocation(`/david?c=${data.id}`);
+                        }
+                      });
+                    }}
+                    disabled={createConversationMutation.isPending}
+                  >
+                    <Plus className="h-5 w-5" />
+                    Nova conversa
+                  </Button>
+                  <Button
+                    size="lg"
+                    variant="outline"
+                    className="gap-2"
+                    onClick={() => setLocation("/settings")}
+                  >
+                    <Settings className="h-5 w-5" />
+                    Configurações
+                  </Button>
                 </div>
               </div>
 
