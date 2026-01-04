@@ -62,11 +62,14 @@ export default function David() {
   const [location, setLocation] = useLocation();
 
   // Ler conversationId da URL (param ?c=id)
-  const urlConversationId = (() => {
-    const params = new URLSearchParams(location.split("?")[1] || "");
+  // NOTA: useLocation do wouter retorna apenas pathname, não inclui query string
+  // Usamos location como dependência para forçar recálculo quando URL muda
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const urlConversationId = useMemo(() => {
+    const params = new URLSearchParams(window.location.search);
     const cParam = params.get("c");
     return cParam ? parseInt(cParam, 10) : null;
-  })();
+  }, [location]); // location muda quando setLocation é chamado, forçando recálculo
 
   const [selectedConversationId, setSelectedConversationId] = useState<number | null>(urlConversationId);
   const [selectedProcessId, setSelectedProcessId] = useState<number | undefined>();
@@ -561,7 +564,8 @@ export default function David() {
               setPendingUserMessage(null);
               refetchMessages();
               // Gerar título automático após primeira resposta (se título é genérico)
-              if (conversationId && conversationData?.conversation?.title === "Nova conversa") {
+              const currentTitle = conversationData?.conversation?.title?.toLowerCase();
+              if (conversationId && (currentTitle === "nova conversa" || currentTitle === "nova conversa")) {
                 generateTitleMutation.mutate({ conversationId });
               }
             } else if (data.type === "error") {
@@ -700,9 +704,14 @@ export default function David() {
   }, [conversationData?.messages, streamingMessage]);
 
   const handleNewConversation = () => {
+    // Navegar para /david sem ID de conversa - a sidebar também lerá isso
+    setLocation("/david");
     setSelectedConversationId(null);
     setSelectedProcessId(undefined);
     setMessageInput("");
+    setPendingUserMessage(null);
+    setStreamingMessage("");
+    setIsStreaming(false);
   };
 
   const handleSendMessage = async () => {
@@ -720,6 +729,8 @@ export default function David() {
         title: "Nova Conversa" // O backend ou usuário pode renomear depois
       }, {
         onSuccess: async (newConv) => {
+          // Navegar via URL para sincronizar com sidebar
+          setLocation(`/david?c=${newConv.id}`);
           setSelectedConversationId(newConv.id);
           // Pequeno delay para garantir que o estado atualize
           setTimeout(() => {

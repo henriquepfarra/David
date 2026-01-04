@@ -23,7 +23,7 @@ import {
 import { APP_LOGO, APP_TITLE, getLoginUrl } from "@/const";
 import { useIsMobile } from "@/hooks/useMobile";
 import { LogOut, PanelLeft, Plus, Search, Settings, MessageSquare, Pin, MoreVertical, Pencil, Trash2 } from "lucide-react";
-import { CSSProperties, useEffect, useRef, useState } from "react";
+import { CSSProperties, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { DashboardLayoutSkeleton } from './DashboardLayoutSkeleton';
 import { Button } from "./ui/button";
@@ -223,8 +223,14 @@ function DashboardLayoutContent({
   };
 
   // Get current conversation ID from URL
-  const urlParams = new URLSearchParams(location.split("?")[1] || "");
-  const currentConversationId = urlParams.get("c") ? parseInt(urlParams.get("c")!) : null;
+  // NOTA: useLocation do wouter retorna apenas pathname, não inclui query string
+  // Usamos location como dependência para forçar recálculo quando URL muda
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const currentConversationId = useMemo(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const cParam = urlParams.get("c");
+    return cParam ? parseInt(cParam, 10) : null;
+  }, [location]); // location muda quando setLocation é chamado, forçando recálculo
 
   return (
     <>
