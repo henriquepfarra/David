@@ -349,9 +349,55 @@ export async function createConversation(data: InsertConversation) {
   return conversation.id;
 }
 
+// Função auxiliar para deletar conversas vazias antigas
+export async function deleteEmptyConversations(userId: number) {
+  const db = await getDb();
+  if (!db) return;
+
+  const { inArray } = await import("drizzle-orm");
+
+  try {
+    // 1. Buscar todas as conversas do usuário
+    const userConvos = await db
+      .select({ id: conversations.id, createdAt: conversations.createdAt })
+      .from(conversations)
+      .where(eq(conversations.userId, userId));
+
+    if (userConvos.length === 0) return;
+
+    const convIds = userConvos.map((c) => c.id);
+
+    // 2. Buscar quais dessas têm mensagens
+    const activeConvos = await db
+      .selectDistinct({ conversationId: messages.conversationId })
+      .from(messages)
+      .where(inArray(messages.conversationId, convIds));
+
+    const activeIds = new Set(activeConvos.map((c) => c.conversationId));
+
+    // 3. Filtrar vazias com mais de 1 minuto de vida (pra evitar deletar conversa recém criada que user está digitando)
+    const now = Date.now();
+    const idsToDelete = userConvos
+      .filter((c) => !activeIds.has(c.id))
+      .filter((c) => now - new Date(c.createdAt).getTime() > 60 * 1000) // 1 minuto de tolerância
+      .map((c) => c.id);
+
+    // 4. Deletar
+    if (idsToDelete.length > 0) {
+      await db.delete(conversations).where(inArray(conversations.id, idsToDelete));
+      console.log(`[Cleanup] Deletadas ${idsToDelete.length} conversas vazias automaticamente.`);
+    }
+  } catch (err) {
+    console.error("[Cleanup] Erro ao limpar conversas vazias:", err);
+  }
+}
+
 export async function getUserConversations(userId: number): Promise<Conversation[]> {
   const db = await getDb();
   if (!db) return [];
+
+  // Limpar conversas vazias antes de listar
+  await deleteEmptyConversations(userId);
 
   // Ordenar: fixadas primeiro (isPinned DESC), depois por data de atualização (updatedAt DESC)
   return await db
