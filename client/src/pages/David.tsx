@@ -289,7 +289,6 @@ export default function David() {
   // Forçar refetch quando conversa muda (garante que dados sejam carregados)
   useEffect(() => {
     if (selectedConversationId) {
-      console.log("[David.tsx] Refetching messages for conversation:", selectedConversationId);
       refetchMessages();
     }
   }, [selectedConversationId, refetchMessages]);
