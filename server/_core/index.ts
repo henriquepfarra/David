@@ -169,7 +169,7 @@ async function startServer() {
             })),
             content,
             {
-              limit: 5,
+              limit: 12,
               minSimilarity: 0.1,
             }
           );
