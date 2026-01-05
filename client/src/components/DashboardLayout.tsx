@@ -230,23 +230,37 @@ function DashboardLayoutContent({
     return cParam ? parseInt(cParam, 10) : null;
   });
 
+  // Ref para rastrear o último ID da URL (evita problemas de closure)
+  const lastUrlIdRef = useRef<number | null>(currentConversationId);
+
   // Atualizar currentConversationId quando URL muda (via popstate ou clique na sidebar)
   useEffect(() => {
     const updateConversationId = () => {
       const urlParams = new URLSearchParams(window.location.search);
       const cParam = urlParams.get("c");
       const newId = cParam ? parseInt(cParam, 10) : null;
-      setCurrentConversationId(newId);
+
+      // Comparar com ref para evitar problemas de closure
+      if (newId !== lastUrlIdRef.current) {
+        lastUrlIdRef.current = newId;
+        setCurrentConversationId(newId);
+      }
     };
 
     // Escutar popstate (navegação via botões voltar/avançar)
     window.addEventListener('popstate', updateConversationId);
 
-    // Também atualizar quando location do wouter muda (navegação via setLocation)
+    // Poll interval para detectar mudanças via setLocation do wouter
+    const interval = setInterval(updateConversationId, 100);
+
+    // Atualizar imediatamente
     updateConversationId();
 
-    return () => window.removeEventListener('popstate', updateConversationId);
-  }, [location]); // Re-executar quando location mudar
+    return () => {
+      window.removeEventListener('popstate', updateConversationId);
+      clearInterval(interval);
+    };
+  }, []); // Sem dependências - usa refs internamente
 
   return (
     <>

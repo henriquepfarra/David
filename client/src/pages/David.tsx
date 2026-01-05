@@ -61,17 +61,14 @@ import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 export default function David() {
   const [location, setLocation] = useLocation();
 
-  // Ler conversationId da URL (param ?c=id)
-  // NOTA: useLocation do wouter retorna apenas pathname, não inclui query string
-  // Usamos location como dependência para forçar recálculo quando URL muda
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const urlConversationId = useMemo(() => {
+  // Estado para ID da conversa da URL - precisa reagir a mudanças na query string
+  // O location do wouter não inclui query string, então usamos estado + event listeners
+  const [selectedConversationId, setSelectedConversationId] = useState<number | null>(() => {
     const params = new URLSearchParams(window.location.search);
     const cParam = params.get("c");
     return cParam ? parseInt(cParam, 10) : null;
-  }, [location]); // location muda quando setLocation é chamado, forçando recálculo
+  });
 
-  const [selectedConversationId, setSelectedConversationId] = useState<number | null>(urlConversationId);
   const [selectedProcessId, setSelectedProcessId] = useState<number | undefined>();
   const [messageInput, setMessageInput] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
@@ -81,16 +78,42 @@ export default function David() {
   const abortControllerRef = useRef<AbortController | null>(null);
   const previousConversationIdRef = useRef<number | null>(null);
 
-  // Sincronizar selectedConversationId com URL quando usuário clicar na sidebar
+  // Ref para rastrear o último ID da URL (evita problemas de closure)
+  const lastUrlIdRef = useRef<number | null>(selectedConversationId);
+
+  // Sincronizar selectedConversationId com URL quando muda
   useEffect(() => {
-    if (urlConversationId !== selectedConversationId) {
-      setSelectedConversationId(urlConversationId);
-      // Limpar mensagem pendente e estados de streaming ao mudar de conversa
-      setPendingUserMessage(null);
-      setStreamingMessage("");
-      setIsStreaming(false);
-    }
-  }, [urlConversationId]);
+    const updateFromUrl = () => {
+      const params = new URLSearchParams(window.location.search);
+      const cParam = params.get("c");
+      const newId = cParam ? parseInt(cParam, 10) : null;
+
+      // Comparar com ref para evitar problemas de closure
+      if (newId !== lastUrlIdRef.current) {
+        console.log("[David.tsx] URL changed:", lastUrlIdRef.current, "->", newId);
+        lastUrlIdRef.current = newId;
+        setSelectedConversationId(newId);
+        // Limpar mensagem pendente e estados de streaming ao mudar de conversa
+        setPendingUserMessage(null);
+        setStreamingMessage("");
+        setIsStreaming(false);
+      }
+    };
+
+    // Escutar popstate (navegação via botões voltar/avançar)
+    window.addEventListener('popstate', updateFromUrl);
+
+    // Poll interval para detectar mudanças via setLocation do wouter
+    const interval = setInterval(updateFromUrl, 100);
+
+    // Atualizar imediatamente
+    updateFromUrl();
+
+    return () => {
+      window.removeEventListener('popstate', updateFromUrl);
+      clearInterval(interval);
+    };
+  }, []); // Sem dependências - usa refs internamente
 
   // Estados para seleção múltipla
   const [isSelectionMode, setIsSelectionMode] = useState(false);
