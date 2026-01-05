@@ -22,7 +22,10 @@ import {
 } from "@/components/ui/sidebar";
 import { APP_LOGO, APP_TITLE, getLoginUrl } from "@/const";
 import { useIsMobile } from "@/hooks/useMobile";
-import { LogOut, PanelLeft, Plus, Search, Settings, MessageSquare, Pin, MoreVertical, Pencil, Trash2 } from "lucide-react";
+import {
+  LogOut, PanelLeft, Plus, Search, Settings, MessageSquare, Pin, MoreVertical,
+  Pencil, Trash2, FolderOpen, Menu, X, CheckSquare, ChevronLeft, ChevronRight
+} from "lucide-react";
 import { CSSProperties, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { DashboardLayoutSkeleton } from './DashboardLayoutSkeleton';
@@ -30,6 +33,7 @@ import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { ScrollArea } from "./ui/scroll-area";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "./ui/dialog";
+import { Checkbox } from "./ui/checkbox";
 import { trpc } from "@/lib/trpc";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -161,6 +165,38 @@ function DashboardLayoutContent({
   const [renameDialogOpen, setRenameDialogOpen] = useState(false);
   const [renamingConvId, setRenamingConvId] = useState<number | null>(null);
   const [newTitle, setNewTitle] = useState("");
+
+  // Selection Mode States
+  const [isSelectionMode, setIsSelectionMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+
+  const toggleSelection = (id: number) => {
+    const newSet = new Set(selectedIds);
+    if (newSet.has(id)) newSet.delete(id);
+    else newSet.add(id);
+    setSelectedIds(newSet);
+  };
+
+  const handleDeleteSelected = async () => {
+    if (selectedIds.size === 0) return;
+    if (!confirm(`Excluir ${selectedIds.size} conversas?`)) return;
+
+    // Delete one by one (or bulk if supported)
+    // Using Parallel loop
+    const promises = Array.from(selectedIds).map(id =>
+      deleteConversationMutation.mutateAsync({ id })
+    );
+
+    try {
+      await Promise.all(promises);
+      toast.success(`${selectedIds.size} conversas excluídas`);
+      setSelectedIds(new Set());
+      setIsSelectionMode(false);
+      refetchConversations();
+    } catch (e) {
+      toast.error("Erro ao excluir algumas conversas");
+    }
+  };
 
   // Filter conversations by search
   const filteredConversations = conversations?.filter(conv =>
@@ -354,6 +390,53 @@ function DashboardLayoutContent({
                 </SidebarMenuItem>
               </SidebarMenu>
             ) : (
+              <SidebarMenu>
+                <div className="flex items-center justify-between px-2 py-2">
+                  <SidebarMenuItem className="flex-1">
+                    <SidebarMenuButton
+                      onClick={() => {
+                        createConversationMutation.mutate({});
+                        setLocation("/david");
+                      }}
+                      className="h-9 bg-primary/10 hover:bg-primary/20 text-primary border border-primary/20 justify-center shadow-sm transition-all"
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      Nova Conversa
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+
+                  {conversations && conversations.length > 0 && (
+                    <Button
+                      variant={isSelectionMode ? "secondary" : "ghost"}
+                      size="icon"
+                      className="h-9 w-9 ml-2 shrink-0"
+                      onClick={() => {
+                        setIsSelectionMode(!isSelectionMode);
+                        setSelectedIds(new Set());
+                      }}
+                      title={isSelectionMode ? "Cancelar Seleção" : "Selecionar Conversas"}
+                    >
+                      {isSelectionMode ? <X className="h-4 w-4" /> : <CheckSquare className="h-4 w-4 text-muted-foreground" />}
+                    </Button>
+                  )}
+                </div>
+
+                {isSelectionMode && selectedIds.size > 0 && (
+                  <div className="px-2 pb-2">
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      className="w-full h-8 text-xs gap-2"
+                      onClick={handleDeleteSelected}
+                    >
+                      <Trash2 className="h-3 w-3" />
+                      Apagar ({selectedIds.size})
+                    </Button>
+                  </div>
+                )}
+              </SidebarMenu>
+            )}
+            {!isCollapsed && (
               <ScrollArea className="flex-1 px-2">
                 {groupedConversations && Object.entries(groupedConversations).map(([group, convs]) => (
                   <div key={group} className="mb-4">
@@ -363,11 +446,22 @@ function DashboardLayoutContent({
                     {convs?.map((conv) => (
                       <div key={conv.id} className="relative group/conv">
                         <button
-                          onClick={() => setLocation(`/david?c=${conv.id}`)}
-                          className={`w-full text-left px-2 py-2 rounded-lg text-sm hover:bg-accent transition-colors flex items-center gap-2 pr-8 ${currentConversationId === conv.id ? "bg-accent" : ""
+                          onClick={() => {
+                            if (isSelectionMode) toggleSelection(conv.id);
+                            else setLocation(`/david?c=${conv.id}`);
+                          }}
+                          className={`w-full text-left px-2 py-2 rounded-lg text-sm hover:bg-accent transition-colors flex items-center gap-2 pr-8 ${currentConversationId === conv.id && !isSelectionMode ? "bg-accent" : ""
                             }`}
                         >
-                          {conv.isPinned ? (
+                          {isSelectionMode ? (
+                            <div className="flex items-center justify-center w-4 h-4 mr-1">
+                              <Checkbox
+                                checked={selectedIds.has(conv.id)}
+                                onCheckedChange={() => toggleSelection(conv.id)}
+                                onClick={(e) => e.stopPropagation()}
+                              />
+                            </div>
+                          ) : conv.isPinned ? (
                             <Pin className="h-3.5 w-3.5 text-primary shrink-0" />
                           ) : (
                             <MessageSquare className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
@@ -375,52 +469,54 @@ function DashboardLayoutContent({
                           <span className="truncate flex-1">{conv.title}</span>
                         </button>
 
-                        {/* Context Menu */}
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <button
-                              className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 flex items-center justify-center rounded-md opacity-0 group-hover/conv:opacity-100 hover:bg-muted transition-all"
-                              onClick={(e) => e.stopPropagation()}
-                            >
-                              <MoreVertical className="h-4 w-4 text-muted-foreground" />
-                            </button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end" className="w-40">
-                            <DropdownMenuItem
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                togglePinMutation.mutate({ id: conv.id });
-                              }}
-                            >
-                              <Pin className="h-4 w-4 mr-2" />
-                              {conv.isPinned ? "Desafixar" : "Fixar"}
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setRenamingConvId(conv.id);
-                                setNewTitle(conv.title);
-                                setRenameDialogOpen(true);
-                              }}
-                            >
-                              <Pencil className="h-4 w-4 mr-2" />
-                              Renomear
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                if (confirm("Excluir esta conversa?")) {
-                                  deleteConversationMutation.mutate({ id: conv.id });
-                                }
-                              }}
-                              className="text-destructive focus:text-destructive"
-                            >
-                              <Trash2 className="h-4 w-4 mr-2" />
-                              Excluir
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
+                        {/* Context Menu (Ocultar em modo de seleção) */}
+                        {!isSelectionMode && (
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <button
+                                className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 flex items-center justify-center rounded-md opacity-50 hover:opacity-100 hover:bg-muted transition-all"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <MoreVertical className="h-4 w-4 text-muted-foreground" />
+                              </button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-40">
+                              <DropdownMenuItem
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  togglePinMutation.mutate({ id: conv.id });
+                                }}
+                              >
+                                <Pin className="h-4 w-4 mr-2" />
+                                {conv.isPinned ? "Desafixar" : "Fixar"}
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setRenamingConvId(conv.id);
+                                  setNewTitle(conv.title);
+                                  setRenameDialogOpen(true);
+                                }}
+                              >
+                                <Pencil className="h-4 w-4 mr-2" />
+                                Renomear
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (confirm("Excluir esta conversa?")) {
+                                    deleteConversationMutation.mutate({ id: conv.id });
+                                  }
+                                }}
+                                className="text-destructive focus:text-destructive"
+                              >
+                                <Trash2 className="h-4 w-4 mr-2" />
+                                Excluir
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        )}
                       </div>
                     ))}
                   </div>
