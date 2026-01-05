@@ -18,7 +18,7 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input"; // Adicionado Input
 import { Badge } from "@/components/ui/badge"; // Adicionado Badge
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Loader2, Send, Plus, Trash2, FileText, Settings, BookMarked, X, Check, Edit, XCircle, ArrowLeft, ArrowDown, ArrowRight, Pencil, Upload, MessageSquare, ChevronRight, ChevronDown, Pin, PinOff, Gavel, Brain, Mic, Wand2, MoreVertical, Eye, CheckSquare, Search, Folder, FolderOpen } from "lucide-react";
+import { Loader2, Send, Plus, Trash2, FileText, Settings, BookMarked, X, Check, Edit, XCircle, ArrowLeft, ArrowDown, ArrowRight, Pencil, Upload, MessageSquare, ChevronRight, ChevronDown, Pin, PinOff, Gavel, Brain, Mic, Wand2, MoreVertical, Eye, CheckSquare, Search, Folder, FolderOpen, Bot } from "lucide-react";
 
 
 
@@ -367,6 +367,9 @@ export default function David() {
       console.error("[Cleanup] Erro ao limpar arquivo:", error.message);
     },
   });
+
+  // Query para obter configurações do usuário (modelo LLM)
+  const settings = trpc.settings.get.useQuery();
 
   const cleanupIfEmptyMutation = trpc.david.cleanupIfEmpty.useMutation({
     onSuccess: (data) => {
@@ -926,6 +929,17 @@ export default function David() {
           {/* Header com seletor de processo e Menu de Histórico */}
           <div className="p-2 border-b bg-card/50 backdrop-blur-sm sticky top-0 z-10 flex items-center justify-between">
             <div className="flex items-center gap-4">
+
+              {/* Indicador de Modelo */}
+              <div className="hidden md:flex items-center gap-2 px-3 py-1.5 bg-primary/5 hover:bg-primary/10 transition-colors rounded-full border border-primary/10 group cursor-help" title={`Provedor: ${settings.data?.llmProvider || 'Google'}`}>
+                <Bot className="w-3.5 h-3.5 text-primary/70 group-hover:text-primary transition-colors" />
+                <span className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground group-hover:text-primary transition-colors">
+                  {settings.data?.llmModel
+                    ? settings.data.llmModel.replace("gemini-", "").replace(/-/g, " ")
+                    : "GEMINI 2.0 FLASH"}
+                </span>
+              </div>
+
               <div className="flex-1 flex items-center justify-end">
 
                 {/* Progress bar durante upload OU Badge quando concluído */}
