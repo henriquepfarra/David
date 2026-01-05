@@ -481,6 +481,7 @@ export const davidRouter = router({
       let knowledgeBaseContext = "";
       try {
         const allDocs = await getUserKnowledgeBase(ctx.user.id);
+        console.log(`[RAG] Total de documentos na base: ${allDocs.length}`);
         if (allDocs.length > 0) {
           // Buscar documentos similares à mensagem do usuário
           const relevantDocs = searchSimilarDocuments(
@@ -492,15 +493,18 @@ export const davidRouter = router({
             })),
             input.content,
             {
-              limit: 3, // Top 3 documentos mais relevantes
-              minSimilarity: 0.10, // Threshold mínimo de similaridade
+              limit: 5, // Aumentado para 5 documentos
+              minSimilarity: 0.05, // Baixado threshold para debug
             }
           );
 
+          console.log(`[RAG] Documentos encontrados: ${relevantDocs.length}`);
+          relevantDocs.forEach(d => console.log(`  - ${d.title} (${d.documentType}) sim=${d.similarity.toFixed(3)}`));
+
           if (relevantDocs.length > 0) {
-            // Separar documentos citáveis (enunciados) de não-citáveis (minutas/teses/decisões)
-            const citableDocs = relevantDocs.filter(d => d.documentType === 'enunciado');
-            const referenceDocs = relevantDocs.filter(d => d.documentType !== 'enunciado');
+            // Separar documentos citáveis (enunciados e súmulas) de não-citáveis
+            const citableDocs = relevantDocs.filter(d => d.documentType === 'enunciado' || d.documentType === 'sumula');
+            const referenceDocs = relevantDocs.filter(d => d.documentType !== 'enunciado' && d.documentType !== 'sumula');
 
             knowledgeBaseContext = `\n\n## BASE DE CONHECIMENTO\n\n`;
 
@@ -733,6 +737,7 @@ ${CORE_MOTOR_D}
       let knowledgeBaseContext = "";
       try {
         const allDocs = await getUserKnowledgeBase(ctx.user.id);
+        console.log(`[RAG-Stream] Total de documentos na base: ${allDocs.length}`);
         if (allDocs.length > 0) {
           // Buscar documentos similares à mensagem do usuário
           const relevantDocs = searchSimilarDocuments(
@@ -744,15 +749,18 @@ ${CORE_MOTOR_D}
             })),
             input.content,
             {
-              limit: 3, // Top 3 documentos mais relevantes
-              minSimilarity: 0.10, // Threshold mínimo de similaridade
+              limit: 5, // Aumentado para 5
+              minSimilarity: 0.05, // Baixado para debug
             }
           );
 
+          console.log(`[RAG-Stream] Documentos encontrados: ${relevantDocs.length}`);
+          relevantDocs.forEach(d => console.log(`  - ${d.title} (${d.documentType}) sim=${d.similarity.toFixed(3)}`));
+
           if (relevantDocs.length > 0) {
-            // Separar documentos citáveis (enunciados) de não-citáveis (minutas/teses/decisões)
-            const citableDocs = relevantDocs.filter(d => d.documentType === 'enunciado');
-            const referenceDocs = relevantDocs.filter(d => d.documentType !== 'enunciado');
+            // Separar documentos citáveis (enunciados e súmulas) de não-citáveis
+            const citableDocs = relevantDocs.filter(d => d.documentType === 'enunciado' || d.documentType === 'sumula');
+            const referenceDocs = relevantDocs.filter(d => d.documentType !== 'enunciado' && d.documentType !== 'sumula');
 
             knowledgeBaseContext = `\n\n## BASE DE CONHECIMENTO\n\n`;
 

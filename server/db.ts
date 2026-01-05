@@ -669,10 +669,13 @@ export async function getSavedPromptsPaginated(options: {
   // Busca (Título ou Conteúdo)
   if (options.search) {
     const searchPattern = `%${options.search}%`;
-    conditions.push(or(
+    const searchCondition = or(
       like(savedPrompts.title, searchPattern),
       like(savedPrompts.content, searchPattern)
-    ));
+    );
+    if (searchCondition) {
+      conditions.push(searchCondition);
+    }
   }
 
   // Filtro por Categoria
