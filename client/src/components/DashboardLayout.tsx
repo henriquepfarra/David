@@ -24,7 +24,7 @@ import { APP_LOGO, APP_TITLE, getLoginUrl } from "@/const";
 import { useIsMobile } from "@/hooks/useMobile";
 import {
   LogOut, PanelLeft, Plus, Search, Settings, MessageSquare, Pin, MoreVertical,
-  Pencil, Trash2, FolderOpen, Menu, ChevronLeft, ChevronRight, CheckSquare, X
+  Pencil, Trash2, FolderOpen, Menu, ChevronLeft, ChevronRight, CheckSquare, X, SquarePen
 } from "lucide-react";
 import { CSSProperties, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation } from "wouter";
@@ -165,6 +165,7 @@ function DashboardLayoutContent({
   const [renameDialogOpen, setRenameDialogOpen] = useState(false);
   const [renamingConvId, setRenamingConvId] = useState<number | null>(null);
   const [newTitle, setNewTitle] = useState("");
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
 
   // States for selection mode
   const [isSelectionMode, setIsSelectionMode] = useState(false);
@@ -356,26 +357,40 @@ function DashboardLayoutContent({
               )}
             </div>
 
-            {/* New Chat Button */}
+            {/* Novo chat - estilo ChatGPT */}
             {!isCollapsed && (
-              <Button
+              <button
                 onClick={handleNewChat}
-                className="w-full justify-start gap-2"
-                variant="outline"
+                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-accent transition-colors text-left"
               >
-                <Plus className="h-4 w-4" />
-                Nova conversa
-              </Button>
+                <SquarePen className="h-4 w-4" />
+                <span className="text-sm">Novo chat</span>
+              </button>
             )}
 
-            {/* Search */}
-            {!isCollapsed && (
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            {/* Buscar em chats */}
+            {!isCollapsed && !isSearchOpen && (
+              <button
+                onClick={() => setIsSearchOpen(true)}
+                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-accent transition-colors text-left text-muted-foreground"
+              >
+                <Search className="h-4 w-4" />
+                <span className="text-sm">Buscar em chats</span>
+              </button>
+            )}
+
+            {/* Input de busca */}
+            {!isCollapsed && isSearchOpen && (
+              <div className="relative px-2">
+                <Search className="absolute left-5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
-                  placeholder="Buscar conversas..."
+                  autoFocus
+                  placeholder="Buscar em chats..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
+                  onBlur={() => {
+                    if (!searchQuery) setIsSearchOpen(false);
+                  }}
                   className="pl-9 h-9"
                 />
               </div>
@@ -399,31 +414,23 @@ function DashboardLayoutContent({
               <>
                 {/* Barra de ações do modo de seleção */}
                 {isSelectionMode && (
-                  <div className="flex items-center justify-between gap-2 px-2 py-2 border-b">
-                    <div className="flex items-center gap-2">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={exitSelectionMode}
-                        className="h-8 gap-1"
-                      >
-                        <X className="h-4 w-4" />
-                        Cancelar
-                      </Button>
-                      <span className="text-xs text-muted-foreground">
-                        {selectedIds.size} selecionada(s)
-                      </span>
-                    </div>
-                    <Button
-                      variant="destructive"
-                      size="sm"
+                  <div className="flex items-center gap-2 px-3 py-3 mx-2 mb-2 bg-primary/10 border border-primary/20 rounded-lg">
+                    <button
+                      onClick={exitSelectionMode}
+                      className="p-1.5 hover:bg-muted rounded-md transition-colors"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                    <span className="text-sm text-muted-foreground flex-1 text-center">
+                      {selectedIds.size > 0 ? `${selectedIds.size} selecionada(s)` : "Selecione"}
+                    </span>
+                    <button
                       onClick={handleDeleteSelected}
                       disabled={selectedIds.size === 0}
-                      className="h-8"
+                      className="p-1.5 hover:bg-muted rounded-md transition-colors disabled:opacity-30"
                     >
-                      <Trash2 className="h-4 w-4 mr-1" />
-                      Apagar
-                    </Button>
+                      <Trash2 className="h-4 w-4 text-destructive" />
+                    </button>
                   </div>
                 )}
                 <ScrollArea className="flex-1 px-2">
@@ -446,7 +453,7 @@ function DashboardLayoutContent({
                             }
                           }}
                         >
-                          {/* Checkbox ou Ícone */}
+                          {/* Checkbox (modo seleção) ou Pin (se fixado) */}
                           {isSelectionMode ? (
                             <Checkbox
                               checked={selectedIds.has(conv.id)}
@@ -456,9 +463,7 @@ function DashboardLayoutContent({
                             />
                           ) : conv.isPinned ? (
                             <Pin className="h-3.5 w-3.5 text-primary shrink-0" />
-                          ) : (
-                            <MessageSquare className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                          )}
+                          ) : null}
 
                           {/* Título - trunca com ... */}
                           <span className="truncate flex-1 min-w-0">{conv.title}</span>
