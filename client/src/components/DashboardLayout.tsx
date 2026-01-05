@@ -438,8 +438,8 @@ function DashboardLayoutContent({
                               }
                             }}
                             className={`w-full text-left px-2 py-2 rounded-lg text-sm hover:bg-accent transition-colors flex items-center gap-2 pr-8 ${isSelectionMode
-                                ? (selectedIds.has(conv.id) ? "bg-accent" : "")
-                                : (currentConversationId === conv.id ? "bg-accent" : "")
+                              ? (selectedIds.has(conv.id) ? "bg-accent" : "")
+                              : (currentConversationId === conv.id ? "bg-accent" : "")
                               }`}
                           >
                             {isSelectionMode ? (
@@ -457,12 +457,12 @@ function DashboardLayoutContent({
                             <span className="truncate flex-1">{conv.title}</span>
                           </button>
 
-                          {/* Context Menu - Sempre visível */}
+                          {/* Context Menu - Aparece no hover */}
                           {!isSelectionMode && (
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
                                 <button
-                                  className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 flex items-center justify-center rounded-md opacity-50 hover:opacity-100 hover:bg-muted transition-all"
+                                  className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 flex items-center justify-center rounded-md opacity-0 group-hover/conv:opacity-100 hover:bg-muted transition-all z-10"
                                   onClick={(e) => e.stopPropagation()}
                                 >
                                   <MoreVertical className="h-4 w-4 text-muted-foreground" />
