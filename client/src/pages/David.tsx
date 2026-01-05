@@ -283,8 +283,19 @@ export default function David() {
   const { data: processes } = trpc.processes.list.useQuery();
   const { data: conversationData, refetch: refetchMessages } = trpc.david.getConversation.useQuery(
     { id: selectedConversationId! },
-    { enabled: !!selectedConversationId }
+    {
+      enabled: !!selectedConversationId,
+    }
   );
+
+  // Sincronizar selectedProcessId com a conversa carregada
+  useEffect(() => {
+    if (conversationData?.conversation?.processId) {
+      setSelectedProcessId(conversationData.conversation.processId);
+    } else if (conversationData?.conversation && !conversationData.conversation.processId) {
+      setSelectedProcessId(undefined);
+    }
+  }, [conversationData]);
 
   // Forçar refetch quando conversa muda (garante que dados sejam carregados)
   useEffect(() => {
@@ -329,9 +340,9 @@ export default function David() {
     onSuccess: () => {
       refetchMessages();
       toast.success("Processo vinculado à conversa");
-      // Gerar título automático quando processo é vinculado
+      // Título será definido manualmente com número do processo nos locais de chamada
       if (selectedConversationId) {
-        generateTitleMutation.mutate({ conversationId: selectedConversationId });
+        // generateTitleMutation removido para usar número do processo
       }
     },
     onError: (error) => {
@@ -400,6 +411,12 @@ export default function David() {
         updateProcessMutation.mutate({
           conversationId: selectedConversationId,
           processId: data.processId,
+        });
+
+        // Atualizar título da conversa com o número do processo
+        renameConversationMutation.mutate({
+          conversationId: selectedConversationId,
+          title: data.processNumber,
         });
       }
       setSelectedProcessId(data.processId);
@@ -974,6 +991,31 @@ export default function David() {
                           </p>
                           <p className="text-sm text-muted-foreground">
                             Envie um <strong>processo</strong> para análise ou digite sua <strong>dúvida</strong> para começarmos.
+                          </p>
+                        </div>
+                      </div>
+                    </Card>
+                  </div>
+                )}
+
+                {/* Processo Vinculado em destaque */}
+                {selectedProcessId && (
+                  <div className="flex justify-start mb-6 animate-in slide-in-from-left-2 duration-300">
+                    <Card className="p-4 bg-secondary/20 border border-primary/20 max-w-[85%] sm:max-w-md shadow-sm">
+                      <div className="flex items-start gap-4">
+                        <div className="p-2 bg-primary/10 rounded-lg shrink-0">
+                          <Gavel className="h-6 w-6 text-primary" />
+                        </div>
+                        <div className="space-y-1">
+                          <h3 className="font-semibold text-foreground flex items-center gap-2">
+                            Processo Vinculado
+                            <span className="flex h-2 w-2 rounded-full bg-green-500 animate-pulse" />
+                          </h3>
+                          <p className="text-sm font-medium text-foreground/90 font-mono tracking-tight">
+                            {processes?.find(p => p.id === selectedProcessId)?.processNumber || "Carregando..."}
+                          </p>
+                          <p className="text-xs text-muted-foreground leading-relaxed">
+                            O contexto deste processo está ativo. Todas as perguntas serão respondidas com base nos documentos dos autos.
                           </p>
                         </div>
                       </div>
@@ -1939,6 +1981,12 @@ export default function David() {
                           updateProcessMutation.mutate({
                             conversationId: selectedConversationId,
                             processId: process.id,
+                          });
+
+                          // Atualizar título da conversa com o número do processo
+                          renameConversationMutation.mutate({
+                            conversationId: selectedConversationId,
+                            title: process.processNumber,
                           });
                         }
                         setIsProcessSelectorOpen(false);
