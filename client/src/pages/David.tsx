@@ -1116,8 +1116,8 @@ export default function David() {
 
           )}
 
-          {/* Área global de Drag & Drop oculta (input) */}
-          <div {...getRootProps()} className="outline-none">
+          {/* Área de Input - esconde quando na HOME (sem conversa selecionada) */}
+          <div {...getRootProps()} className={`outline-none ${!selectedConversationId ? 'hidden' : ''}`}>
             <input {...getInputProps()} />
 
             {/* Overlay de Drag & Drop quando arrastar arquivo */}

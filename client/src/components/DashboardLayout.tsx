@@ -467,9 +467,12 @@ function DashboardLayoutContent({
               <SidebarTrigger className="h-9 w-9 rounded-lg bg-background" />
               <div className="flex items-center gap-3">
                 <div className="flex flex-col gap-1">
-                  <span className="tracking-tight text-foreground">
+                  <button
+                    onClick={() => setLocation("/david")}
+                    className="tracking-tight text-foreground hover:text-primary transition-colors cursor-pointer text-left"
+                  >
                     DAVID
-                  </span>
+                  </button>
                 </div>
               </div>
             </div>
