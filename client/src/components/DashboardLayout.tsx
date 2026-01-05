@@ -428,7 +428,7 @@ function DashboardLayoutContent({
                         {group}
                       </p>
                       {convs?.map((conv) => (
-                        <div key={conv.id} className="relative group/conv">
+                        <div key={conv.id} className="relative group">
                           <button
                             onClick={() => {
                               if (isSelectionMode) {
@@ -462,7 +462,7 @@ function DashboardLayoutContent({
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
                                 <button
-                                  className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 flex items-center justify-center rounded-md opacity-0 group-hover/conv:opacity-100 hover:bg-muted transition-all z-10"
+                                  className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 flex items-center justify-center rounded-md opacity-0 group-hover:opacity-100 hover:bg-muted transition-all z-10"
                                   onClick={(e) => e.stopPropagation()}
                                 >
                                   <MoreVertical className="h-4 w-4 text-muted-foreground" />
