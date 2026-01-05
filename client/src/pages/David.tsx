@@ -1055,9 +1055,9 @@ export default function David() {
                       return (
                         <div key={message.id} className="flex flex-col items-start gap-2 max-w-4xl w-full mb-8 animate-in fade-in slide-in-from-bottom-2 group">
                           {/* Header da Mensagem (Avatar + Nome) */}
-                          <div className="flex items-center gap-2 select-none pl-1 opacity-90 group-hover:opacity-100 transition-opacity">
-                            <img src={APP_LOGO} alt="D" className="w-9 h-9 object-contain" />
-                            <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-0 select-none pl-0 opacity-90 group-hover:opacity-100 transition-opacity">
+                            <img src={APP_LOGO} alt="D" className="w-[60px] h-[60px] object-contain" />
+                            <div className="flex items-center gap-2 -ml-2">
                               <span className="font-semibold text-sm text-foreground/90">David</span>
                               <span className="text-[10px] text-muted-foreground/80">• Assistente Jurídico</span>
                             </div>
@@ -1153,9 +1153,9 @@ export default function David() {
                   {isStreaming && streamingMessage && (
                     <div className="flex flex-col items-start gap-2 max-w-4xl w-full mb-8 animate-in fade-in">
                       {/* Header */}
-                      <div className="flex items-center gap-2 select-none pl-1">
-                        <img src={APP_LOGO} alt="D" className="w-9 h-9 object-contain" />
-                        <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1 select-none pl-0">
+                        <img src={APP_LOGO} alt="D" className="w-[60px] h-[60px] object-contain" />
+                        <div className="flex items-center gap-2 -ml-2">
                           <span className="font-semibold text-sm text-foreground/90">David</span>
                           <span className="text-[10px] text-muted-foreground/80">• Digitando...</span>
                         </div>
