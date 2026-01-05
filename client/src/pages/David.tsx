@@ -975,160 +975,162 @@ export default function David() {
 
           {/* Área Central: Mensagens OU Bem-vindo */}
           {selectedConversationId ? (
-            <ScrollArea className="flex-1 p-4" ref={scrollRef}>
-              <div className="space-y-4 max-w-4xl mx-auto">
-                {/* Mensagem de boas-vindas (apenas se conversa não tem mensagens) */}
-                {conversationData?.messages.length === 0 && !pendingUserMessage && !isStreaming && (
-                  <div className="flex justify-start">
-                    <Card className="p-5 max-w-[80%] bg-gradient-to-br from-primary/5 to-primary/10 border-primary/20">
-                      <div className="flex items-start gap-3">
-                        <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                          <span className="text-xl">👋</span>
+            <div className="flex-1 min-h-0 relative">
+              <ScrollArea className="h-full p-4" ref={scrollRef}>
+                <div className="space-y-4 max-w-4xl mx-auto pb-4">
+                  {/* Mensagem de boas-vindas (apenas se conversa não tem mensagens) */}
+                  {conversationData?.messages.length === 0 && !pendingUserMessage && !isStreaming && (
+                    <div className="flex justify-start">
+                      <Card className="p-5 max-w-[80%] bg-gradient-to-br from-primary/5 to-primary/10 border-primary/20">
+                        <div className="flex items-start gap-3">
+                          <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                            <span className="text-xl">👋</span>
+                          </div>
+                          <div>
+                            <p className="font-medium text-foreground mb-2">
+                              Olá! Sou o <span className="text-primary font-semibold">DAVID</span>, seu assistente jurídico.
+                            </p>
+                            <p className="text-sm text-muted-foreground">
+                              Envie um <strong>processo</strong> para análise ou digite sua <strong>dúvida</strong> para começarmos.
+                            </p>
+                          </div>
                         </div>
-                        <div>
-                          <p className="font-medium text-foreground mb-2">
-                            Olá! Sou o <span className="text-primary font-semibold">DAVID</span>, seu assistente jurídico.
-                          </p>
-                          <p className="text-sm text-muted-foreground">
-                            Envie um <strong>processo</strong> para análise ou digite sua <strong>dúvida</strong> para começarmos.
-                          </p>
-                        </div>
-                      </div>
-                    </Card>
-                  </div>
-                )}
+                      </Card>
+                    </div>
+                  )}
 
-                {/* Processo Vinculado em destaque */}
-                {selectedProcessId && (
-                  <div className="flex justify-start mb-6 animate-in slide-in-from-left-2 duration-300">
-                    <Card className="p-4 bg-secondary/20 border border-primary/20 max-w-[85%] sm:max-w-md shadow-sm">
-                      <div className="flex items-start gap-4">
-                        <div className="p-2 bg-primary/10 rounded-lg shrink-0">
-                          <Gavel className="h-6 w-6 text-primary" />
+                  {/* Processo Vinculado em destaque */}
+                  {selectedProcessId && (
+                    <div className="flex justify-start mb-6 animate-in slide-in-from-left-2 duration-300">
+                      <Card className="p-4 bg-secondary/20 border border-primary/20 max-w-[85%] sm:max-w-md shadow-sm">
+                        <div className="flex items-start gap-4">
+                          <div className="p-2 bg-primary/10 rounded-lg shrink-0">
+                            <Gavel className="h-6 w-6 text-primary" />
+                          </div>
+                          <div className="space-y-1">
+                            <h3 className="font-semibold text-foreground flex items-center gap-2">
+                              Processo Vinculado
+                              <span className="flex h-2 w-2 rounded-full bg-green-500 animate-pulse" />
+                            </h3>
+                            <p className="text-sm font-medium text-foreground/90 font-mono tracking-tight">
+                              {processes?.find(p => p.id === selectedProcessId)?.processNumber || "Carregando..."}
+                            </p>
+                            <p className="text-xs text-muted-foreground leading-relaxed">
+                              O contexto deste processo está ativo. Todas as perguntas serão respondidas com base nos documentos dos autos.
+                            </p>
+                          </div>
                         </div>
-                        <div className="space-y-1">
-                          <h3 className="font-semibold text-foreground flex items-center gap-2">
-                            Processo Vinculado
-                            <span className="flex h-2 w-2 rounded-full bg-green-500 animate-pulse" />
-                          </h3>
-                          <p className="text-sm font-medium text-foreground/90 font-mono tracking-tight">
-                            {processes?.find(p => p.id === selectedProcessId)?.processNumber || "Carregando..."}
-                          </p>
-                          <p className="text-xs text-muted-foreground leading-relaxed">
-                            O contexto deste processo está ativo. Todas as perguntas serão respondidas com base nos documentos dos autos.
-                          </p>
-                        </div>
-                      </div>
-                    </Card>
-                  </div>
-                )}
+                      </Card>
+                    </div>
+                  )}
 
-                {conversationData?.messages.map((message) => (
-                  <div
-                    key={message.id}
-                    className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}
-                  >
-                    <Card
-                      className={`p-4 max-w-[80%] ${message.role === "user"
-                        ? "bg-primary text-primary-foreground"
-                        : "bg-muted"
-                        }`}
+                  {conversationData?.messages.map((message) => (
+                    <div
+                      key={message.id}
+                      className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}
                     >
-                      {message.role === "assistant" ? (
-                        <>
-                          <Streamdown>{message.content}</Streamdown>
+                      <Card
+                        className={`p-4 max-w-[80%] ${message.role === "user"
+                          ? "bg-primary text-primary-foreground"
+                          : "bg-muted"
+                          }`}
+                      >
+                        {message.role === "assistant" ? (
+                          <>
+                            <Streamdown>{message.content}</Streamdown>
 
-                          {/* Botões de aprovação (apenas para minutas - detecta por palavras-chave) */}
-                          {(() => {
-                            const content = message.content.toLowerCase();
-                            const isDraft = content.includes("minuta") ||
-                              content.includes("petição") ||
-                              content.includes("contestação") ||
-                              content.includes("sentença") ||
-                              content.includes("decisão interlocutória") ||
-                              content.includes("despacho") ||
-                              content.includes("recurso") ||
-                              (content.includes("excelentíssimo") && content.length > 500);
+                            {/* Botões de aprovação (apenas para minutas - detecta por palavras-chave) */}
+                            {(() => {
+                              const content = message.content.toLowerCase();
+                              const isDraft = content.includes("minuta") ||
+                                content.includes("petição") ||
+                                content.includes("contestação") ||
+                                content.includes("sentença") ||
+                                content.includes("decisão interlocutória") ||
+                                content.includes("despacho") ||
+                                content.includes("recurso") ||
+                                (content.includes("excelentíssimo") && content.length > 500);
 
-                            if (!isDraft) return (
-                              <p className="text-xs opacity-70 mt-2">
-                                {new Date(message.createdAt).toLocaleTimeString("pt-BR")}
-                              </p>
-                            );
-
-                            return (
-                              <div className="flex items-center gap-2 mt-4 pt-3 border-t border-border">
-                                <p className="text-xs opacity-70 flex-1">
+                              if (!isDraft) return (
+                                <p className="text-xs opacity-70 mt-2">
                                   {new Date(message.createdAt).toLocaleTimeString("pt-BR")}
                                 </p>
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  className="h-8 gap-1.5"
-                                  onClick={() => handleApproveDraft(message.id, message.content, "approved")}
-                                >
-                                  <Check className="h-3.5 w-3.5" />
-                                  Aprovar
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  className="h-8 gap-1.5"
-                                  onClick={() => handleEditAndApprove(message.id, message.content)}
-                                >
-                                  <Edit className="h-3.5 w-3.5" />
-                                  Editar e Aprovar
-                                </Button>
-                              </div>
-                            );
-                          })()}
-                        </>
-                      ) : (
-                        <>
-                          <p className="whitespace-pre-wrap">{message.content}</p>
-                          <p className="text-xs opacity-70 mt-2">
-                            {new Date(message.createdAt).toLocaleTimeString("pt-BR")}
-                          </p>
-                        </>
-                      )}
-                    </Card>
-                  </div>
-                ))}
+                              );
 
-                {/* Mensagem pendente do usuário (otimista - aparece imediatamente) */}
-                {pendingUserMessage && (
-                  <div className="flex justify-end">
-                    <Card className="p-4 max-w-[80%] bg-primary text-primary-foreground">
-                      <p className="whitespace-pre-wrap">{pendingUserMessage}</p>
-                      <p className="text-xs opacity-70 mt-2">Enviando...</p>
-                    </Card>
-                  </div>
-                )}
+                              return (
+                                <div className="flex items-center gap-2 mt-4 pt-3 border-t border-border">
+                                  <p className="text-xs opacity-70 flex-1">
+                                    {new Date(message.createdAt).toLocaleTimeString("pt-BR")}
+                                  </p>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="h-8 gap-1.5"
+                                    onClick={() => handleApproveDraft(message.id, message.content, "approved")}
+                                  >
+                                    <Check className="h-3.5 w-3.5" />
+                                    Aprovar
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="h-8 gap-1.5"
+                                    onClick={() => handleEditAndApprove(message.id, message.content)}
+                                  >
+                                    <Edit className="h-3.5 w-3.5" />
+                                    Editar e Aprovar
+                                  </Button>
+                                </div>
+                              );
+                            })()}
+                          </>
+                        ) : (
+                          <>
+                            <p className="whitespace-pre-wrap">{message.content}</p>
+                            <p className="text-xs opacity-70 mt-2">
+                              {new Date(message.createdAt).toLocaleTimeString("pt-BR")}
+                            </p>
+                          </>
+                        )}
+                      </Card>
+                    </div>
+                  ))}
 
-                {/* Indicador "Pensando..." enquanto espera primeiro chunk */}
-                {isStreaming && !streamingMessage && (
-                  <div className="flex justify-start">
-                    <Card className="p-4 bg-muted flex items-center gap-3">
-                      <Loader2 className="h-4 w-4 animate-spin text-primary" />
-                      <span className="text-sm text-muted-foreground">Pensando...</span>
-                    </Card>
-                  </div>
-                )}
+                  {/* Mensagem pendente do usuário (otimista - aparece imediatamente) */}
+                  {pendingUserMessage && (
+                    <div className="flex justify-end">
+                      <Card className="p-4 max-w-[80%] bg-primary text-primary-foreground">
+                        <p className="whitespace-pre-wrap">{pendingUserMessage}</p>
+                        <p className="text-xs opacity-70 mt-2">Enviando...</p>
+                      </Card>
+                    </div>
+                  )}
 
-                {/* Mensagem em streaming */}
-                {isStreaming && streamingMessage && (
-                  <div className="flex justify-start">
-                    <Card className="p-4 max-w-[80%] bg-muted">
-                      <Streamdown>{streamingMessage}</Streamdown>
-                      <div className="flex items-center gap-2 mt-2">
-                        <Loader2 className="h-3 w-3 animate-spin" />
-                        <p className="text-xs opacity-70">Gerando...</p>
-                      </div>
-                    </Card>
-                  </div>
-                )}
-              </div>
-            </ScrollArea>
+                  {/* Indicador "Pensando..." enquanto espera primeiro chunk */}
+                  {isStreaming && !streamingMessage && (
+                    <div className="flex justify-start">
+                      <Card className="p-4 bg-muted flex items-center gap-3">
+                        <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                        <span className="text-sm text-muted-foreground">Pensando...</span>
+                      </Card>
+                    </div>
+                  )}
+
+                  {/* Mensagem em streaming */}
+                  {isStreaming && streamingMessage && (
+                    <div className="flex justify-start">
+                      <Card className="p-4 max-w-[80%] bg-muted">
+                        <Streamdown>{streamingMessage}</Streamdown>
+                        <div className="flex items-center gap-2 mt-2">
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                          <p className="text-xs opacity-70">Gerando...</p>
+                        </div>
+                      </Card>
+                    </div>
+                  )}
+                </div>
+              </ScrollArea>
+            </div>
           ) : (
             // HOME - Estado sem conversa selecionada
             <div className="flex-1 flex flex-col items-center justify-center p-8 pb-64 text-center animate-in fade-in duration-500">
