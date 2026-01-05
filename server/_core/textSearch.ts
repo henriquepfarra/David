@@ -117,7 +117,7 @@ export function searchSimilarDocuments(
   // Filtrar por tipo se especificado
   let filteredDocs = documents;
   if (filterTypes && filterTypes.length > 0) {
-    filteredDocs = documents.filter(doc => 
+    filteredDocs = documents.filter(doc =>
       doc.documentType && filterTypes.includes(doc.documentType)
     );
   }
@@ -135,15 +135,38 @@ export function searchSimilarDocuments(
 
   // Usar busca por sobreposição de termos (mais simples e eficaz para poucos documentos)
   const queryTermSet = new Set(queryTerms);
-  
+
   // Calcular similaridade para cada documento
   const results = docsWithTerms.map(doc => {
     const docTermSet = new Set(doc.terms);
-    
+
+    // === BOOST PARA CORRESPONDÊNCIA EXATA NO TÍTULO ===
+    // Se a query contém um número (ex: "Súmula 100") e o título contém esse número, dar boost
+    const queryLower = query.toLowerCase();
+    const titleLower = doc.title.toLowerCase();
+
+    // Extrair números da query (ex: "100" de "Súmula 100 do STJ")
+    const queryNumbers = query.match(/\d+/g) || [];
+    let titleBoost = 0;
+
+    for (const num of queryNumbers) {
+      // Se o título contém exatamente esse número (ex: "Súmula 100 do STJ" contém "100")
+      if (titleLower.includes(`súmula ${num}`) || titleLower.includes(`sumula ${num}`)) {
+        titleBoost = 10; // Boost alto para correspondência exata
+        break;
+      }
+    }
+
+    // Também verificar se a query está contida no título (busca substring)
+    if (titleBoost === 0 && titleLower.includes(queryLower.replace(/\s+/g, ' ').trim())) {
+      titleBoost = 5;
+    }
+    // === FIM DO BOOST ===
+
     // Contar quantos termos da query aparecem no documento
     let matchCount = 0;
     let weightedScore = 0;
-    
+
     for (const queryTerm of queryTerms) {
       if (docTermSet.has(queryTerm)) {
         matchCount++;
@@ -152,12 +175,15 @@ export function searchSimilarDocuments(
         weightedScore += 1 / Math.log(termFreq + 2); // +2 para evitar log(1) = 0
       }
     }
-    
+
     // Similaridade = (termos encontrados / total de termos da query) * peso
     // Normalizado pelo tamanho do documento para favorecer documentos menores e mais relevantes
-    const similarity = queryTerms.length > 0 
+    let similarity = queryTerms.length > 0
       ? (matchCount / queryTerms.length) * (weightedScore / queryTerms.length)
       : 0;
+
+    // Aplicar boost de título (adiciona ao score base)
+    similarity += titleBoost;
 
     return {
       id: doc.id,
