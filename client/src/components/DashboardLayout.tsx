@@ -391,7 +391,7 @@ function DashboardLayoutContent({
               </SidebarMenu>
             ) : (
               <SidebarMenu>
-                <div className="flex items-center justify-between px-2 py-2">
+                <div className="flex items-center justify-between px-2 py-2 mb-2">
                   <div className="text-xs font-medium text-muted-foreground pl-2 uppercase tracking-wider">
                     Histórico
                   </div>
@@ -465,10 +465,10 @@ function DashboardLayoutContent({
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                               <button
-                                className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 flex items-center justify-center rounded-md opacity-50 hover:opacity-100 hover:bg-muted transition-all"
+                                className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 flex items-center justify-center rounded-md opacity-70 hover:opacity-100 hover:bg-background/80 transition-all z-10"
                                 onClick={(e) => e.stopPropagation()}
                               >
-                                <MoreVertical className="h-4 w-4 text-muted-foreground" />
+                                <MoreVertical className="h-4 w-4 text-foreground/70" />
                               </button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end" className="w-40">
