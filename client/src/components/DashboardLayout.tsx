@@ -364,24 +364,26 @@ function DashboardLayoutContent({
                       {group}
                     </p>
                     {convs?.map((conv) => (
-                      <div key={conv.id} className="relative group flex items-center">
-                        <button
-                          onClick={() => setLocation(`/david?c=${conv.id}`)}
-                          className={`flex-1 text-left px-2 py-2 rounded-lg text-sm hover:bg-accent transition-colors flex items-center gap-2 ${currentConversationId === conv.id ? "bg-accent" : ""}`}
-                        >
-                          {conv.isPinned ? (
-                            <Pin className="h-3.5 w-3.5 text-primary shrink-0" />
-                          ) : (
-                            <MessageSquare className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                          )}
-                          <span className="truncate flex-1">{conv.title}</span>
-                        </button>
+                      <div
+                        key={conv.id}
+                        className={`group/item relative flex items-center gap-1 px-2 py-2 rounded-lg text-sm hover:bg-accent transition-colors cursor-pointer ${currentConversationId === conv.id ? "bg-accent" : ""}`}
+                        onClick={() => setLocation(`/david?c=${conv.id}`)}
+                      >
+                        {/* Ícone */}
+                        {conv.isPinned ? (
+                          <Pin className="h-3.5 w-3.5 text-primary shrink-0" />
+                        ) : (
+                          <MessageSquare className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                        )}
 
-                        {/* Context Menu - Aparece no hover */}
+                        {/* Título - trunca com ... */}
+                        <span className="truncate flex-1 min-w-0">{conv.title}</span>
+
+                        {/* Menu - aparece SÓ no hover deste item */}
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                             <button
-                              className="h-6 w-6 flex items-center justify-center rounded-md hover:bg-muted transition-all shrink-0 opacity-0 group-hover:opacity-100"
+                              className="h-6 w-6 flex items-center justify-center rounded-md hover:bg-muted shrink-0 opacity-0 group-hover/item:opacity-100 transition-opacity"
                               onClick={(e) => e.stopPropagation()}
                             >
                               <MoreVertical className="h-4 w-4 text-muted-foreground" />
@@ -391,7 +393,6 @@ function DashboardLayoutContent({
                             <DropdownMenuItem
                               onClick={(e) => {
                                 e.stopPropagation();
-                                // Futuro: modo de seleção múltipla
                                 toast.info("Seleção múltipla em breve!");
                               }}
                             >
