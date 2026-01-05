@@ -75,6 +75,7 @@ export default function David() {
   const [streamingMessage, setStreamingMessage] = useState("");
   const [pendingUserMessage, setPendingUserMessage] = useState<string | null>(null); // Mensagem otimista do usuário
   const scrollRef = useRef<HTMLDivElement>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   const previousConversationIdRef = useRef<number | null>(null);
 
@@ -745,10 +746,8 @@ export default function David() {
 
   // Auto-scroll ao receber novas mensagens ou durante streaming
   useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-    }
-  }, [conversationData?.messages, streamingMessage]);
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [conversationData?.messages, streamingMessage, pendingUserMessage]);
 
   const handleNewConversation = () => {
     // Navegar para /david sem ID de conversa - a sidebar também lerá isso
@@ -1128,6 +1127,9 @@ export default function David() {
                       </Card>
                     </div>
                   )}
+
+                  {/* Elemento invisível para scroll automático */}
+                  <div ref={messagesEndRef} />
                 </div>
               </ScrollArea>
             </div>
