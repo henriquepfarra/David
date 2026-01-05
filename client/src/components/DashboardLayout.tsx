@@ -495,8 +495,8 @@ function DashboardLayoutContent({
         />
       </div>
 
-      <SidebarInset>
-        <main className="flex-1">{children}</main>
+      <SidebarInset className="h-screen overflow-hidden flex flex-col">
+        <main className="flex-1 flex flex-col overflow-hidden">{children}</main>
       </SidebarInset>
 
       {/* Rename Dialog */}
