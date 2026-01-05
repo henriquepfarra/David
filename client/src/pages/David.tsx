@@ -368,6 +368,15 @@ export default function David() {
     },
   });
 
+  const cleanupIfEmptyMutation = trpc.david.cleanupIfEmpty.useMutation({
+    onSuccess: (data) => {
+      if (data.deleted) {
+        console.log("Conversa vazia deletada automaticamente ao sair");
+        refetchConversations();
+      }
+    },
+  });
+
   // Estado de progresso do upload
   const [uploadState, setUploadState] = useState<{
     isUploading: boolean;
@@ -523,10 +532,24 @@ export default function David() {
       cleanupGoogleFileMutation.mutate({
         conversationId: previousConversationIdRef.current
       });
+      cleanupIfEmptyMutation.mutate({
+        conversationId: previousConversationIdRef.current
+      });
     }
     // Atualiza referência
     previousConversationIdRef.current = selectedConversationId;
   }, [selectedConversationId]);
+
+  // Effect para cleanup ao desmontar componente (navegação para outra rota)
+  useEffect(() => {
+    return () => {
+      if (previousConversationIdRef.current) {
+        cleanupIfEmptyMutation.mutate({
+          conversationId: previousConversationIdRef.current
+        });
+      }
+    };
+  }, []);
 
   // Effect para cleanup ao fechar o navegador
   useEffect(() => {

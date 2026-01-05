@@ -262,6 +262,23 @@ export const davidRouter = router({
       return { success: true };
     }),
 
+  // Deletar conversa se estiver vazia (chamado ao sair)
+  cleanupIfEmpty: protectedProcedure
+    .input(z.object({ conversationId: z.number() }))
+    .mutation(async ({ ctx, input }) => {
+      const conversation = await getConversationById(input.conversationId);
+      if (!conversation || conversation.userId !== ctx.user.id) {
+        return { deleted: false, reason: "not_found_or_unauthorized" };
+      }
+
+      const messages = await getConversationMessages(input.conversationId);
+      if (messages.length === 0) {
+        await deleteConversation(input.conversationId);
+        return { deleted: true };
+      }
+      return { deleted: false, reason: "has_messages" };
+    }),
+
   // Fixar/desafixar conversa
   togglePin: protectedProcedure
     .input(z.object({ id: z.number() }))
