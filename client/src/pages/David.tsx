@@ -1049,22 +1049,26 @@ export default function David() {
                     </div>
                   )}
 
-                  {conversationData?.messages.map((message) => (
-                    <div
-                      key={message.id}
-                      className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}
-                    >
-                      <Card
-                        className={`p-4 max-w-[80%] ${message.role === "user"
-                          ? "bg-primary text-primary-foreground"
-                          : "bg-muted"
-                          }`}
-                      >
-                        {message.role === "assistant" ? (
-                          <>
+                  {conversationData?.messages.map((message) => {
+                    if (message.role === "assistant") {
+                      return (
+                        <div key={message.id} className="flex flex-col items-start gap-2 max-w-4xl w-full mb-8 animate-in fade-in slide-in-from-bottom-2 group">
+                          {/* Header da Mensagem (Avatar + Nome) */}
+                          <div className="flex items-center gap-2 select-none pl-1 opacity-90 group-hover:opacity-100 transition-opacity">
+                            <div className="w-7 h-7 rounded-full bg-cyan-500/10 text-cyan-600 flex items-center justify-center font-bold text-xs ring-1 ring-cyan-500/20 shadow-[0_0_10px_-3px_rgba(6,182,212,0.3)]">
+                              D
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className="font-semibold text-sm text-foreground/90">David</span>
+                              <span className="text-[10px] text-muted-foreground/80">• Gem personalizado</span>
+                            </div>
+                          </div>
+
+                          {/* Conteúdo da Mensagem */}
+                          <div className="pl-10 w-full text-foreground leading-relaxed space-y-2">
                             <Streamdown>{message.content}</Streamdown>
 
-                            {/* Botões de aprovação (apenas para minutas - detecta por palavras-chave) */}
+                            {/* Botões de Ação (Minutas) */}
                             {(() => {
                               const content = message.content.toLowerCase();
                               const isDraft = content.includes("minuta") ||
@@ -1077,20 +1081,20 @@ export default function David() {
                                 (content.includes("excelentíssimo") && content.length > 500);
 
                               if (!isDraft) return (
-                                <p className="text-xs opacity-70 mt-2">
+                                <p className="text-[10px] text-muted-foreground/40 mt-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                   {new Date(message.createdAt).toLocaleTimeString("pt-BR")}
                                 </p>
                               );
 
                               return (
-                                <div className="flex items-center gap-2 mt-4 pt-3 border-t border-border">
+                                <div className="flex items-center gap-2 mt-4 pt-3 border-t border-border/40">
                                   <p className="text-xs opacity-70 flex-1">
                                     {new Date(message.createdAt).toLocaleTimeString("pt-BR")}
                                   </p>
                                   <Button
                                     size="sm"
                                     variant="outline"
-                                    className="h-8 gap-1.5"
+                                    className="h-8 gap-1.5 hover:bg-primary hover:text-primary-foreground transition-colors"
                                     onClick={() => handleApproveDraft(message.id, message.content, "approved")}
                                   >
                                     <Check className="h-3.5 w-3.5" />
@@ -1103,23 +1107,28 @@ export default function David() {
                                     onClick={() => handleEditAndApprove(message.id, message.content)}
                                   >
                                     <Edit className="h-3.5 w-3.5" />
-                                    Editar e Aprovar
+                                    Editar
                                   </Button>
                                 </div>
                               );
                             })()}
-                          </>
-                        ) : (
-                          <>
-                            <p className="whitespace-pre-wrap">{message.content}</p>
-                            <p className="text-xs opacity-70 mt-2">
-                              {new Date(message.createdAt).toLocaleTimeString("pt-BR")}
-                            </p>
-                          </>
-                        )}
-                      </Card>
-                    </div>
-                  ))}
+                          </div>
+                        </div>
+                      );
+                    }
+
+                    // User Message (Bubble Style)
+                    return (
+                      <div key={message.id} className="flex justify-end mb-8 pl-10">
+                        <div className="bg-muted px-5 py-3.5 rounded-3xl rounded-tr-md max-w-[85%] text-foreground/90 shadow-sm">
+                          <p className="whitespace-pre-wrap leading-relaxed">{message.content}</p>
+                          <p className="text-[10px] text-muted-foreground/60 text-right mt-1">
+                            {new Date(message.createdAt).toLocaleTimeString("pt-BR")}
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  })}
 
                   {/* Mensagem pendente do usuário (otimista - aparece imediatamente) */}
                   {pendingUserMessage && (
@@ -1141,16 +1150,23 @@ export default function David() {
                     </div>
                   )}
 
-                  {/* Mensagem em streaming */}
+                  {/* Mensagem em streaming (Clean Style) */}
                   {isStreaming && streamingMessage && (
-                    <div className="flex justify-start">
-                      <Card className="p-4 max-w-[80%] bg-muted">
-                        <Streamdown>{streamingMessage}</Streamdown>
-                        <div className="flex items-center gap-2 mt-2">
-                          <Loader2 className="h-3 w-3 animate-spin" />
-                          <p className="text-xs opacity-70">Gerando...</p>
+                    <div className="flex flex-col items-start gap-2 max-w-4xl w-full mb-8 animate-in fade-in">
+                      {/* Header */}
+                      <div className="flex items-center gap-2 select-none pl-1">
+                        <div className="w-7 h-7 rounded-full bg-cyan-500/10 text-cyan-600 flex items-center justify-center font-bold text-xs ring-1 ring-cyan-500/20">D</div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-semibold text-sm text-foreground/90">David</span>
+                          <span className="text-[10px] text-muted-foreground/80">• Digitando...</span>
                         </div>
-                      </Card>
+                      </div>
+
+                      {/* Content */}
+                      <div className="pl-10 w-full text-foreground leading-relaxed">
+                        <Streamdown>{streamingMessage}</Streamdown>
+                        <span className="inline-block w-1.5 h-4 ml-1 align-middle bg-primary/50 animate-pulse rounded-sm" />
+                      </div>
                     </div>
                   )}
 
@@ -1758,7 +1774,7 @@ export default function David() {
                         <div className="hidden sm:flex items-center gap-1.5 px-2 py-1 bg-primary/5 hover:bg-primary/10 transition-colors rounded-md border border-primary/10 cursor-help select-none mr-1" title={`Modelo: ${settings.data?.llmModel || 'Padrão'}`}>
                           <Bot className="w-3.5 h-3.5 text-primary/70" />
                           <span className="text-[10px] font-bold text-muted-foreground/80 uppercase tracking-tight">
-                            {settings.data?.llmModel?.replace("gemini-", "").replace(/-/g, " ").replace("pro", "").trim() || "2.0 FLASH"}
+                            {settings.data?.llmModel?.replace(/-/g, " ").toUpperCase() || "GEMINI 2.0 FLASH"}
                           </span>
                         </div>
 
