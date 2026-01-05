@@ -929,17 +929,6 @@ export default function David() {
           {/* Header com seletor de processo e Menu de Histórico */}
           <div className="p-2 border-b bg-card/50 backdrop-blur-sm sticky top-0 z-10 flex items-center justify-between">
             <div className="flex items-center gap-4">
-
-              {/* Indicador de Modelo */}
-              <div className="hidden md:flex items-center gap-2 px-3 py-1.5 bg-primary/5 hover:bg-primary/10 transition-colors rounded-full border border-primary/10 group cursor-help" title={`Provedor: ${settings.data?.llmProvider || 'Google'}`}>
-                <Bot className="w-3.5 h-3.5 text-primary/70 group-hover:text-primary transition-colors" />
-                <span className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground group-hover:text-primary transition-colors">
-                  {settings.data?.llmModel
-                    ? settings.data.llmModel.replace("gemini-", "").replace(/-/g, " ")
-                    : "GEMINI 2.0 FLASH"}
-                </span>
-              </div>
-
               <div className="flex-1 flex items-center justify-end">
 
                 {/* Progress bar durante upload OU Badge quando concluído */}
@@ -1759,23 +1748,35 @@ export default function David() {
                           }
                         }}
                         placeholder="O que posso fazer por você?"
-                        className="border-0 shadow-none resize-none min-h-[60px] w-full p-0 pr-10 focus-visible:ring-0 bg-transparent text-lg placeholder:text-muted-foreground/50"
+                        className="border-0 shadow-none resize-none min-h-[60px] w-full p-0 pr-[180px] focus-visible:ring-0 bg-transparent text-lg placeholder:text-muted-foreground/50"
                         style={{ maxHeight: "200px" }}
                       />
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 text-muted-foreground hover:text-primary absolute top-0 right-0 transition-colors"
-                        title="Melhorar Prompt (IA)"
-                        onClick={handleEnhancePrompt}
-                        disabled={!messageInput.trim() || enhancePromptMutation.isPending}
-                      >
-                        {enhancePromptMutation.isPending ? (
-                          <Loader2 className="h-4 w-4 animate-spin text-primary" />
-                        ) : (
-                          <Wand2 className="h-5 w-5" />
-                        )}
-                      </Button>
+
+                      {/* Controles do Input (Modelo + Magic) */}
+                      <div className="absolute top-0 right-0 flex items-center gap-1">
+                        {/* Indicador de Modelo (Compacto) */}
+                        <div className="hidden sm:flex items-center gap-1.5 px-2 py-1 bg-primary/5 hover:bg-primary/10 transition-colors rounded-md border border-primary/10 cursor-help select-none mr-1" title={`Modelo: ${settings.data?.llmModel || 'Padrão'}`}>
+                          <Bot className="w-3.5 h-3.5 text-primary/70" />
+                          <span className="text-[10px] font-bold text-muted-foreground/80 uppercase tracking-tight">
+                            {settings.data?.llmModel?.replace("gemini-", "").replace(/-/g, " ").replace("pro", "").trim() || "2.0 FLASH"}
+                          </span>
+                        </div>
+
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-muted-foreground hover:text-primary transition-colors"
+                          title="Melhorar Prompt (IA)"
+                          onClick={handleEnhancePrompt}
+                          disabled={!messageInput.trim() || enhancePromptMutation.isPending}
+                        >
+                          {enhancePromptMutation.isPending ? (
+                            <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                          ) : (
+                            <Wand2 className="h-5 w-5" />
+                          )}
+                        </Button>
+                      </div>
                     </div>
 
                     <div className="flex justify-between items-center mt-2">
