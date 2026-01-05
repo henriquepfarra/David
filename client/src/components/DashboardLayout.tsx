@@ -359,14 +359,14 @@ function DashboardLayoutContent({
             ) : (
               <ScrollArea className="flex-1 px-2">
                 {groupedConversations && Object.entries(groupedConversations).map(([group, convs]) => (
-                  <div key={group} className="mb-4">
+                  <div key={group} className="mb-4 overflow-hidden">
                     <p className="text-xs text-muted-foreground font-medium px-2 py-1">
                       {group}
                     </p>
                     {convs?.map((conv) => (
                       <div
                         key={conv.id}
-                        className={`group/item relative flex items-center gap-1 px-2 py-2 rounded-lg text-sm hover:bg-accent transition-colors cursor-pointer ${currentConversationId === conv.id ? "bg-accent" : ""}`}
+                        className={`group/item max-w-full flex items-center gap-1 px-2 py-2 rounded-lg text-sm hover:bg-accent transition-colors cursor-pointer ${currentConversationId === conv.id ? "bg-accent" : ""}`}
                         onClick={() => setLocation(`/david?c=${conv.id}`)}
                       >
                         {/* Ícone */}
