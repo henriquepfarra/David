@@ -18,7 +18,7 @@ import { createContext } from "./context";
 import { serveStatic } from "./vite";
 import cors from "cors";
 import { getConversationById, getConversationMessages, createMessage, getProcessForContext, getUserSettings, getUserKnowledgeBase } from "../db";
-import { searchSimilarDocuments } from "./textSearch";
+import { hybridSearch } from "./hybridSearch";
 import { invokeLLMStream as streamFn } from "../_core/llm";
 import { sdk } from "./sdk";
 
@@ -151,29 +151,31 @@ async function startServer() {
         }
       }
 
-      // === BUSCA RAG NA BASE DE CONHECIMENTO ===
+      // === BUSCA RAG HÍBRIDA (Exata + Semântica) ===
       let knowledgeBaseContext = "";
       try {
         const allDocs = await getUserKnowledgeBase(user.id);
         console.log(`[Stream-RAG] Total de documentos na base: ${allDocs.length}`);
 
         if (allDocs.length > 0) {
-          const relevantDocs = searchSimilarDocuments(
+          // Busca híbrida: exata para números, semântica para conceitos
+          const relevantDocs = await hybridSearch(
             allDocs.map(doc => ({
               id: doc.id,
               title: doc.title,
               content: doc.content,
               documentType: doc.documentType || undefined,
+              embedding: doc.embedding,
             })),
             content,
             {
               limit: 5,
-              minSimilarity: 0.05,
+              minSimilarity: 0.1,
             }
           );
 
           console.log(`[Stream-RAG] Documentos encontrados: ${relevantDocs.length}`);
-          relevantDocs.forEach(d => console.log(`  - ${d.title} (${d.documentType}) sim=${d.similarity.toFixed(3)}`));
+          relevantDocs.forEach(d => console.log(`  - ${d.title} (${d.documentType}) sim=${d.similarity.toFixed(3)} [${d.searchMethod}]`));
 
           if (relevantDocs.length > 0) {
             const citableDocs = relevantDocs.filter(d => d.documentType === 'enunciado' || d.documentType === 'sumula');
