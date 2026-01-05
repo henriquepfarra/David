@@ -222,15 +222,31 @@ function DashboardLayoutContent({
     createConversationMutation.mutate({ title: "Nova conversa" });
   };
 
-  // Get current conversation ID from URL
-  // NOTA: useLocation do wouter retorna apenas pathname, não inclui query string
-  // Usamos location como dependência para forçar recálculo quando URL muda
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const currentConversationId = useMemo(() => {
+  // Estado para ID da conversa atual - precisa reagir a mudanças na query string
+  // O location do wouter não inclui query string, então usamos um estado + event listeners
+  const [currentConversationId, setCurrentConversationId] = useState<number | null>(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const cParam = urlParams.get("c");
     return cParam ? parseInt(cParam, 10) : null;
-  }, [location]); // location muda quando setLocation é chamado, forçando recálculo
+  });
+
+  // Atualizar currentConversationId quando URL muda (via popstate ou clique na sidebar)
+  useEffect(() => {
+    const updateConversationId = () => {
+      const urlParams = new URLSearchParams(window.location.search);
+      const cParam = urlParams.get("c");
+      const newId = cParam ? parseInt(cParam, 10) : null;
+      setCurrentConversationId(newId);
+    };
+
+    // Escutar popstate (navegação via botões voltar/avançar)
+    window.addEventListener('popstate', updateConversationId);
+
+    // Também atualizar quando location do wouter muda (navegação via setLocation)
+    updateConversationId();
+
+    return () => window.removeEventListener('popstate', updateConversationId);
+  }, [location]); // Re-executar quando location mudar
 
   return (
     <>
