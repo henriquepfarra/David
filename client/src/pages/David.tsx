@@ -57,6 +57,7 @@ import { useLocation } from "wouter";
 import { ToolsMenu } from "@/components/ToolsMenu";
 import DashboardLayout from "@/components/DashboardLayout";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { APP_LOGO } from "@/const";
 
 export default function David() {
   const [location, setLocation] = useLocation();
@@ -1055,17 +1056,15 @@ export default function David() {
                         <div key={message.id} className="flex flex-col items-start gap-2 max-w-4xl w-full mb-8 animate-in fade-in slide-in-from-bottom-2 group">
                           {/* Header da Mensagem (Avatar + Nome) */}
                           <div className="flex items-center gap-2 select-none pl-1 opacity-90 group-hover:opacity-100 transition-opacity">
-                            <div className="w-7 h-7 rounded-full bg-cyan-500/10 text-cyan-600 flex items-center justify-center font-bold text-xs ring-1 ring-cyan-500/20 shadow-[0_0_10px_-3px_rgba(6,182,212,0.3)]">
-                              D
-                            </div>
+                            <img src={APP_LOGO} alt="D" className="w-7 h-7 object-contain" />
                             <div className="flex items-center gap-2">
                               <span className="font-semibold text-sm text-foreground/90">David</span>
-                              <span className="text-[10px] text-muted-foreground/80">• Gem personalizado</span>
+                              <span className="text-[10px] text-muted-foreground/80">• Assistente Jurídico</span>
                             </div>
                           </div>
 
                           {/* Conteúdo da Mensagem */}
-                          <div className="pl-10 w-full text-foreground leading-relaxed space-y-2">
+                          <div className="pl-10 w-full text-foreground leading-relaxed space-y-2 text-justify">
                             <Streamdown>{message.content}</Streamdown>
 
                             {/* Botões de Ação (Minutas) */}
@@ -1155,7 +1154,7 @@ export default function David() {
                     <div className="flex flex-col items-start gap-2 max-w-4xl w-full mb-8 animate-in fade-in">
                       {/* Header */}
                       <div className="flex items-center gap-2 select-none pl-1">
-                        <div className="w-7 h-7 rounded-full bg-cyan-500/10 text-cyan-600 flex items-center justify-center font-bold text-xs ring-1 ring-cyan-500/20">D</div>
+                        <img src={APP_LOGO} alt="D" className="w-7 h-7 object-contain" />
                         <div className="flex items-center gap-2">
                           <span className="font-semibold text-sm text-foreground/90">David</span>
                           <span className="text-[10px] text-muted-foreground/80">• Digitando...</span>
@@ -1163,7 +1162,7 @@ export default function David() {
                       </div>
 
                       {/* Content */}
-                      <div className="pl-10 w-full text-foreground leading-relaxed">
+                      <div className="pl-10 w-full text-foreground leading-relaxed text-justify">
                         <Streamdown>{streamingMessage}</Streamdown>
                         <span className="inline-block w-1.5 h-4 ml-1 align-middle bg-primary/50 animate-pulse rounded-sm" />
                       </div>
