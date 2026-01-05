@@ -392,18 +392,9 @@ function DashboardLayoutContent({
             ) : (
               <SidebarMenu>
                 <div className="flex items-center justify-between px-2 py-2">
-                  <SidebarMenuItem className="flex-1">
-                    <SidebarMenuButton
-                      onClick={() => {
-                        createConversationMutation.mutate({});
-                        setLocation("/david");
-                      }}
-                      className="h-9 bg-primary/10 hover:bg-primary/20 text-primary border border-primary/20 justify-center shadow-sm transition-all"
-                    >
-                      <Plus className="h-4 w-4 mr-2" />
-                      Nova Conversa
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
+                  <div className="text-xs font-medium text-muted-foreground pl-2 uppercase tracking-wider">
+                    Histórico
+                  </div>
 
                   {conversations && conversations.length > 0 && (
                     <Button
