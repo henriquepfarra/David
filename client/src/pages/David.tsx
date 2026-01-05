@@ -594,8 +594,8 @@ export default function David() {
               setPendingUserMessage(null);
               refetchMessages();
               // Gerar título automático após primeira resposta (se título é genérico)
-              const currentTitle = conversationData?.conversation?.title?.toLowerCase();
-              if (conversationId && (currentTitle === "nova conversa" || currentTitle === "nova conversa")) {
+              const currentTitle = conversationData?.conversation?.title?.trim();
+              if (conversationId && (!currentTitle || currentTitle.toLowerCase() === "nova conversa")) {
                 generateTitleMutation.mutate({ conversationId });
               }
             } else if (data.type === "error") {
@@ -1089,7 +1089,7 @@ export default function David() {
             </ScrollArea>
           ) : (
             // HOME - Estado sem conversa selecionada
-            <div className="flex-1 flex flex-col items-center justify-center p-8 text-center animate-in fade-in duration-500">
+            <div className="flex-1 flex flex-col items-center justify-center p-8 pb-64 text-center animate-in fade-in duration-500">
               <div className="max-w-md space-y-6">
                 <div>
                   <img src="/logo.png" alt="DAVID" className="h-80 w-80 object-contain mx-auto" />
