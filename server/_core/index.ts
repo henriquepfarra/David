@@ -17,7 +17,8 @@ import { appRouter } from "../routers";
 import { createContext } from "./context";
 import { serveStatic } from "./vite";
 import cors from "cors";
-import { getConversationById, getConversationMessages, createMessage, getProcessForContext, getUserSettings } from "../db";
+import { getConversationById, getConversationMessages, createMessage, getProcessForContext, getUserSettings, getUserKnowledgeBase } from "../db";
+import { searchSimilarDocuments } from "./textSearch";
 import { invokeLLMStream as streamFn } from "../_core/llm";
 import { sdk } from "./sdk";
 
@@ -150,6 +151,58 @@ async function startServer() {
         }
       }
 
+      // === BUSCA RAG NA BASE DE CONHECIMENTO ===
+      let knowledgeBaseContext = "";
+      try {
+        const allDocs = await getUserKnowledgeBase(user.id);
+        console.log(`[Stream-RAG] Total de documentos na base: ${allDocs.length}`);
+
+        if (allDocs.length > 0) {
+          const relevantDocs = searchSimilarDocuments(
+            allDocs.map(doc => ({
+              id: doc.id,
+              title: doc.title,
+              content: doc.content,
+              documentType: doc.documentType || undefined,
+            })),
+            content,
+            {
+              limit: 5,
+              minSimilarity: 0.05,
+            }
+          );
+
+          console.log(`[Stream-RAG] Documentos encontrados: ${relevantDocs.length}`);
+          relevantDocs.forEach(d => console.log(`  - ${d.title} (${d.documentType}) sim=${d.similarity.toFixed(3)}`));
+
+          if (relevantDocs.length > 0) {
+            const citableDocs = relevantDocs.filter(d => d.documentType === 'enunciado' || d.documentType === 'sumula');
+            const referenceDocs = relevantDocs.filter(d => d.documentType !== 'enunciado' && d.documentType !== 'sumula');
+
+            knowledgeBaseContext = `\n\n## BASE DE CONHECIMENTO\n\n`;
+
+            if (citableDocs.length > 0) {
+              knowledgeBaseContext += `### Súmulas e Enunciados Aplicáveis\n\n`;
+              citableDocs.forEach((doc) => {
+                const contentPreview = doc.content.length > 3000 ? doc.content.substring(0, 3000) + "..." : doc.content;
+                knowledgeBaseContext += `**${doc.title}**\n${contentPreview}\n\n`;
+              });
+              knowledgeBaseContext += `**INSTRUÇÃO:** Cite essas súmulas/enunciados EXPLICITAMENTE. São fontes oficiais.\n\n`;
+            }
+
+            if (referenceDocs.length > 0) {
+              knowledgeBaseContext += `### Referências Internas\n\n`;
+              referenceDocs.forEach((doc) => {
+                const contentPreview = doc.content.length > 2000 ? doc.content.substring(0, 2000) + "..." : doc.content;
+                knowledgeBaseContext += `${contentPreview}\n\n`;
+              });
+            }
+          }
+        }
+      } catch (error) {
+        console.error("[Stream-RAG] Erro ao buscar documentos:", error);
+      }
+
       // MONTAGEM DINÂMICA DO CÉREBRO (Brain Assembly)
       // Core (Universal) + Estilo + Módulo (JEC) + Orquestrador + Motores
       const baseSystemPrompt = `
@@ -174,7 +227,7 @@ ${CORE_MOTOR_D}
         : "";
       const systemPrompt = baseSystemPrompt + stylePreferences;
       const llmMessages: Array<{ role: "system" | "user" | "assistant"; content: string }> = [
-        { role: "system", content: systemPrompt + processContext },
+        { role: "system", content: systemPrompt + knowledgeBaseContext + processContext },
       ];
 
       // Adicionar histórico
