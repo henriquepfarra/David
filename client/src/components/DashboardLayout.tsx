@@ -33,6 +33,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { trpc } from "@/lib/trpc";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { toast } from "sonner";
 
 const SIDEBAR_WIDTH_KEY = "sidebar-width";
 const DEFAULT_WIDTH = 280;
@@ -133,6 +134,7 @@ function DashboardLayoutContent({
     onSuccess: (data) => {
       setLocation(`/david?c=${data.id}`);
       refetchConversations();
+      toast.success("Nova conversa criada");
     },
   });
 
