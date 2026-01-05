@@ -1,4 +1,4 @@
-import { eq, and } from "drizzle-orm";
+import { eq, and, or } from "drizzle-orm";
 import { drizzle, MySql2Database } from "drizzle-orm/mysql2";
 import { createPool } from "mysql2/promise";
 import {
@@ -303,7 +303,13 @@ export async function getUserKnowledgeBase(userId: number) {
   const db = await getDb();
   if (!db) return [];
   const { knowledgeBase } = await import("../drizzle/schema");
-  return db.select().from(knowledgeBase).where(eq(knowledgeBase.userId, userId)).orderBy(knowledgeBase.createdAt);
+  // Buscar documentos do usuário OU documentos do sistema (súmulas, artigos, etc.)
+  return db.select().from(knowledgeBase).where(
+    or(
+      eq(knowledgeBase.userId, userId),
+      eq(knowledgeBase.source, "sistema")
+    )
+  ).orderBy(knowledgeBase.createdAt);
 }
 
 export async function updateKnowledgeBase(id: number, userId: number, data: { content: string }) {
