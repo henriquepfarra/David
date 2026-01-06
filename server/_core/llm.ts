@@ -748,11 +748,8 @@ async function* geminiNativeStreamWithThinking(
     contents,
     generationConfig: {
       maxOutputTokens: 32768,
-      // Habilitar thought summaries para ver o raciocínio do modelo
-      thinkingConfig: {
-        includeThoughts: true,
-        thinkingBudget: 8192, // Orçamento de tokens para thinking
-      }
+      // Gemini 3: usar thinkingLevel (low/high) para controlar nível de raciocínio
+      thinkingLevel: "high", // Maximiza profundidade de raciocínio
     }
   };
 
