@@ -1167,7 +1167,7 @@ export default function David() {
               <div className="w-full max-w-2xl space-y-8">
                 {/* Saudação personalizada */}
                 <div className="text-center space-y-2">
-                  <h1 className="text-4xl md:text-5xl font-medium bg-gradient-to-r from-blue-600 via-purple-500 to-pink-500 bg-clip-text text-transparent">
+                  <h1 className="text-4xl md:text-5xl font-medium bg-gradient-to-r from-[#1e3a5a] via-[#2563eb] to-[#d4a828] bg-clip-text text-transparent">
                     Olá, {user?.name?.split(' ')[0] || 'Usuário'}
                   </h1>
                   <p className="text-lg text-muted-foreground">
