@@ -1124,13 +1124,15 @@ export default function David() {
                     </div>
                   )}
 
-                  {/* Indicador "Pensando..." enquanto espera primeiro chunk */}
+                  {/* Indicador "Thinking" estilo Gemini */}
                   {isStreaming && !streamingMessage && (
-                    <div className="flex justify-start">
-                      <Card className="p-4 bg-muted flex items-center gap-3">
-                        <Loader2 className="h-4 w-4 animate-spin text-primary" />
-                        <span className="text-sm text-muted-foreground">Pensando...</span>
-                      </Card>
+                    <div className="flex justify-start py-2">
+                      <div className="thinking-indicator">
+                        <div className="thinking-circle">
+                          <span className="thinking-icon">✦</span>
+                        </div>
+                        <span className="text-sm text-muted-foreground">Só um segundo...</span>
+                      </div>
                     </div>
                   )}
 
