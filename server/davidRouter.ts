@@ -38,7 +38,7 @@ import {
   findConversationsByProcessNumber,
   getUserSettings,
 } from "./db";
-import { searchSimilarDocuments } from "./_core/textSearch";
+import { hybridSearch } from "./_core/hybridSearch";
 import { invokeLLM, invokeLLMStream, transcribeAudio } from "./_core/llm";
 import { observable } from "@trpc/server/observable";
 import { extractThesisFromDraft } from "./thesisExtractor";
@@ -483,23 +483,23 @@ export const davidRouter = router({
         const allDocs = await getUserKnowledgeBase(ctx.user.id);
         console.log(`[RAG] Total de documentos na base: ${allDocs.length}`);
         if (allDocs.length > 0) {
-          // Buscar documentos similares à mensagem do usuário
-          const relevantDocs = searchSimilarDocuments(
+          // Buscar documentos similares à mensagem do usuário (Busca Híbrida: TF-IDF + Embeddings)
+          const relevantDocs = await hybridSearch(
             allDocs.map(doc => ({
               id: doc.id,
               title: doc.title,
               content: doc.content,
               documentType: doc.documentType || undefined,
+              embedding: doc.embedding,
             })),
             input.content,
             {
-              limit: 5, // Aumentado para 5 documentos
-              minSimilarity: 0.05, // Baixado threshold para debug
+              limit: 12,
+              minSimilarity: 0.1,
             }
           );
 
-          console.log(`[RAG] Documentos encontrados: ${relevantDocs.length}`);
-          relevantDocs.forEach(d => console.log(`  - ${d.title} (${d.documentType}) sim=${d.similarity.toFixed(3)}`));
+          console.log(`[RAG] Documentos encontrados: ${relevantDocs.length} (método: ${relevantDocs[0]?.searchMethod || 'n/a'})`);
 
           if (relevantDocs.length > 0) {
             // Separar documentos citáveis (enunciados e súmulas) de não-citáveis
@@ -739,23 +739,23 @@ ${CORE_MOTOR_D}
         const allDocs = await getUserKnowledgeBase(ctx.user.id);
         console.log(`[RAG-Stream] Total de documentos na base: ${allDocs.length}`);
         if (allDocs.length > 0) {
-          // Buscar documentos similares à mensagem do usuário
-          const relevantDocs = searchSimilarDocuments(
+          // Buscar documentos similares à mensagem do usuário (Busca Híbrida: TF-IDF + Embeddings)
+          const relevantDocs = await hybridSearch(
             allDocs.map(doc => ({
               id: doc.id,
               title: doc.title,
               content: doc.content,
               documentType: doc.documentType || undefined,
+              embedding: doc.embedding,
             })),
             input.content,
             {
-              limit: 5, // Aumentado para 5
-              minSimilarity: 0.05, // Baixado para debug
+              limit: 12,
+              minSimilarity: 0.1,
             }
           );
 
-          console.log(`[RAG-Stream] Documentos encontrados: ${relevantDocs.length}`);
-          relevantDocs.forEach(d => console.log(`  - ${d.title} (${d.documentType}) sim=${d.similarity.toFixed(3)}`));
+          console.log(`[RAG-Stream] Documentos encontrados: ${relevantDocs.length} (método: ${relevantDocs[0]?.searchMethod || 'n/a'})`);
 
           if (relevantDocs.length > 0) {
             // Separar documentos citáveis (enunciados e súmulas) de não-citáveis
