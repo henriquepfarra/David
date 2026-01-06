@@ -95,12 +95,16 @@ export default function David() {
       // Comparar com ref para evitar problemas de closure
       if (newId !== lastUrlIdRef.current) {
         console.log("[David.tsx] URL changed:", lastUrlIdRef.current, "->", newId);
+        const wasFromHome = lastUrlIdRef.current === null;
         lastUrlIdRef.current = newId;
         setSelectedConversationId(newId);
         // Limpar mensagem pendente e estados de streaming ao mudar de conversa
-        setPendingUserMessage(null);
-        setStreamingMessage("");
-        setIsStreaming(false);
+        // MAS não limpar se estamos vindo da Home (onde criamos a conversa com mensagem)
+        if (!wasFromHome || newId === null) {
+          setPendingUserMessage(null);
+          setStreamingMessage("");
+          setIsStreaming(false);
+        }
       }
     };
 
