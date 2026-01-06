@@ -1011,7 +1011,7 @@ export default function David() {
               <ScrollArea className="h-full p-4" ref={scrollRef}>
                 <div className="space-y-4 max-w-4xl mx-auto pb-4">
                   {/* Mensagem de boas-vindas (apenas se conversa não tem mensagens) */}
-                  {conversationData?.messages.length === 0 && !pendingUserMessage && !isStreaming && (
+                  {conversationData?.messages.length === 0 && !pendingUserMessage && !isStreaming && !streamingMessage && (
                     <div className="flex justify-start">
                       <Card className="p-5 max-w-[80%] bg-gradient-to-br from-primary/5 to-primary/10 border-primary/20">
                         <div className="flex items-start gap-3">
