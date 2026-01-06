@@ -234,8 +234,8 @@
 
 .thinking-circle {
   position: relative;
-  width: 28px;
-  height: 28px;
+  width: 40px;
+  height: 40px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -247,13 +247,14 @@
   position: absolute;
   inset: 0;
   border-radius: 50%;
-  /* Arco com gradiente azul -> dourado que ocupa ~270 graus */
+  /* Arco com gradiente azul -> dourado */
   background: conic-gradient(from 0deg,
       transparent 0deg,
-      #3b82f6 30deg,
-      #8b5cf6 120deg,
-      #d97706 200deg,
-      transparent 270deg,
+      #3b82f6 40deg,
+      #60a5fa 100deg,
+      #d97706 180deg,
+      #fbbf24 240deg,
+      transparent 300deg,
       transparent 360deg);
   animation: thinking-spin 1.2s linear infinite;
   /* Máscara para criar o arco (borda fina) */
@@ -262,8 +263,8 @@
 }
 
 .thinking-circle .thinking-logo {
-  width: 18px;
-  height: 18px;
+  width: 26px;
+  height: 26px;
   object-fit: contain;
   z-index: 1;
 }
