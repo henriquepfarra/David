@@ -83,6 +83,30 @@ export default function David() {
   const abortControllerRef = useRef<AbortController | null>(null);
   const previousConversationIdRef = useRef<number | null>(null);
 
+  // Parse thinking tags from streaming message em tempo de render (mais estável)
+  const parsedStreaming = useMemo(() => {
+    const raw = streamingMessage;
+
+    // Caso 1: Thinking completo (tag fechada)
+    const completeMatch = raw.match(/<thinking>([\s\S]*?)<\/thinking>/);
+    if (completeMatch) {
+      const thinking = completeMatch[1].trim();
+      const content = raw.replace(/<thinking>[\s\S]*?<\/thinking>\s*/g, "").trim();
+      return { thinking, content };
+    }
+
+    // Caso 2: Thinking em progresso (tag aberta, não fechada ainda)
+    if (raw.includes("<thinking>") && !raw.includes("</thinking>")) {
+      const startIdx = raw.indexOf("<thinking>");
+      const thinking = raw.slice(startIdx + 10).trim();
+      const content = raw.slice(0, startIdx).trim();
+      return { thinking, content, inProgress: true };
+    }
+
+    // Caso 3: Sem thinking, apenas conteúdo
+    return { thinking: "", content: raw };
+  }, [streamingMessage]);
+
   // Ref para rastrear o último ID da URL (evita problemas de closure)
   const lastUrlIdRef = useRef<number | null>(selectedConversationId);
 
@@ -635,29 +659,9 @@ export default function David() {
             const data = JSON.parse(trimmed.slice(6));
 
             if (data.type === "chunk") {
-              // Parsear tags <thinking> do conteúdo via Prompt Injection
-              const content = data.content as string;
-
-              // Acumular no streaming para depois separar
+              // Acumular conteúdo bruto
               setStreamingMessage((prev) => {
-                const newContent = prev + content;
-
-                // Extrair thinking e content separadamente
-                const thinkingMatch = newContent.match(/<thinking>([\s\S]*?)<\/thinking>/);
-                if (thinkingMatch) {
-                  // Temos um bloco thinking completo - atualizar thinkingMessage
-                  setThinkingMessage(thinkingMatch[1]);
-                  // Remover a tag do streaming
-                  return newContent.replace(/<thinking>[\s\S]*?<\/thinking>\s*/g, "");
-                } else if (newContent.includes("<thinking>")) {
-                  // Thinking em progresso - atualizar thinking parcial
-                  const thinkingStartIdx = newContent.indexOf("<thinking>");
-                  const afterThinking = newContent.slice(thinkingStartIdx + 10);
-                  setThinkingMessage(afterThinking);
-                  // Retornar apenas o que vem antes do thinking
-                  return newContent.slice(0, thinkingStartIdx);
-                }
-
+                const newContent = prev + (data.content as string);
                 return newContent;
               });
             } else if (data.type === "thinking") {
@@ -1152,7 +1156,7 @@ export default function David() {
                   )}
 
                   {/* Indicador "Thinking" estilo Gemini - Só exibe se não tiver nem thinking nem resposta ainda */}
-                  {isStreaming && !streamingMessage && !thinkingMessage && (
+                  {isStreaming && !parsedStreaming.content && !parsedStreaming.thinking && (
                     <div className="flex justify-start py-2">
                       <div className="thinking-indicator">
                         <div className="thinking-circle">
@@ -1164,7 +1168,7 @@ export default function David() {
                   )}
 
                   {/* Thinking Process (Visible during and after generation if available) */}
-                  {thinkingMessage && (
+                  {parsedStreaming.thinking && (
                     <div className="flex flex-col items-start gap-2 max-w-4xl w-full mb-4 pl-10 animate-in fade-in slide-in-from-bottom-2">
                       <div className="w-full bg-muted/30 border border-border/50 rounded-lg p-4">
                         <div className="flex items-center gap-2 mb-2">
@@ -1173,14 +1177,14 @@ export default function David() {
                           </span>
                         </div>
                         <div className="text-sm text-muted-foreground/80 whitespace-pre-wrap leading-relaxed font-mono text-[13px]">
-                          {thinkingMessage}
+                          {parsedStreaming.thinking}
                         </div>
                       </div>
                     </div>
                   )}
 
                   {/* Mensagem em streaming (Clean Style) */}
-                  {isStreaming && streamingMessage && (
+                  {isStreaming && parsedStreaming.content && (
                     <div className="flex flex-col items-start gap-2 max-w-4xl w-full mb-8 animate-in fade-in">
                       {/* Header */}
                       <div className="flex items-center gap-1 select-none pl-0">
@@ -1193,7 +1197,7 @@ export default function David() {
 
                       {/* Content */}
                       <div className="pl-10 w-full text-foreground leading-relaxed text-justify">
-                        <Streamdown>{streamingMessage}</Streamdown>
+                        <Streamdown>{parsedStreaming.content}</Streamdown>
                         <span className="inline-block w-1.5 h-4 ml-1 align-middle bg-primary/50 animate-pulse rounded-sm" />
                       </div>
                     </div>
