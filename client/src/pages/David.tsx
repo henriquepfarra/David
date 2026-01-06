@@ -83,27 +83,38 @@ export default function David() {
   const abortControllerRef = useRef<AbortController | null>(null);
   const previousConversationIdRef = useRef<number | null>(null);
 
-  // Parse thinking tags from streaming message em tempo de render (mais estável)
+  // Ref para armazenar thinking extraído permanentemente durante a sessão de streaming
+  const extractedThinkingRef = useRef<string>("");
+
+  // Parse thinking tags from streaming message em tempo de render
   const parsedStreaming = useMemo(() => {
     const raw = streamingMessage;
 
-    // Caso 1: Thinking completo (tag fechada)
+    // Caso 1: Thinking completo (tag fechada) - extrair e armazenar permanentemente
     const completeMatch = raw.match(/<thinking>([\s\S]*?)<\/thinking>/);
     if (completeMatch) {
-      const thinking = completeMatch[1].trim();
+      // Armazenar thinking no ref (permanente)
+      extractedThinkingRef.current = completeMatch[1].trim();
+      // Retornar content sem as tags
       const content = raw.replace(/<thinking>[\s\S]*?<\/thinking>\s*/g, "").trim();
-      return { thinking, content };
+      return { thinking: extractedThinkingRef.current, content };
     }
 
     // Caso 2: Thinking em progresso (tag aberta, não fechada ainda)
     if (raw.includes("<thinking>") && !raw.includes("</thinking>")) {
       const startIdx = raw.indexOf("<thinking>");
       const thinking = raw.slice(startIdx + 10).trim();
+      // Não armazenar em ref ainda (ainda em progresso)
       const content = raw.slice(0, startIdx).trim();
       return { thinking, content, inProgress: true };
     }
 
-    // Caso 3: Sem thinking, apenas conteúdo
+    // Caso 3: Sem tag no texto atual, mas pode ter thinking armazenado anteriormente
+    if (extractedThinkingRef.current) {
+      return { thinking: extractedThinkingRef.current, content: raw };
+    }
+
+    // Caso 4: Sem thinking, apenas conteúdo
     return { thinking: "", content: raw };
   }, [streamingMessage]);
 
@@ -608,6 +619,7 @@ export default function David() {
   const streamMessage = async (conversationId: number, content: string) => {
     setIsStreaming(true);
     setStreamingMessage("");
+    extractedThinkingRef.current = ""; // Limpar thinking da sessão anterior
 
     // Criar novo AbortController para este stream
     abortControllerRef.current = new AbortController();

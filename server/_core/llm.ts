@@ -831,6 +831,11 @@ async function* geminiNativeStreamWithThinking(
               // Gemini 3.0 com includeThoughts nativa: 
               // - part.thought === true indica que part.text é o pensamento
               if (part.text) {
+                // DEBUG: Log primeiros caracteres para ver se tem tag thinking
+                if (part.text.includes("<thinking") || part.text.includes("</thinking")) {
+                  console.log("[Gemini Native DEBUG] Tag thinking detectada no conteúdo!");
+                }
+
                 const isThinkingNative = part.thought === true;
                 if (isThinkingNative) {
                   yield { type: "thinking", text: part.text };
