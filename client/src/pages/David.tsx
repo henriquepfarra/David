@@ -638,10 +638,12 @@ export default function David() {
               // A pendingUserMessage será limpa quando o streaming terminar (done)
               setStreamingMessage((prev) => prev + data.content);
             } else if (data.type === "done") {
+              // IMPORTANTE: Primeiro buscar mensagens, DEPOIS limpar streaming
+              // Isso evita o "flash" onde não há mensagem visível
+              await refetchMessages();
               setIsStreaming(false);
               setStreamingMessage("");
               setPendingUserMessage(null);
-              refetchMessages();
               // Gerar título automático após primeira resposta (se título é genérico)
               const currentTitle = conversationData?.conversation?.title?.trim();
               if (conversationId && (!currentTitle || currentTitle.toLowerCase() === "nova conversa")) {
