@@ -829,15 +829,16 @@ async function* geminiNativeStreamWithThinking(
 
           // Extrair conteúdo normal
           const parts = candidate.content?.parts;
+          const role = candidate.content?.role;
+
           if (parts && parts.length > 0) {
             for (const part of parts) {
-              // Campo thought inline (modelos experimentais)
-              if (part.thought) {
-                yield { type: "thinking", text: part.thought };
-              }
-              // Conteúdo de texto normal
+              // Gemini 3.0 com includeThoughts: 
+              // - part.thought === true indica que part.text é o pensamento
+              // - part.thought === false/undefined indica conteúdo normal
               if (part.text) {
-                yield { type: "content", text: part.text };
+                const isThinking = part.thought === true;
+                yield { type: isThinking ? "thinking" : "content", text: part.text };
               }
             }
           }
