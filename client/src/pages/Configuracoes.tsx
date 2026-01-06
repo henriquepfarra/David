@@ -441,7 +441,7 @@ Deixe vazio se não tiver preferências específicas.`}
                   Configure suas chaves de API para integrações externas
                 </CardDescription>
               </CardHeader>
-              <CardContent className="space-y-4">
+              <CardContent className="space-y-4 max-h-[calc(100vh-280px)] overflow-y-auto">
                 <div className="space-y-6">
                   {/* Explicação: Como o DAVID Funciona */}
                   <div className="bg-gradient-to-br from-slate-50 to-blue-50/30 dark:from-slate-900/50 dark:to-blue-950/30 p-5 rounded-xl border border-slate-200 dark:border-slate-800">
