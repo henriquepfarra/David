@@ -601,8 +601,8 @@ function DashboardLayoutContent({
         />
       </div>
 
-      <SidebarInset className="h-screen overflow-hidden flex flex-col">
-        <main className="flex-1 flex flex-col overflow-hidden">{children}</main>
+      <SidebarInset className="h-screen overflow-auto flex flex-col">
+        <main className="flex-1 flex flex-col">{children}</main>
       </SidebarInset>
 
       {/* Rename Dialog */}
