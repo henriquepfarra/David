@@ -686,6 +686,7 @@ export default function David() {
               setIsStreaming(false);
               setStreamingMessage("");
               setThinkingMessage("");
+              extractedThinkingRef.current = ""; // Limpar thinking extraído
               setPendingUserMessage(null);
               // Gerar título automático após primeira resposta (se título é genérico)
               const currentTitle = conversationData?.conversation?.title?.trim();
