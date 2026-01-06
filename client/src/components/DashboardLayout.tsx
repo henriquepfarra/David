@@ -138,7 +138,6 @@ function DashboardLayoutContent({
     onSuccess: (data) => {
       setLocation(`/david?c=${data.id}`);
       refetchConversations();
-      toast.success("Nova conversa criada");
     },
   });
 

@@ -338,7 +338,6 @@ export default function David() {
     onSuccess: (data) => {
       setSelectedConversationId(data.id);
       refetchConversations();
-      toast.success("Nova conversa criada");
     },
   });
 
@@ -1010,26 +1009,6 @@ export default function David() {
             <div className="flex-1 min-h-0 relative">
               <ScrollArea className="h-full p-4" ref={scrollRef}>
                 <div className="space-y-4 max-w-4xl mx-auto pb-4">
-                  {/* Mensagem de boas-vindas (apenas se conversa não tem mensagens) */}
-                  {conversationData?.messages.length === 0 && !pendingUserMessage && !isStreaming && !streamingMessage && (
-                    <div className="flex justify-start">
-                      <Card className="p-5 max-w-[80%] bg-gradient-to-br from-primary/5 to-primary/10 border-primary/20">
-                        <div className="flex items-start gap-3">
-                          <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                            <span className="text-xl">👋</span>
-                          </div>
-                          <div>
-                            <p className="font-medium text-foreground mb-2">
-                              Olá! Sou o <span className="text-primary font-semibold">DAVID</span>, seu assistente jurídico.
-                            </p>
-                            <p className="text-sm text-muted-foreground">
-                              Envie um <strong>processo</strong> para análise ou digite sua <strong>dúvida</strong> para começarmos.
-                            </p>
-                          </div>
-                        </div>
-                      </Card>
-                    </div>
-                  )}
 
                   {/* Processo Vinculado em destaque */}
                   {selectedProcessId && (
