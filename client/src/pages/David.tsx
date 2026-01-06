@@ -58,9 +58,11 @@ import { ToolsMenu } from "@/components/ToolsMenu";
 import DashboardLayout from "@/components/DashboardLayout";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { APP_LOGO } from "@/const";
+import { useAuth } from "@/_core/hooks/useAuth";
 
 export default function David() {
   const [location, setLocation] = useLocation();
+  const { user } = useAuth();
 
   // Estado para ID da conversa da URL - precisa reagir a mudanças na query string
   // O location do wouter não inclui query string, então usamos estado + event listeners
@@ -1175,54 +1177,114 @@ export default function David() {
               </ScrollArea>
             </div>
           ) : (
-            // HOME - Estado sem conversa selecionada
-            <div className="flex-1 flex flex-col items-center justify-center p-8 pb-64 text-center animate-in fade-in duration-500">
-              <div className="max-w-md space-y-6">
-                <div>
-                  <img src="/logo.png" alt="DAVID" className="h-80 w-80 object-contain mx-auto" />
-                </div>
-
-                <div className="space-y-2 -mt-12">
-                  <h1 className="text-3xl font-bold tracking-tight text-primary">
-                    Bem-vindo ao DAVID
+            // HOME - Estado sem conversa selecionada (Estilo Gemini)
+            <div className="flex-1 flex flex-col items-center justify-center p-8 animate-in fade-in duration-500">
+              <div className="w-full max-w-2xl space-y-8">
+                {/* Saudação personalizada */}
+                <div className="text-center space-y-2">
+                  <h1 className="text-4xl md:text-5xl font-medium bg-gradient-to-r from-blue-600 via-purple-500 to-pink-500 bg-clip-text text-transparent">
+                    Olá, {user?.name?.split(' ')[0] || 'Usuário'}
                   </h1>
-                  <p className="text-muted-foreground text-lg">
-                    Seu assistente jurídico inteligente para análise de processos e geração de minutas
+                  <p className="text-lg text-muted-foreground">
+                    Como posso ajudar você hoje?
                   </p>
                 </div>
 
-                {/* Botões de ação */}
-                <div className="flex flex-col sm:flex-row gap-3 justify-center pt-4">
+                {/* Input centralizado estilo Gemini */}
+                <div className="relative">
+                  <div className="flex items-end gap-2 p-3 bg-muted/50 border rounded-2xl shadow-sm hover:shadow-md transition-shadow">
+                    {/* Botão de upload */}
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-10 w-10 rounded-full shrink-0 text-muted-foreground hover:text-foreground hover:bg-muted"
+                      onClick={open}
+                      title="Enviar processo (PDF)"
+                    >
+                      <Plus className="h-5 w-5" />
+                    </Button>
+
+                    {/* Textarea */}
+                    <Textarea
+                      ref={textareaRef}
+                      value={messageInput}
+                      onChange={(e) => {
+                        setMessageInput(e.target.value);
+                        adjustTextareaHeight();
+                      }}
+                      onKeyDown={handleKeyPress}
+                      placeholder="Pergunte algo ou envie um processo..."
+                      className="flex-1 min-h-[44px] max-h-[200px] resize-none border-0 bg-transparent focus-visible:ring-0 shadow-none text-base placeholder:text-muted-foreground/60"
+                      rows={1}
+                    />
+
+                    {/* Botões de ação */}
+                    <div className="flex items-center gap-1 shrink-0">
+                      {/* Microfone */}
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className={`h-10 w-10 rounded-full ${isRecording ? 'bg-red-100 text-red-600 animate-pulse' : 'text-muted-foreground hover:text-foreground hover:bg-muted'}`}
+                        onClick={handleRecordClick}
+                        disabled={transcribeAudioMutation.isPending}
+                        title={isRecording ? 'Parar gravação' : 'Gravar áudio'}
+                      >
+                        {transcribeAudioMutation.isPending ? (
+                          <Loader2 className="h-5 w-5 animate-spin" />
+                        ) : (
+                          <Mic className="h-5 w-5" />
+                        )}
+                      </Button>
+
+                      {/* Enviar */}
+                      <Button
+                        size="icon"
+                        className="h-10 w-10 rounded-full bg-primary hover:bg-primary/90"
+                        onClick={handleSendMessage}
+                        disabled={!messageInput.trim() || isStreaming || createConversationMutation.isPending}
+                      >
+                        {createConversationMutation.isPending ? (
+                          <Loader2 className="h-5 w-5 animate-spin" />
+                        ) : (
+                          <Send className="h-5 w-5" />
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Sugestões de ação */}
+                <div className="flex flex-wrap justify-center gap-2 pt-4">
                   <Button
-                    size="lg"
-                    className="gap-2"
-                    onClick={() => {
-                      // Criar nova conversa e navegar para ela
-                      createConversationMutation.mutate({ title: "Nova conversa" }, {
-                        onSuccess: (data) => {
-                          setLocation(`/david?c=${data.id}`);
-                        }
-                      });
-                    }}
-                    disabled={createConversationMutation.isPending}
+                    variant="outline"
+                    size="sm"
+                    className="rounded-full gap-2 text-sm"
+                    onClick={open}
                   >
-                    <Plus className="h-5 w-5" />
-                    Nova conversa
+                    <Upload className="h-4 w-4" />
+                    Enviar processo
                   </Button>
                   <Button
-                    size="lg"
                     variant="outline"
-                    className="gap-2"
+                    size="sm"
+                    className="rounded-full gap-2 text-sm"
+                    onClick={() => setIsPromptsModalOpen(true)}
+                  >
+                    <BookMarked className="h-4 w-4" />
+                    Meus prompts
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="rounded-full gap-2 text-sm"
                     onClick={() => setLocation("/settings")}
                   >
-                    <Settings className="h-5 w-5" />
+                    <Settings className="h-4 w-4" />
                     Configurações
                   </Button>
                 </div>
               </div>
-
             </div>
-
           )}
 
           {/* Área de Input - esconde quando na HOME (sem conversa selecionada) */}
