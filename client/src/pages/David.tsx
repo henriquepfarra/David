@@ -293,6 +293,8 @@ export default function David() {
     { id: selectedConversationId! },
     {
       enabled: !!selectedConversationId,
+      staleTime: 1000, // Considera dados frescos por 1s (evita refetch desnecessário)
+      refetchOnWindowFocus: false, // Não refetch ao focar janela
     }
   );
 
