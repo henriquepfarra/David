@@ -264,7 +264,8 @@ function DashboardLayoutContent({
   }, [isResizing, setSidebarWidth]);
 
   const handleNewChat = () => {
-    createConversationMutation.mutate({ title: "Nova conversa" });
+    // Navega para a Home - a conversa será criada quando o usuário enviar uma mensagem
+    setLocation("/david");
   };
 
   // Estado para ID da conversa atual - precisa reagir a mudanças na query string
