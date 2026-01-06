@@ -140,7 +140,7 @@ export const knowledgeBase = mysqlTable("knowledgeBase", {
   fileType: varchar("fileType", { length: 50 }), // pdf, docx, txt
   documentType: mysqlEnum("documentType", [
     "minuta_modelo", "decisao_referencia", "tese", "enunciado",
-    "jurisprudencia", "outro", "sumula", "tema_repetitivo"
+    "jurisprudencia", "outro", "sumula_stj", "sumula_stf", "sumula_vinculante", "tema_repetitivo"
   ]).notNull().default("outro"), // Tipo específico do documento
   source: mysqlEnum("source", ["sistema", "usuario"]).notNull().default("usuario"), // Origem do documento (sistema = pré-carregado, usuario = adicionado pelo usuário)
   category: varchar("category", { length: 100 }), // decisoes, teses, referencias
@@ -200,6 +200,7 @@ export const messages = mysqlTable("messages", {
   conversationId: int("conversationId").notNull(),
   role: mysqlEnum("role", ["user", "assistant", "system"]).notNull(),
   content: longtext("content").notNull(),
+  thinking: longtext("thinking"), // Raciocínio/thinking do modelo (para mensagens assistant)
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 }, (table) => ({
   conversationIdIdx: index("messages_conversationId_idx").on(table.conversationId),

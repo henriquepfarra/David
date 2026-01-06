@@ -22,6 +22,13 @@
       "when": 1767393618537,
       "tag": "0002_handy_skrulls",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "5",
+      "when": 1767727356887,
+      "tag": "0003_vengeful_paper_doll",
+      "breakpoints": true
     }
   ]
 }

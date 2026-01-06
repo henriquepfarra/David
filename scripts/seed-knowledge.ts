@@ -25,7 +25,7 @@ interface SystemDoc {
     id: string; // ID único para controle (ex: SUMULA_STJ_54)
     titulo: string;
     conteudo: string;
-    tipo: "sumula" | "enunciado" | "tese" | "tema_repetitivo" | "minuta_modelo" | "decisao_referencia" | "jurisprudencia" | "outro";
+    tipo: "sumula" | "enunciado" | "tese" | "tema_repetitivo" | "minuta_modelo" | "decisao_referencia" | "jurisprudencia" | "outro" | "sumula_stj";
     tags: string[];
 }
 
@@ -81,12 +81,23 @@ async function seedSystemKnowledge(): Promise<void> {
                         console.warn(`   ⚠️ Embedding falhou, continuando sem vetor`);
                     }
 
+                    // Mapeia tipos legados e detecta status
+                    let docType: any = doc.tipo;
+                    let tags = [...doc.tags];
+
+                    if (doc.tipo === "sumula" && doc.id.startsWith("SUMULA_STJ")) {
+                        docType = "sumula_stj";
+                    }
+                    if (doc.conteudo.toLowerCase().includes("cancelada") || doc.titulo.toLowerCase().includes("cancelada")) {
+                        if (!tags.includes("cancelada")) tags.push("cancelada");
+                    }
+
                     await db.update(knowledgeBase)
                         .set({
                             title: doc.titulo,
                             content: doc.conteudo,
-                            documentType: doc.tipo,
-                            tags: doc.tags.join(", "),
+                            documentType: docType,
+                            tags: tags.join(", "),
                             embedding: embedding,
                             updatedAt: new Date(),
                         })
@@ -109,15 +120,29 @@ async function seedSystemKnowledge(): Promise<void> {
                     console.warn(`   ⚠️ Embedding falhou, continuando sem vetor`);
                 }
 
+                // Mapeia tipos legados e detecta status
+                let docType: any = doc.tipo;
+                let tags = [...doc.tags];
+
+                // Mapeamento automático de sumula -> sumula_stj se ID for do STJ
+                if (doc.tipo === "sumula" && doc.id.startsWith("SUMULA_STJ")) {
+                    docType = "sumula_stj";
+                }
+
+                // Detectar se está cancelada pelo texto ou título (simple check)
+                if (doc.conteudo.toLowerCase().includes("cancelada") || doc.titulo.toLowerCase().includes("cancelada")) {
+                    if (!tags.includes("cancelada")) tags.push("cancelada");
+                }
+
                 // Inserção (userId = 1 = Admin/System)
                 await db.insert(knowledgeBase).values({
                     userId: 1,
                     systemId: doc.id,
                     title: doc.titulo,
                     content: doc.conteudo,
-                    documentType: doc.tipo,
+                    documentType: docType,
                     source: "sistema",
-                    tags: doc.tags.join(", "),
+                    tags: tags.join(", "),
                     embedding: embedding,
                     createdAt: new Date(),
                     updatedAt: new Date(),
