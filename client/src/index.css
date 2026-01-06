@@ -225,20 +225,6 @@
   }
 }
 
-@keyframes thinking-gradient {
-  0% {
-    background-position: 0% 50%;
-  }
-
-  50% {
-    background-position: 100% 50%;
-  }
-
-  100% {
-    background-position: 0% 50%;
-  }
-}
-
 .thinking-indicator {
   position: relative;
   display: flex;
@@ -248,35 +234,36 @@
 
 .thinking-circle {
   position: relative;
-  width: 32px;
-  height: 32px;
+  width: 28px;
+  height: 28px;
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
+/* Arco girando estilo Gemini (não círculo completo) */
 .thinking-circle::before {
   content: '';
   position: absolute;
-  inset: -3px;
+  inset: 0;
   border-radius: 50%;
-  padding: 3px;
-  background: linear-gradient(135deg, #3b82f6, #8b5cf6, #d97706, #3b82f6);
-  background-size: 300% 300%;
-  animation: thinking-spin 1.5s linear infinite, thinking-gradient 2s ease infinite;
-  mask:
-    linear-gradient(#fff 0 0) content-box,
-    linear-gradient(#fff 0 0);
-  mask-composite: exclude;
-  -webkit-mask:
-    linear-gradient(#fff 0 0) content-box,
-    linear-gradient(#fff 0 0);
-  -webkit-mask-composite: xor;
+  /* Arco com gradiente azul -> dourado que ocupa ~270 graus */
+  background: conic-gradient(from 0deg,
+      transparent 0deg,
+      #3b82f6 30deg,
+      #8b5cf6 120deg,
+      #d97706 200deg,
+      transparent 270deg,
+      transparent 360deg);
+  animation: thinking-spin 1.2s linear infinite;
+  /* Máscara para criar o arco (borda fina) */
+  mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #fff calc(100% - 3px));
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #fff calc(100% - 3px));
 }
 
-.thinking-circle .thinking-icon {
-  color: #3b82f6;
-  font-size: 16px;
-  font-weight: 600;
+.thinking-circle .thinking-logo {
+  width: 18px;
+  height: 18px;
+  object-fit: contain;
   z-index: 1;
 }

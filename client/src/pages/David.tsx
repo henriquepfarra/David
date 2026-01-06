@@ -632,11 +632,8 @@ export default function David() {
             const data = JSON.parse(trimmed.slice(6));
 
             if (data.type === "chunk") {
-              // Limpar mensagem pendente quando recebe primeiro chunk (resposta começou)
-              if (pendingUserMessage) {
-                setPendingUserMessage(null);
-                refetchMessages(); // Atualizar para mostrar mensagem do usuário confirmada
-              }
+              // Apenas começar a acumular o streaming, NÃO limpar pendingUserMessage ainda
+              // A pendingUserMessage será limpa quando o streaming terminar (done)
               setStreamingMessage((prev) => prev + data.content);
             } else if (data.type === "done") {
               setIsStreaming(false);
@@ -1129,7 +1126,7 @@ export default function David() {
                     <div className="flex justify-start py-2">
                       <div className="thinking-indicator">
                         <div className="thinking-circle">
-                          <span className="thinking-icon">✦</span>
+                          <img src={APP_LOGO} alt="D" className="thinking-logo" />
                         </div>
                         <span className="text-sm text-muted-foreground">Só um segundo...</span>
                       </div>
