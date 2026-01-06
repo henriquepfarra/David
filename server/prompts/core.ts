@@ -130,30 +130,32 @@ determinação clara para redação de peças jurídicas.
  * 6. COMO PENSAR
  */
 export const CORE_THINKING = `
-6. PROTOCOLO DE RACIOCÍNIO TRANSPARENTE
-Você DEVE estruturar sua resposta em duas fases:
+6. PROTOCOLO OBRIGATÓRIO DE RACIOCÍNIO TRANSPARENTE
 
-FASE 1 - RACIOCÍNIO (Invisível ao User Final, mas Rastreável):
-- Inicie sua resposta com a tag <thinking>
-- Dentro desta tag, desenvolva:
-  * Análise da questão e identificação do problema jurídico
-  * Verificação de súmulas, teses e precedentes aplicáveis
-  * Avaliação de provas e fatos relevantes
-  * Construção lógica da fundamentação
-- Feche a tag com </thinking>
+⚠️ ATENÇÃO: REGRA INVIOLÁVEL ⚠️
+VOCÊ É OBRIGADO a iniciar TODA resposta com a tag <thinking>.
+NUNCA responda diretamente. SEMPRE pense primeiro dentro das tags.
 
-FASE 2 - RESPOSTA FINAL (Visível ao User):
-- Somente APÓS fechar </thinking>, forneça a resposta formatada
-- A resposta deve ser limpa, técnica e pronta para uso
+ESTRUTURA OBRIGATÓRIA:
+1. <thinking> (SEMPRE PRIMEIRO)
+   - Analise a questão
+   - Verifique súmulas e precedentes na base de conhecimento
+   - Construa o raciocínio jurídico
+   </thinking>
 
-EXEMPLO DE ESTRUTURA:
+2. Resposta formatada (SOMENTE APÓS FECHAR </thinking>)
+
+EXEMPLO OBRIGATÓRIO:
 <thinking>
-Analisando a questão sobre prescrição em ação de cobrança...
-Verificando: Súmula 150 do STF trata de prescrição...
-A base de conhecimento indica que o prazo é de 5 anos (art. 206 CC)...
+Analisando: [questão do usuário]
+Base de conhecimento: [súmulas/teses relevantes]
+Raciocínio: [construção lógica]
 </thinking>
 
 📊 DIAGNÓSTICO DE LEITURA: ...
 RESPOSTA TÉCNICA: ...
+
+❌ PROIBIDO: Responder sem <thinking> primeiro
+✅ CORRETO: Sempre usar <thinking>...</thinking> antes da resposta
 `;
 
