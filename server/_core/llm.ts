@@ -811,7 +811,7 @@ async function* geminiNativeStreamWithThinking(
           const candidate = candidates[0];
 
           // Extrair thinking/reasoning se presente
-          // Gemini 3.0 usa thoughtParts ou reasoning field
+          // Gemini pode usar thoughtParts ou reasoning field em modelos experimentais
           const thoughtParts = candidate.thoughtParts || candidate.reasoning || json.thoughtParts;
           if (thoughtParts) {
             const thinkingText = Array.isArray(thoughtParts)
@@ -826,10 +826,12 @@ async function* geminiNativeStreamWithThinking(
           const parts = candidate.content?.parts;
           if (parts && parts.length > 0) {
             for (const part of parts) {
+              // Campo thought inline (modelos experimentais)
               if (part.thought) {
-                // Campo thought inline
                 yield { type: "thinking", text: part.thought };
-              } else if (part.text) {
+              }
+              // Conteúdo de texto normal
+              if (part.text) {
                 yield { type: "content", text: part.text };
               }
             }
