@@ -543,6 +543,19 @@ export async function* invokeLLMStreamWithThinking(
 
   const normalizedProvider = provider?.toLowerCase() || "google";
 
+  // === GOOGLE: USAR API NATIVA PARA SUPORTE A THINKING ===
+  if (normalizedProvider === "google") {
+    const geminiApiKey = apiKey || ENV.geminiApiKey;
+    const geminiModel = model || "gemini-2.5-flash";
+
+    console.log(`[LLM] Usando API nativa do Gemini para modelo: ${geminiModel}`);
+
+    // Delegar para função de streaming nativa do Gemini
+    yield* geminiNativeStreamWithThinking(messages, geminiModel, geminiApiKey);
+    return;
+  }
+
+  // === OUTROS PROVIDERS: USAR API OPENAI-COMPATIBLE ===
   const payload: Record<string, unknown> = {
     model: model || "gemini-2.5-flash",
     messages: messages.map(normalizeMessage),
@@ -691,6 +704,147 @@ export async function* invokeLLMStreamWithThinking(
     reader.releaseLock();
   }
 }
+
+/**
+ * Streaming nativo do Google Gemini com suporte a Thinking
+ * 
+ * Usa a API nativa do Gemini (não OpenAI-compatible) para:
+ * - Expor campos de thinking/reasoning
+ * - Suporte a modelos Gemini 2.0/3.0 com thinking nativo
+ */
+async function* geminiNativeStreamWithThinking(
+  messages: Message[],
+  model: string,
+  apiKey: string
+): AsyncGenerator<StreamYield, void, unknown> {
+  // Converter formato OpenAI para formato Gemini
+  const contents: Array<{ role: string; parts: Array<{ text: string }> }> = [];
+  let systemInstruction = "";
+
+  for (const msg of messages) {
+    if (msg.role === "system") {
+      // System messages viram system instruction
+      const content = typeof msg.content === "string"
+        ? msg.content
+        : Array.isArray(msg.content)
+          ? msg.content.map(c => typeof c === "string" ? c : (c as any).text || "").join("\n")
+          : "";
+      systemInstruction += content + "\n";
+    } else {
+      const role = msg.role === "assistant" ? "model" : "user";
+      const content = typeof msg.content === "string"
+        ? msg.content
+        : Array.isArray(msg.content)
+          ? msg.content.map(c => typeof c === "string" ? c : (c as any).text || "").join("\n")
+          : "";
+      contents.push({
+        role,
+        parts: [{ text: content }]
+      });
+    }
+  }
+
+  const payload: Record<string, unknown> = {
+    contents,
+    generationConfig: {
+      maxOutputTokens: 32768,
+    }
+  };
+
+  // Adicionar system instruction se existir
+  if (systemInstruction.trim()) {
+    payload.systemInstruction = {
+      parts: [{ text: systemInstruction.trim() }]
+    };
+  }
+
+  // URL da API nativa com streaming
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:streamGenerateContent?alt=sse&key=${apiKey}`;
+
+  console.log(`[Gemini Native] Starting stream with model: ${model}`);
+
+  const response = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(
+      `Gemini Native stream failed: ${response.status} ${response.statusText} – ${errorText}`
+    );
+  }
+
+  if (!response.body) {
+    throw new Error("Response body is null");
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split("\n");
+      buffer = lines.pop() || "";
+
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed || !trimmed.startsWith("data: ")) continue;
+
+        try {
+          const json = JSON.parse(trimmed.slice(6));
+
+          // Formato da resposta Gemini nativa:
+          // { candidates: [{ content: { parts: [{ text: "..." }] }, groundingSupport: {...} }] }
+
+          const candidates = json.candidates;
+          if (!candidates || candidates.length === 0) continue;
+
+          const candidate = candidates[0];
+
+          // Extrair thinking/reasoning se presente
+          // Gemini 3.0 usa thoughtParts ou reasoning field
+          const thoughtParts = candidate.thoughtParts || candidate.reasoning || json.thoughtParts;
+          if (thoughtParts) {
+            const thinkingText = Array.isArray(thoughtParts)
+              ? thoughtParts.map((p: any) => p.text || p).join("")
+              : typeof thoughtParts === "string" ? thoughtParts : "";
+            if (thinkingText) {
+              yield { type: "thinking", text: thinkingText };
+            }
+          }
+
+          // Extrair conteúdo normal
+          const parts = candidate.content?.parts;
+          if (parts && parts.length > 0) {
+            for (const part of parts) {
+              if (part.thought) {
+                // Campo thought inline
+                yield { type: "thinking", text: part.thought };
+              } else if (part.text) {
+                yield { type: "content", text: part.text };
+              }
+            }
+          }
+
+        } catch (e) {
+          console.error("[Gemini Native] Failed to parse chunk:", e, trimmed);
+        }
+      }
+    }
+  } finally {
+    reader.releaseLock();
+  }
+}
+
 // ... existing code ...
 
 export async function transcribeAudio(audioBase64: string): Promise<string> {
