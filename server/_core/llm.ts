@@ -748,6 +748,11 @@ async function* geminiNativeStreamWithThinking(
     contents,
     generationConfig: {
       maxOutputTokens: 32768,
+      // Habilitar thought summaries para ver o raciocínio do modelo
+      thinkingConfig: {
+        includeThoughts: true,
+        thinkingBudget: 8192, // Orçamento de tokens para thinking
+      }
     }
   };
 
