@@ -30,7 +30,8 @@ import {
   CORE_TRACEABILITY,
   CORE_ZERO_TOLERANCE,
   CORE_TRANSPARENCY,
-  CORE_STYLE
+  CORE_STYLE,
+  CORE_THINKING
 } from "../prompts/core";
 // Orquestrador + Motores
 import {
@@ -206,7 +207,7 @@ async function startServer() {
       }
 
       // MONTAGEM DINÂMICA DO CÉREBRO (Brain Assembly)
-      // Core (Universal) + Estilo + Módulo (JEC) + Orquestrador + Motores
+      // Core (Universal) + Estilo + Módulo (JEC) + Orquestrador + Motores + Thinking
       const baseSystemPrompt = `
 ${CORE_IDENTITY}
 ${CORE_TONE}
@@ -215,6 +216,7 @@ ${CORE_TRACEABILITY}
 ${CORE_ZERO_TOLERANCE}
 ${CORE_TRANSPARENCY}
 ${CORE_STYLE}
+${CORE_THINKING}
 ${JEC_CONTEXT}
 ${CORE_ORCHESTRATOR}
 ${CORE_MOTOR_A}

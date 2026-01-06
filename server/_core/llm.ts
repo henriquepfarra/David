@@ -748,8 +748,6 @@ async function* geminiNativeStreamWithThinking(
     contents,
     generationConfig: {
       maxOutputTokens: 32768,
-      // Gemini 3: usar thinkingLevel (low/high) para controlar nível de raciocínio
-      thinkingLevel: "high", // Maximiza profundidade de raciocínio
     }
   };
 
@@ -830,12 +828,16 @@ async function* geminiNativeStreamWithThinking(
 
           if (parts && parts.length > 0) {
             for (const part of parts) {
-              // Gemini 3.0 com includeThoughts: 
+              // Gemini 3.0 com includeThoughts nativa: 
               // - part.thought === true indica que part.text é o pensamento
-              // - part.thought === false/undefined indica conteúdo normal
               if (part.text) {
-                const isThinking = part.thought === true;
-                yield { type: isThinking ? "thinking" : "content", text: part.text };
+                const isThinkingNative = part.thought === true;
+                if (isThinkingNative) {
+                  yield { type: "thinking", text: part.text };
+                } else {
+                  // Para Prompt Injection: parsing será feito no frontend
+                  yield { type: "content", text: part.text };
+                }
               }
             }
           }

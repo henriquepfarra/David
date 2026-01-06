@@ -635,9 +635,31 @@ export default function David() {
             const data = JSON.parse(trimmed.slice(6));
 
             if (data.type === "chunk") {
-              // Apenas começar a acumular o streaming, NÃO limpar pendingUserMessage ainda
-              // A pendingUserMessage será limpa quando o streaming terminar (done)
-              setStreamingMessage((prev) => prev + data.content);
+              // Parsear tags <thinking> do conteúdo via Prompt Injection
+              const content = data.content as string;
+
+              // Acumular no streaming para depois separar
+              setStreamingMessage((prev) => {
+                const newContent = prev + content;
+
+                // Extrair thinking e content separadamente
+                const thinkingMatch = newContent.match(/<thinking>([\s\S]*?)<\/thinking>/);
+                if (thinkingMatch) {
+                  // Temos um bloco thinking completo - atualizar thinkingMessage
+                  setThinkingMessage(thinkingMatch[1]);
+                  // Remover a tag do streaming
+                  return newContent.replace(/<thinking>[\s\S]*?<\/thinking>\s*/g, "");
+                } else if (newContent.includes("<thinking>")) {
+                  // Thinking em progresso - atualizar thinking parcial
+                  const thinkingStartIdx = newContent.indexOf("<thinking>");
+                  const afterThinking = newContent.slice(thinkingStartIdx + 10);
+                  setThinkingMessage(afterThinking);
+                  // Retornar apenas o que vem antes do thinking
+                  return newContent.slice(0, thinkingStartIdx);
+                }
+
+                return newContent;
+              });
             } else if (data.type === "thinking") {
               setThinkingMessage((prev) => prev + data.content);
             } else if (data.type === "done") {
