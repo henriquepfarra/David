@@ -1113,11 +1113,10 @@ export default function David() {
 
                   {/* Mensagem pendente do usuário (otimista - aparece imediatamente) */}
                   {pendingUserMessage && (
-                    <div className="flex justify-end">
-                      <Card className="p-4 max-w-[80%] bg-primary text-primary-foreground">
-                        <p className="whitespace-pre-wrap">{pendingUserMessage}</p>
-                        <p className="text-xs opacity-70 mt-2">Enviando...</p>
-                      </Card>
+                    <div className="flex justify-end mb-8 pl-10">
+                      <div className="bg-muted px-5 py-3.5 rounded-3xl rounded-tr-md max-w-[85%] text-foreground/90 shadow-sm">
+                        <p className="whitespace-pre-wrap leading-relaxed">{pendingUserMessage}</p>
+                      </div>
                     </div>
                   )}
 

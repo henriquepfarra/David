@@ -247,13 +247,13 @@
   position: absolute;
   inset: 0;
   border-radius: 50%;
-  /* Arco com gradiente azul -> dourado */
+  /* Arco com gradiente azul navy -> dourado */
   background: conic-gradient(from 0deg,
       transparent 0deg,
-      #3b82f6 40deg,
-      #60a5fa 100deg,
-      #d97706 180deg,
-      #fbbf24 240deg,
+      #1e3a5a 40deg,
+      #2563eb 100deg,
+      #d4a828 180deg,
+      #f59e0b 240deg,
       transparent 300deg,
       transparent 360deg);
   animation: thinking-spin 1.2s linear infinite;
@@ -263,8 +263,8 @@
 }
 
 .thinking-circle .thinking-logo {
-  width: 26px;
-  height: 26px;
+  width: 50px;
+  height: 50px;
   object-fit: contain;
   z-index: 1;
 }
