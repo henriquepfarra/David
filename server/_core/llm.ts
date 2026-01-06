@@ -387,9 +387,19 @@ export type StreamChunk = {
     delta: {
       role?: Role;
       content?: string;
+      reasoning_content?: string; // OpenAI o1 thinking
     };
     finish_reason: string | null;
   }>;
+  // Gemini thinking fields
+  thought?: string;
+  thinkingContent?: string;
+};
+
+// Tipo de retorno do stream - pode ser thinking ou content
+export type StreamYield = {
+  type: "thinking" | "content";
+  text: string;
 };
 
 export async function* invokeLLMStream(params: InvokeParams): AsyncGenerator<string, void, unknown> {
@@ -499,6 +509,184 @@ export async function* invokeLLMStream(params: InvokeParams): AsyncGenerator<str
         }
       }
     }
+  } finally {
+    reader.releaseLock();
+  }
+}
+
+/**
+ * Stream com suporte a Thinking (Multi-Provider)
+ * 
+ * Extrai thinking de diferentes providers:
+ * - Gemini: campos thought/thinkingContent
+ * - OpenAI o1: campo reasoning_content
+ * - Claude: tags <thinking>...</thinking> no content
+ * 
+ * Retorna objetos StreamYield com type: "thinking" | "content"
+ */
+export async function* invokeLLMStreamWithThinking(
+  params: InvokeParams
+): AsyncGenerator<StreamYield, void, unknown> {
+  const {
+    messages,
+    tools,
+    toolChoice,
+    tool_choice,
+    outputSchema,
+    output_schema,
+    responseFormat,
+    response_format,
+    apiKey,
+    model,
+    provider
+  } = params;
+
+  const normalizedProvider = provider?.toLowerCase() || "google";
+
+  const payload: Record<string, unknown> = {
+    model: model || "gemini-2.5-flash",
+    messages: messages.map(normalizeMessage),
+    stream: true,
+  };
+
+  if (tools && tools.length > 0) {
+    payload.tools = tools;
+  }
+
+  const normalizedToolChoice = normalizeToolChoice(
+    toolChoice || tool_choice,
+    tools
+  );
+  if (normalizedToolChoice) {
+    payload.tool_choice = normalizedToolChoice;
+  }
+
+  payload.max_tokens = 32768;
+
+  const normalizedResponseFormat = normalizeResponseFormat({
+    responseFormat,
+    response_format,
+    outputSchema,
+    output_schema,
+  });
+
+  if (normalizedResponseFormat) {
+    payload.response_format = normalizedResponseFormat;
+  }
+
+  // Build headers based on provider
+  const headers: Record<string, string> = {
+    "content-type": "application/json",
+  };
+
+  if (provider === "anthropic") {
+    headers["x-api-key"] = apiKey || "";
+    headers["anthropic-version"] = "2023-06-01";
+  } else {
+    headers["authorization"] = `Bearer ${apiKey || ENV.geminiApiKey}`;
+  }
+
+  const response = await fetch(resolveApiUrl(provider), {
+    method: "POST",
+    headers,
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(
+      `LLM stream failed: ${response.status} ${response.statusText} – ${errorText}`
+    );
+  }
+
+  if (!response.body) {
+    throw new Error("Response body is null");
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let inThinkingTag = false;
+  let thinkingBuffer = "";
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split("\n");
+      buffer = lines.pop() || "";
+
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed || trimmed === "data: [DONE]") continue;
+        if (!trimmed.startsWith("data: ")) continue;
+
+        try {
+          const json = JSON.parse(trimmed.slice(6)) as StreamChunk;
+
+          // === EXTRAIR THINKING ===
+
+          // 1. Gemini thinking fields
+          const geminiThinking = json.thought || json.thinkingContent;
+          if (geminiThinking) {
+            yield { type: "thinking", text: geminiThinking };
+            continue;
+          }
+
+          // 2. OpenAI o1 reasoning_content
+          const o1Reasoning = json.choices[0]?.delta?.reasoning_content;
+          if (o1Reasoning) {
+            yield { type: "thinking", text: o1Reasoning };
+            continue;
+          }
+
+          // 3. Claude <thinking> tags no content
+          const content = json.choices[0]?.delta?.content;
+          if (content && normalizedProvider === "anthropic") {
+            // Processar tags <thinking>
+            for (let i = 0; i < content.length; i++) {
+              const remaining = content.slice(i);
+
+              if (!inThinkingTag && remaining.startsWith("<thinking>")) {
+                inThinkingTag = true;
+                i += 9; // Pular "<thinking>"
+                continue;
+              }
+
+              if (inThinkingTag && remaining.startsWith("</thinking>")) {
+                inThinkingTag = false;
+                if (thinkingBuffer) {
+                  yield { type: "thinking", text: thinkingBuffer };
+                  thinkingBuffer = "";
+                }
+                i += 10; // Pular "</thinking>"
+                continue;
+              }
+
+              if (inThinkingTag) {
+                thinkingBuffer += content[i];
+              } else {
+                yield { type: "content", text: content[i] };
+              }
+            }
+          } else if (content) {
+            // Provider sem thinking especial - tudo é content
+            yield { type: "content", text: content };
+          }
+
+        } catch (e) {
+          console.error("Failed to parse SSE chunk:", e, trimmed);
+        }
+      }
+    }
+
+    // Flush remaining thinking buffer
+    if (thinkingBuffer) {
+      yield { type: "thinking", text: thinkingBuffer };
+    }
+
   } finally {
     reader.releaseLock();
   }

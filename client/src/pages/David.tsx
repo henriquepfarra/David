@@ -76,6 +76,7 @@ export default function David() {
   const [messageInput, setMessageInput] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
   const [streamingMessage, setStreamingMessage] = useState("");
+  const [thinkingMessage, setThinkingMessage] = useState("");
   const [pendingUserMessage, setPendingUserMessage] = useState<string | null>(null); // Mensagem otimista do usuário
   const scrollRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -637,12 +638,16 @@ export default function David() {
               // Apenas começar a acumular o streaming, NÃO limpar pendingUserMessage ainda
               // A pendingUserMessage será limpa quando o streaming terminar (done)
               setStreamingMessage((prev) => prev + data.content);
+            } else if (data.type === "thinking") {
+              setThinkingMessage((prev) => prev + data.content);
             } else if (data.type === "done") {
               // IMPORTANTE: Primeiro buscar mensagens, DEPOIS limpar streaming
               // Isso evita o "flash" onde não há mensagem visível
               await refetchMessages();
+              await refetchMessages();
               setIsStreaming(false);
               setStreamingMessage("");
+              setThinkingMessage("");
               setPendingUserMessage(null);
               // Gerar título automático após primeira resposta (se título é genérico)
               const currentTitle = conversationData?.conversation?.title?.trim();
@@ -1124,14 +1129,30 @@ export default function David() {
                     </div>
                   )}
 
-                  {/* Indicador "Thinking" estilo Gemini */}
-                  {isStreaming && !streamingMessage && (
+                  {/* Indicador "Thinking" estilo Gemini - Só exibe se não tiver nem thinking nem resposta ainda */}
+                  {isStreaming && !streamingMessage && !thinkingMessage && (
                     <div className="flex justify-start py-2">
                       <div className="thinking-indicator">
                         <div className="thinking-circle">
                           <img src={APP_LOGO} alt="D" className="thinking-logo" />
                         </div>
                         <span className="text-sm text-muted-foreground">Só um segundo...</span>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Thinking Process (Visible during and after generation if available) */}
+                  {thinkingMessage && (
+                    <div className="flex flex-col items-start gap-2 max-w-4xl w-full mb-4 pl-10 animate-in fade-in slide-in-from-bottom-2">
+                      <div className="w-full bg-muted/30 border border-border/50 rounded-lg p-4">
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
+                            💭 Processo de Pensamento
+                          </span>
+                        </div>
+                        <div className="text-sm text-muted-foreground/80 whitespace-pre-wrap leading-relaxed font-mono text-[13px]">
+                          {thinkingMessage}
+                        </div>
                       </div>
                     </div>
                   )}

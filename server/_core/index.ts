@@ -19,7 +19,7 @@ import { serveStatic } from "./vite";
 import cors from "cors";
 import { getConversationById, getConversationMessages, createMessage, getProcessForContext, getUserSettings, getUserKnowledgeBase } from "../db";
 import { hybridSearch } from "./hybridSearch";
-import { invokeLLMStream as streamFn } from "../_core/llm";
+import { invokeLLMStreamWithThinking as streamFn } from "../_core/llm";
 import { sdk } from "./sdk";
 
 // Core do DAVID (Identidade + Estilo + Segurança - Universal)
@@ -258,7 +258,7 @@ ${CORE_MOTOR_D}
       try {
         // streamFn is now statically imported
 
-        for await (const chunk of streamFn({
+        for await (const yieldData of streamFn({
           messages: llmMessages,
           apiKey: llmConfig.apiKey,
           model: llmConfig.model,
@@ -268,8 +268,15 @@ ${CORE_MOTOR_D}
             console.log(`[Stream] First chunk received after ${Date.now() - startTime}ms`);
           }
           chunkCount++;
-          fullResponse += chunk;
-          res.write(`data: ${JSON.stringify({ type: "chunk", content: chunk })}\n\n`);
+
+          if (yieldData.type === "thinking") {
+            // Enviar evento de thinking
+            res.write(`data: ${JSON.stringify({ type: "thinking", content: yieldData.text })}\n\n`);
+          } else {
+            // Enviar conteúdo normal
+            fullResponse += yieldData.text;
+            res.write(`data: ${JSON.stringify({ type: "chunk", content: yieldData.text })}\n\n`);
+          }
         }
         console.log(`[Stream] Completed. Total chunks: ${chunkCount}, Total time: ${Date.now() - startTime}ms`);
 
