@@ -1069,7 +1069,7 @@ export default function David() {
                               <span className="flex h-2 w-2 rounded-full bg-green-500 animate-pulse" />
                             </h3>
                             <p className="text-sm font-medium text-foreground/90 font-mono tracking-tight">
-                              {processes?.find(p => p.id === selectedProcessId)?.processNumber || "Carregando..."}
+                              {conversationData?.processData?.processNumber || processes?.find(p => p.id === selectedProcessId)?.processNumber || "Carregando..."}
                             </p>
                             <p className="text-xs text-muted-foreground leading-relaxed">
                               O contexto deste processo está ativo. Todas as perguntas serão respondidas com base nos documentos dos autos.
