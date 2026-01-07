@@ -17,7 +17,7 @@ import { appRouter } from "../routers";
 import { createContext } from "./context";
 import { serveStatic } from "./vite";
 import cors from "cors";
-import { getConversationById, getConversationMessages, createMessage, getProcessForContext, getUserSettings, getUserKnowledgeBase } from "../db";
+import { getConversationById, getConversationMessages, createMessage, getProcessForContext, getUserSettings, getUserKnowledgeBase, getProcessDocuments } from "../db";
 import { hybridSearch } from "./hybridSearch";
 import { invokeLLMStreamWithThinking as streamFn } from "../_core/llm";
 import { sdk } from "./sdk";
@@ -149,6 +149,25 @@ async function startServer() {
         const process = await getProcessForContext(conversation.processId);
         if (process) {
           processContext = `\n\n## PROCESSO SELECIONADO\n\n**Número:** ${process.processNumber}\n**Autor:** ${process.plaintiff}\n**Réu:** ${process.defendant}\n**Vara:** ${process.court}\n**Assunto:** ${process.subject}\n**Fatos:** ${process.facts}\n**Pedidos:** ${process.requests}\n**Status:** ${process.status}\n`;
+
+          // Buscar documentos do processo (PDFs extraídos)
+          const processDocsList = await getProcessDocuments(conversation.processId, user.id);
+          if (processDocsList.length > 0) {
+            console.log(`[Stream-Process] Documentos do processo encontrados: ${processDocsList.length}`);
+            processContext += `\n### DOCUMENTOS DOS AUTOS (${processDocsList.length} arquivos)\n\n`;
+            processContext += `**IMPORTANTE:** Você tem acesso ao conteúdo completo dos documentos abaixo. Use-os para análise.\n\n`;
+
+            for (const doc of processDocsList) {
+              // Limitar tamanho do conteúdo por documento para não estourar contexto
+              const contentPreview = doc.content.length > 15000
+                ? doc.content.substring(0, 15000) + `\n\n[... conteúdo truncado. Total: ${doc.content.length} caracteres ...]`
+                : doc.content;
+
+              processContext += `---\n#### 📄 ${doc.title} (${doc.documentType})\n\n${contentPreview}\n\n`;
+            }
+          } else {
+            console.log(`[Stream-Process] Nenhum documento encontrado para processo ${conversation.processId}`);
+          }
         }
       }
 
@@ -287,7 +306,7 @@ ${CORE_MOTOR_D}
         // Extrair thinking do conteúdo se veio junto (Prompt Injection)
         let thinkingToSave = fullThinking;
         let contentToSave = fullResponse;
-        
+
         // Se thinking veio dentro do conteúdo via tags (Prompt Injection), extrair
         const thinkingMatch = fullResponse.match(/<thinking>([\s\S]*?)<\/thinking>/);
         if (thinkingMatch) {

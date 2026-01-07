@@ -1,0 +1,62 @@
+[
+  {
+    "file": "40074606920258260009_79c4a2bf7687d5f89ecbc8a67a060565.pdf",
+    "model": "gemini-2.0-flash-lite",
+    "modelName": "Flash Lite (atual)",
+    "cost": "$0.075/1M",
+    "timeSeconds": 52.6,
+    "charactersExtracted": 19730,
+    "tokensUsed": 19004,
+    "success": true
+  },
+  {
+    "file": "40074606920258260009_79c4a2bf7687d5f89ecbc8a67a060565.pdf",
+    "model": "gemini-2.0-flash",
+    "modelName": "Flash",
+    "cost": "$0.10/1M",
+    "timeSeconds": 39.7,
+    "charactersExtracted": 20632,
+    "tokensUsed": 17795,
+    "success": true
+  },
+  {
+    "file": "40074606920258260009_79c4a2bf7687d5f89ecbc8a67a060565.pdf",
+    "model": "gemini-2.5-flash",
+    "modelName": "Flash 2.5",
+    "cost": "$0.30/1M",
+    "timeSeconds": 94.8,
+    "charactersExtracted": 46835,
+    "tokensUsed": 29626,
+    "success": true
+  },
+  {
+    "file": "40079352520258260009.pdf",
+    "model": "gemini-2.0-flash-lite",
+    "modelName": "Flash Lite (atual)",
+    "cost": "$0.075/1M",
+    "timeSeconds": 34.7,
+    "charactersExtracted": 11450,
+    "tokensUsed": 10073,
+    "success": true
+  },
+  {
+    "file": "40079352520258260009.pdf",
+    "model": "gemini-2.0-flash",
+    "modelName": "Flash",
+    "cost": "$0.10/1M",
+    "timeSeconds": 41.7,
+    "charactersExtracted": 11847,
+    "tokensUsed": 10719,
+    "success": true
+  },
+  {
+    "file": "40079352520258260009.pdf",
+    "model": "gemini-2.5-flash",
+    "modelName": "Flash 2.5",
+    "cost": "$0.30/1M",
+    "timeSeconds": 75.3,
+    "charactersExtracted": 14925,
+    "tokensUsed": 19561,
+    "success": true
+  }
+]
