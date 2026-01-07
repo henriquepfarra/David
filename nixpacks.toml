@@ -1,0 +1,14 @@
+# Configuração explícita do Nixpacks para evitar erros de ENV blank
+# https://nixpacks.com/docs/configuration/file
+
+[phases.setup]
+nixPkgs = ["nodejs_18", "pnpm", "openssl"]
+
+[phases.install]
+cmds = ["npm install -g corepack@0.24.1 && corepack enable", "pnpm i --frozen-lockfile"]
+
+[phases.build]
+cmds = ["pnpm run build"]
+
+[start]
+cmd = "pnpm run start"
