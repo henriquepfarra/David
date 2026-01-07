@@ -1093,6 +1093,20 @@ export default function David() {
                             </div>
                           </div>
 
+                          {/* Thinking Colapsável (se existir) */}
+                          {message.thinking && (
+                            <details className="pl-10 w-full group/thinking">
+                              <summary className="flex items-center gap-2 cursor-pointer text-sm text-primary/80 hover:text-primary transition-colors select-none list-none">
+                                <span className="text-primary">✦</span>
+                                <span className="font-medium">Mostrar raciocínio</span>
+                                <ChevronDown className="h-4 w-4 transition-transform group-open/thinking:rotate-180" />
+                              </summary>
+                              <div className="mt-2 p-3 bg-muted/30 border border-border/50 rounded-lg text-sm text-muted-foreground/80 whitespace-pre-wrap font-mono text-[13px] leading-relaxed">
+                                {message.thinking}
+                              </div>
+                            </details>
+                          )}
+
                           {/* Conteúdo da Mensagem */}
                           <div className="pl-10 w-full text-foreground leading-relaxed space-y-2 text-justify">
                             <Streamdown>{message.content}</Streamdown>
@@ -1180,39 +1194,39 @@ export default function David() {
                     </div>
                   )}
 
-                  {/* Thinking Process (Visible during and after generation if available) */}
-                  {parsedStreaming.thinking && (
-                    <div className="flex flex-col items-start gap-2 max-w-4xl w-full mb-4 pl-10 animate-in fade-in slide-in-from-bottom-2">
-                      <div className="w-full bg-muted/30 border border-border/50 rounded-lg p-4">
-                        <div className="flex items-center gap-2 mb-2">
-                          <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
-                            💭 Processo de Pensamento
-                          </span>
-                        </div>
-                        <div className="text-sm text-muted-foreground/80 whitespace-pre-wrap leading-relaxed font-mono text-[13px]">
-                          {parsedStreaming.thinking}
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Mensagem em streaming (Clean Style) */}
-                  {isStreaming && parsedStreaming.content && (
+                  {/* Mensagem em streaming (inclui thinking estilo Gemini) */}
+                  {isStreaming && (parsedStreaming.thinking || parsedStreaming.content) && (
                     <div className="flex flex-col items-start gap-2 max-w-4xl w-full mb-8 animate-in fade-in">
                       {/* Header */}
                       <div className="flex items-center gap-1 select-none pl-0">
                         <img src={APP_LOGO} alt="D" className="w-[60px] h-[60px] object-contain" />
                         <div className="flex items-center gap-2 -ml-2">
                           <span className="font-semibold text-sm text-foreground/90">David</span>
-                          <span className="text-[10px] text-muted-foreground/80">• Digitando...</span>
+                          <span className="text-[10px] text-muted-foreground/80">• {parsedStreaming.content ? "Digitando..." : "Pensando..."}</span>
                         </div>
                       </div>
 
+                      {/* Thinking Colapsável durante streaming (aberto por padrão) */}
+                      {parsedStreaming.thinking && (
+                        <details className="pl-10 w-full group/thinking" open>
+                          <summary className="flex items-center gap-2 cursor-pointer text-sm text-primary/80 hover:text-primary transition-colors select-none list-none">
+                            <span className="text-primary">✦</span>
+                            <span className="font-medium">Mostrar raciocínio</span>
+                            <ChevronDown className="h-4 w-4 transition-transform group-open/thinking:rotate-180" />
+                          </summary>
+                          <div className="mt-2 p-3 bg-muted/30 border border-border/50 rounded-lg text-sm text-muted-foreground/80 whitespace-pre-wrap font-mono text-[13px] leading-relaxed max-h-[300px] overflow-y-auto">
+                            {parsedStreaming.thinking}
+                          </div>
+                        </details>
+                      )}
+
                       {/* Content */}
-                      <div className="pl-10 w-full text-foreground leading-relaxed text-justify">
-                        <Streamdown>{parsedStreaming.content}</Streamdown>
-                        <span className="inline-block w-1.5 h-4 ml-1 align-middle bg-primary/50 animate-pulse rounded-sm" />
-                      </div>
+                      {parsedStreaming.content && (
+                        <div className="pl-10 w-full text-foreground leading-relaxed text-justify">
+                          <Streamdown>{parsedStreaming.content}</Streamdown>
+                          <span className="inline-block w-1.5 h-4 ml-1 align-middle bg-primary/50 animate-pulse rounded-sm" />
+                        </div>
+                      )}
                     </div>
                   )}
 

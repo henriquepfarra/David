@@ -253,6 +253,7 @@ ${CORE_MOTOR_D}
       res.flushHeaders(); // Força envio imediato dos headers
 
       let fullResponse = "";
+      let fullThinking = ""; // Acumular thinking separadamente
       let chunkCount = 0;
       const startTime = Date.now();
       console.log(`[Stream] Starting LLM stream with model: ${llmConfig.model || 'default'}, provider: ${llmConfig.provider || 'default'}`);
@@ -272,7 +273,8 @@ ${CORE_MOTOR_D}
           chunkCount++;
 
           if (yieldData.type === "thinking") {
-            // Enviar evento de thinking
+            // Acumular e enviar evento de thinking
+            fullThinking += yieldData.text;
             res.write(`data: ${JSON.stringify({ type: "thinking", content: yieldData.text })}\n\n`);
           } else {
             // Enviar conteúdo normal
@@ -282,14 +284,27 @@ ${CORE_MOTOR_D}
         }
         console.log(`[Stream] Completed. Total chunks: ${chunkCount}, Total time: ${Date.now() - startTime}ms`);
 
-        // Salvar resposta completa
+        // Extrair thinking do conteúdo se veio junto (Prompt Injection)
+        let thinkingToSave = fullThinking;
+        let contentToSave = fullResponse;
+        
+        // Se thinking veio dentro do conteúdo via tags (Prompt Injection), extrair
+        const thinkingMatch = fullResponse.match(/<thinking>([\s\S]*?)<\/thinking>/);
+        if (thinkingMatch) {
+          thinkingToSave = thinkingMatch[1].trim();
+          contentToSave = fullResponse.replace(/<thinking>[\s\S]*?<\/thinking>\s*/g, "").trim();
+        }
+
+        // Salvar resposta completa com thinking
         await createMessage({
           conversationId,
           role: "assistant",
-          content: fullResponse,
+          content: contentToSave,
+          thinking: thinkingToSave || null, // Salvar thinking se existir
         });
 
-        res.write(`data: ${JSON.stringify({ type: "done", content: fullResponse })}\n\n`);
+        // Enviar done com thinking para o frontend poder exibir
+        res.write(`data: ${JSON.stringify({ type: "done", content: contentToSave, thinking: thinkingToSave })}\n\n`);
         res.end();
       } catch (error: any) {
         console.error("Stream error:", error);

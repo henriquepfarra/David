@@ -503,8 +503,14 @@ export const davidRouter = router({
 
           if (relevantDocs.length > 0) {
             // Separar documentos citáveis (enunciados e súmulas) de não-citáveis
-            const citableDocs = relevantDocs.filter(d => d.documentType === 'enunciado' || d.documentType === 'sumula');
-            const referenceDocs = relevantDocs.filter(d => d.documentType !== 'enunciado' && d.documentType !== 'sumula');
+            const citableDocs = relevantDocs.filter(d =>
+              d.documentType === 'enunciado' ||
+              d.documentType === 'sumula' ||
+              d.documentType === 'sumula_stj' ||
+              d.documentType === 'sumula_stf' ||
+              d.documentType === 'sumula_vinculante'
+            );
+            const referenceDocs = relevantDocs.filter(d => !citableDocs.includes(d));
 
             knowledgeBaseContext = `\n\n## BASE DE CONHECIMENTO\n\n`;
 
@@ -759,8 +765,14 @@ ${CORE_MOTOR_D}
 
           if (relevantDocs.length > 0) {
             // Separar documentos citáveis (enunciados e súmulas) de não-citáveis
-            const citableDocs = relevantDocs.filter(d => d.documentType === 'enunciado' || d.documentType === 'sumula');
-            const referenceDocs = relevantDocs.filter(d => d.documentType !== 'enunciado' && d.documentType !== 'sumula');
+            const citableDocs = relevantDocs.filter(d =>
+              d.documentType === 'enunciado' ||
+              d.documentType === 'sumula' ||
+              d.documentType === 'sumula_stj' ||
+              d.documentType === 'sumula_stf' ||
+              d.documentType === 'sumula_vinculante'
+            );
+            const referenceDocs = relevantDocs.filter(d => !citableDocs.includes(d));
 
             knowledgeBaseContext = `\n\n## BASE DE CONHECIMENTO\n\n`;
 
