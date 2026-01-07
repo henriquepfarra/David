@@ -246,6 +246,24 @@ export const appRouter = router({
           notes: "Processo cadastrado automaticamente via upload no chat.",
         });
 
+        // 3. Salvar o conteúdo do documento para acesso posterior pelo DAVID
+        if (textToAnalyze && textToAnalyze.length > 100) {
+          try {
+            await db.createProcessDocument({
+              userId: ctx.user.id,
+              processId: process.id,
+              title: input.filename || `Documento Principal - ${processNumber}`,
+              content: textToAnalyze,
+              fileType: input.fileType || "pdf",
+              documentType: "inicial", // Assume que é a petição inicial
+            });
+            console.log(`[registerFromUpload] Documento salvo em processDocuments. Tamanho: ${textToAnalyze.length} chars`);
+          } catch (err) {
+            console.error("[registerFromUpload] Erro ao salvar documento:", err);
+            // Não falha - o processo foi criado, só o documento não foi salvo
+          }
+        }
+
         return {
           processId: process.id,
           processNumber,
