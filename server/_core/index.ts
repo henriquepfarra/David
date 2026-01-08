@@ -23,7 +23,9 @@ import { sdk } from "./sdk";
 
 // Novos serviços refatorados
 import { getRagService } from "../services/RagService";
-import { createChatBuilder } from "../services/ContextBuilder";
+import { createAbstractBuilder, createConcreteBuilder } from "../services/ContextBuilder";
+import { classify, formatDebugBadge } from "../services/IntentService";
+import type { IntentResult } from "../services/IntentService";
 
 // Cartucho JEC
 import { JEC_CONTEXT } from "../modules/jec/context";
@@ -155,56 +157,84 @@ async function startServer() {
         }
       }
 
-      // === BUSCA RAG COM HIERARQUIA (usando RagService) ===
-      let knowledgeBaseContext = "";
+      // === CLASSIFICAÇÃO DE INTENÇÃO (v7.1) ===
+      let intentResult: IntentResult;
       try {
-        const ragService = getRagService();
-        const ragResults = await ragService.searchWithHierarchy(content, {
-          userId: user.id,
-          limit: 12,
-        });
-
-        console.log(`[Stream-RAG] Documentos encontrados: ${ragResults.length}`);
-        ragResults.forEach(d => console.log(`  - ${d.title} (${d.documentType}) sim=${d.similarity.toFixed(3)} [${d.searchMethod}] auth=${d.authorityLevel}`));
-
-        if (ragResults.length > 0) {
-          const citableDocs = ragResults.filter(d =>
-            d.documentType === 'enunciado' ||
-            d.documentType === 'sumula' ||
-            d.documentType === 'sumula_stj' ||
-            d.documentType === 'sumula_stf' ||
-            d.documentType === 'sumula_vinculante'
-          );
-          const referenceDocs = ragResults.filter(d => !citableDocs.includes(d));
-
-          knowledgeBaseContext = `\n\n## BASE DE CONHECIMENTO\n\n`;
-
-          if (citableDocs.length > 0) {
-            knowledgeBaseContext += `### Súmulas e Enunciados Aplicáveis\n\n`;
-            citableDocs.forEach((doc) => {
-              const contentPreview = doc.content.length > 3000 ? doc.content.substring(0, 3000) + "..." : doc.content;
-              knowledgeBaseContext += `**${doc.title}**\n${contentPreview}\n\n`;
-            });
-            knowledgeBaseContext += `**INSTRUÇÃO:** Cite essas súmulas/enunciados EXPLICITAMENTE. São fontes oficiais.\n\n`;
-          }
-
-          if (referenceDocs.length > 0) {
-            knowledgeBaseContext += `### Referências Internas\n\n`;
-            referenceDocs.forEach((doc) => {
-              const contentPreview = doc.content.length > 2000 ? doc.content.substring(0, 2000) + "..." : doc.content;
-              knowledgeBaseContext += `${contentPreview}\n\n`;
-            });
-          }
-        }
+        intentResult = await classify(content, {
+          processId: conversation.processId,
+          history: history.map(m => ({ role: m.role, content: m.content })),
+        }, llmConfig.apiKey);
+        console.log(`[Stream-Intent] ${formatDebugBadge(intentResult)}`);
       } catch (error) {
-        console.error("[Stream-RAG] Erro ao buscar documentos:", error);
+        console.error("[Stream-Intent] Erro ao classificar, usando fallback:", error);
+        // Fallback conservador
+        intentResult = {
+          intent: conversation.processId ? "CASE_ANALYSIS" : "JURISPRUDENCE",
+          path: conversation.processId ? "CONCRETE" : "ABSTRACT",
+          motors: conversation.processId ? ["A", "B", "C", "D"] : ["C"],
+          ragScope: conversation.processId ? "ALL" : "STF_STJ",
+          confidence: 0.5,
+          method: "heuristic",
+        };
       }
 
-      // MONTAGEM DINÂMICA DO CÉREBRO (usando ContextBuilder)
-      const builder = createChatBuilder();
+      // === BUSCA RAG CONDICIONAL (baseada no intent) ===
+      let knowledgeBaseContext = "";
+      if (intentResult.ragScope !== "OFF") {
+        try {
+          const ragService = getRagService();
+          const ragResults = await ragService.searchWithHierarchy(content, {
+            userId: user.id,
+            limit: 12,
+            // TODO: Implementar filtro por ragScope e ragFilter
+          });
 
-      // Injetar contexto do processo se houver
-      if (conversation.processId) {
+          console.log(`[Stream-RAG] Documentos encontrados: ${ragResults.length}`);
+          ragResults.forEach(d => console.log(`  - ${d.title} (${d.documentType}) sim=${d.similarity.toFixed(3)} [${d.searchMethod}] auth=${d.authorityLevel}`));
+
+          if (ragResults.length > 0) {
+            const citableDocs = ragResults.filter(d =>
+              d.documentType === 'enunciado' ||
+              d.documentType === 'sumula' ||
+              d.documentType === 'sumula_stj' ||
+              d.documentType === 'sumula_stf' ||
+              d.documentType === 'sumula_vinculante'
+            );
+            const referenceDocs = ragResults.filter(d => !citableDocs.includes(d));
+
+            knowledgeBaseContext = `\n\n## BASE DE CONHECIMENTO\n\n`;
+
+            if (citableDocs.length > 0) {
+              knowledgeBaseContext += `### Súmulas e Enunciados Aplicáveis\n\n`;
+              citableDocs.forEach((doc) => {
+                const contentPreview = doc.content.length > 3000 ? doc.content.substring(0, 3000) + "..." : doc.content;
+                knowledgeBaseContext += `**${doc.title}**\n${contentPreview}\n\n`;
+              });
+              knowledgeBaseContext += `**INSTRUÇÃO:** Cite essas súmulas/enunciados EXPLICITAMENTE. São fontes oficiais.\n\n`;
+            }
+
+            if (referenceDocs.length > 0) {
+              knowledgeBaseContext += `### Referências Internas\n\n`;
+              referenceDocs.forEach((doc) => {
+                const contentPreview = doc.content.length > 2000 ? doc.content.substring(0, 2000) + "..." : doc.content;
+                knowledgeBaseContext += `${contentPreview}\n\n`;
+              });
+            }
+          }
+        } catch (error) {
+          console.error("[Stream-RAG] Erro ao buscar documentos:", error);
+        }
+      } else {
+        console.log(`[Stream-RAG] Busca desativada para intent: ${intentResult.intent}`);
+      }
+
+      // === MONTAGEM DINÂMICA DO CÉREBRO (usando ContextBuilder v7.1) ===
+      const builder = intentResult.path === "ABSTRACT"
+        ? createAbstractBuilder(intentResult.intent, intentResult.motors)
+        : createConcreteBuilder(intentResult.intent, intentResult.motors);
+
+      // Injetar contexto do processo se houver e se for Caminho Concreto
+      if (conversation.processId && intentResult.path === "CONCRETE") {
         const process = await getProcessForContext(conversation.processId);
         if (process) {
           builder.injectProcess({
@@ -219,13 +249,13 @@ async function startServer() {
         }
       }
 
-      // Injetar contexto RAG
+      // Injetar contexto RAG (se buscou)
       if (knowledgeBaseContext) {
         builder.addSection("RAG", knowledgeBaseContext);
       }
 
-      // Injetar contexto do processo (documentos)
-      if (processContext) {
+      // Injetar contexto do processo (documentos) se Motor A está ativo
+      if (processContext && intentResult.motors.includes("A")) {
         builder.addSection("PROCESSO", processContext);
       }
 

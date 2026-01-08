@@ -9,6 +9,14 @@ export {
     ContextBuilder,
     createChatBuilder,
     createMinutaBuilder,
-    createAnaliseBuilder
+    createAnaliseBuilder,
+    createBuilderForIntent,
+    createAbstractBuilder,
+    createConcreteBuilder,
 } from "./ContextBuilder";
 export type { ProcessContext, BuilderOptions } from "./ContextBuilder";
+
+export { IntentService, classify, formatDebugBadge } from "./IntentService";
+export type { Intent, IntentResult, RagScope, Motor, ClassifyContext } from "./IntentService";
+
+

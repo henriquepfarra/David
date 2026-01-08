@@ -392,3 +392,86 @@ export function createAnaliseBuilder(): ContextBuilder {
         .addMotor("B")
         .addMotor("C");
 }
+
+/**
+ * Cria um ContextBuilder baseado no resultado do IntentService
+ * Esta é a factory principal para o fluxo v7.1
+ */
+export function createBuilderForIntent(
+    intent: string,
+    motors: Array<"A" | "B" | "C" | "D">
+): ContextBuilder {
+    const builder = new ContextBuilder()
+        .enableThinking(true)
+        .addAllCore();
+
+    // Configurar baseado no intent
+    switch (intent) {
+        case "CONCEPTUAL":
+        case "CASUAL":
+        case "REFINEMENT":
+            // Prompt limpo, sem motores extras
+            builder.enableCitations(false);
+            break;
+
+        case "JURISPRUDENCE":
+        case "SPECIFIC":
+            // Ativa citações para referências
+            builder.enableCitations(true);
+            break;
+
+        case "USER_PATTERN":
+            // Padrão do gabinete - precisa do estilo
+            builder.enableCitations(true);
+            break;
+
+        case "DRAFT":
+        case "CASE_ANALYSIS":
+            // Minuta/análise completa
+            builder.enableCitations(true);
+            builder.enableStyle(true);
+            break;
+
+        default:
+            builder.enableCitations(true);
+    }
+
+    // Adicionar motores conforme determinado pelo IntentService
+    for (const motor of motors) {
+        builder.addMotor(motor);
+    }
+
+    return builder;
+}
+
+/**
+ * Cria um ContextBuilder para modo ABSTRATO (sem processo)
+ * Nunca inclui Motor A (leitor de PDF)
+ */
+export function createAbstractBuilder(
+    intent: string,
+    motors: Array<"A" | "B" | "C" | "D">
+): ContextBuilder {
+    // Filtra Motor A para modo abstrato
+    const safeMotors = motors.filter(m => m !== "A");
+    return createBuilderForIntent(intent, safeMotors as Array<"A" | "B" | "C" | "D">);
+}
+
+/**
+ * Cria um ContextBuilder para modo CONCRETO (com processo)
+ * Sempre adiciona orquestrador se tiver motores
+ */
+export function createConcreteBuilder(
+    intent: string,
+    motors: Array<"A" | "B" | "C" | "D">
+): ContextBuilder {
+    const builder = createBuilderForIntent(intent, motors);
+
+    // Se tiver motores, adiciona orquestrador
+    if (motors.length > 0) {
+        builder.addMotor("orchestrator");
+    }
+
+    return builder;
+}
+
