@@ -891,3 +891,270 @@ export async function transcribeAudio(audioBase64: string): Promise<string> {
   const json = await response.json() as { text: string };
   return json.text;
 }
+
+// ============================================
+// RETRY, FALLBACK E CIRCUIT BREAKER
+// ============================================
+
+/**
+ * Erros que podem ser recuperados com retry
+ */
+const RETRYABLE_STATUS_CODES = [429, 500, 502, 503, 504];
+
+/**
+ * Circuit Breaker - Desativa providers com falhas consecutivas
+ */
+interface CircuitState {
+  failures: number;
+  lastFailure: number;
+  isOpen: boolean;
+}
+
+const circuitBreakers = new Map<string, CircuitState>();
+const CIRCUIT_FAILURE_THRESHOLD = 3;
+const CIRCUIT_RESET_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutos
+
+function getCircuitState(provider: string): CircuitState {
+  if (!circuitBreakers.has(provider)) {
+    circuitBreakers.set(provider, { failures: 0, lastFailure: 0, isOpen: false });
+  }
+  return circuitBreakers.get(provider)!;
+}
+
+function recordFailure(provider: string): void {
+  const state = getCircuitState(provider);
+  state.failures++;
+  state.lastFailure = Date.now();
+
+  if (state.failures >= CIRCUIT_FAILURE_THRESHOLD) {
+    state.isOpen = true;
+    console.warn(`[Circuit Breaker] Provider "${provider}" ABERTO após ${state.failures} falhas consecutivas`);
+  }
+}
+
+function recordSuccess(provider: string): void {
+  const state = getCircuitState(provider);
+  state.failures = 0;
+  state.isOpen = false;
+}
+
+function isCircuitOpen(provider: string): boolean {
+  const state = getCircuitState(provider);
+
+  // Se aberto, verificar se já passou tempo suficiente para tentar novamente
+  if (state.isOpen) {
+    const elapsed = Date.now() - state.lastFailure;
+    if (elapsed > CIRCUIT_RESET_TIMEOUT_MS) {
+      console.log(`[Circuit Breaker] Provider "${provider}" - Tentando reset (half-open)`);
+      state.isOpen = false;
+      state.failures = 0;
+      return false;
+    }
+    return true;
+  }
+
+  return false;
+}
+
+/**
+ * Sleep com backoff exponencial
+ */
+function sleep(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function calculateBackoff(attempt: number, baseMs = 1000): number {
+  // Backoff exponencial com jitter: 1s, 2s, 4s...
+  const exponential = baseMs * Math.pow(2, attempt);
+  const jitter = Math.random() * 500; // Adiciona 0-500ms de jitter
+  return Math.min(exponential + jitter, 30000); // Max 30 segundos
+}
+
+/**
+ * Opções para retry com fallback
+ */
+export interface RetryOptions {
+  maxRetries?: number;
+  baseBackoffMs?: number;
+  fallbackProviders?: string[];
+  fallbackApiKeys?: Record<string, string>;
+}
+
+/**
+ * invokeLLM com Retry e Fallback
+ * 
+ * Tenta o provider principal com retry exponencial.
+ * Se esgotar retries, tenta fallback providers.
+ */
+export async function invokeLLMWithRetry(
+  params: InvokeParams,
+  options: RetryOptions = {}
+): Promise<InvokeResult> {
+  const {
+    maxRetries = 3,
+    baseBackoffMs = 1000,
+    fallbackProviders = [],
+    fallbackApiKeys = {},
+  } = options;
+
+  const primaryProvider = params.provider || "google";
+  const allProviders = [primaryProvider, ...fallbackProviders.filter(p => p !== primaryProvider)];
+
+  let lastError: Error | null = null;
+
+  for (const provider of allProviders) {
+    // Verificar circuit breaker
+    if (isCircuitOpen(provider)) {
+      console.log(`[Retry] Pulando provider "${provider}" - Circuit Breaker ABERTO`);
+      continue;
+    }
+
+    // Pegar API key do provider
+    const apiKey = fallbackApiKeys[provider] || params.apiKey;
+    if (!apiKey && provider !== "google") {
+      console.log(`[Retry] Pulando provider "${provider}" - Sem API key`);
+      continue;
+    }
+
+    const providerParams = {
+      ...params,
+      provider,
+      apiKey: apiKey || params.apiKey,
+    };
+
+    // Tentar com retry
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+      try {
+        console.log(`[Retry] Tentativa ${attempt + 1}/${maxRetries} com provider "${provider}"`);
+
+        const result = await invokeLLM(providerParams);
+        recordSuccess(provider);
+
+        console.log(`[Retry] Sucesso com provider "${provider}" na tentativa ${attempt + 1}`);
+        return result;
+
+      } catch (error: any) {
+        lastError = error;
+
+        // Extrair status code do erro
+        const statusMatch = error.message?.match(/(\d{3})/);
+        const statusCode = statusMatch ? parseInt(statusMatch[1]) : 0;
+
+        console.error(`[Retry] Erro ${statusCode} com provider "${provider}":`, error.message);
+
+        // Se não for erro recuperável, não fazer retry
+        if (!RETRYABLE_STATUS_CODES.includes(statusCode)) {
+          console.log(`[Retry] Erro ${statusCode} não é recuperável, pulando provider`);
+          recordFailure(provider);
+          break; // Vai para próximo provider
+        }
+
+        // Se for última tentativa, vai para próximo provider
+        if (attempt === maxRetries - 1) {
+          recordFailure(provider);
+          console.log(`[Retry] Esgotadas tentativas com provider "${provider}"`);
+          break;
+        }
+
+        // Calcular backoff e esperar
+        const backoff = calculateBackoff(attempt, baseBackoffMs);
+        console.log(`[Retry] Aguardando ${backoff}ms antes da próxima tentativa...`);
+        await sleep(backoff);
+      }
+    }
+  }
+
+  // Se chegou aqui, todos os providers falharam
+  throw lastError || new Error("Todos os providers LLM falharam");
+}
+
+/**
+ * Stream com Retry
+ * 
+ * Para streaming, não faz retry mid-stream (complicado).
+ * Apenas tenta fallback se o provider inicial falhar ao conectar.
+ */
+export async function* invokeLLMStreamWithRetry(
+  params: InvokeParams,
+  options: RetryOptions = {}
+): AsyncGenerator<string, void, unknown> {
+  const {
+    maxRetries = 2, // Menos retries para stream
+    fallbackProviders = [],
+    fallbackApiKeys = {},
+  } = options;
+
+  const primaryProvider = params.provider || "google";
+  const allProviders = [primaryProvider, ...fallbackProviders.filter(p => p !== primaryProvider)];
+
+  let lastError: Error | null = null;
+
+  for (const provider of allProviders) {
+    if (isCircuitOpen(provider)) {
+      console.log(`[Stream Retry] Pulando provider "${provider}" - Circuit Breaker ABERTO`);
+      continue;
+    }
+
+    const apiKey = fallbackApiKeys[provider] || params.apiKey;
+    if (!apiKey && provider !== "google") {
+      continue;
+    }
+
+    const providerParams = {
+      ...params,
+      provider,
+      apiKey: apiKey || params.apiKey,
+    };
+
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+      try {
+        console.log(`[Stream Retry] Tentativa ${attempt + 1}/${maxRetries} com provider "${provider}"`);
+
+        // Iniciar stream - erros de conexão acontecem aqui
+        const stream = invokeLLMStream(providerParams);
+
+        // Se conseguiu iniciar, fazer yield e marcar sucesso
+        let hasYielded = false;
+        for await (const chunk of stream) {
+          hasYielded = true;
+          yield chunk;
+        }
+
+        if (hasYielded) {
+          recordSuccess(provider);
+          return;
+        }
+
+      } catch (error: any) {
+        lastError = error;
+        console.error(`[Stream Retry] Erro com provider "${provider}":`, error.message);
+        recordFailure(provider);
+
+        // Para stream, não faz retry se já conectou
+        // Apenas tenta próximo provider
+        break;
+      }
+    }
+  }
+
+  throw lastError || new Error("Todos os providers LLM falharam no streaming");
+}
+
+/**
+ * Reseta todos os circuit breakers (para testes/admin)
+ */
+export function resetAllCircuitBreakers(): void {
+  circuitBreakers.clear();
+  console.log("[Circuit Breaker] Todos os circuit breakers resetados");
+}
+
+/**
+ * Retorna estado dos circuit breakers (para debug/monitoring)
+ */
+export function getCircuitBreakerStatus(): Record<string, CircuitState> {
+  const status: Record<string, CircuitState> = {};
+  for (const [provider, state] of Array.from(circuitBreakers.entries())) {
+    status[provider] = { ...state };
+  }
+  return status;
+}

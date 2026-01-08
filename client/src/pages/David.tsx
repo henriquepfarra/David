@@ -59,6 +59,7 @@ import DashboardLayout from "@/components/DashboardLayout";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { APP_LOGO } from "@/const";
 import { useAuth } from "@/_core/hooks/useAuth";
+import { useChatStream } from "@/hooks/useChatStream";
 
 export default function David() {
   const [location, setLocation] = useLocation();
@@ -74,14 +75,20 @@ export default function David() {
 
   const [selectedProcessId, setSelectedProcessId] = useState<number | undefined>();
   const [messageInput, setMessageInput] = useState("");
-  const [isStreaming, setIsStreaming] = useState(false);
-  const [streamingMessage, setStreamingMessage] = useState("");
-  const [thinkingMessage, setThinkingMessage] = useState("");
   const [pendingUserMessage, setPendingUserMessage] = useState<string | null>(null); // Mensagem otimista do usuário
   const scrollRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const abortControllerRef = useRef<AbortController | null>(null);
   const previousConversationIdRef = useRef<number | null>(null);
+
+  // Hook de streaming refatorado
+  const {
+    isStreaming,
+    streamedContent: streamingMessage,
+    thinkingContent: thinkingMessage,
+    streamMessage: performStream,
+    stopGeneration,
+    resetStream,
+  } = useChatStream();
 
   // Ref para armazenar thinking extraído permanentemente durante a sessão de streaming
   const extractedThinkingRef = useRef<string>("");
@@ -138,8 +145,7 @@ export default function David() {
         // MAS não limpar se estamos vindo da Home (onde criamos a conversa com mensagem)
         if (!wasFromHome || newId === null) {
           setPendingUserMessage(null);
-          setStreamingMessage("");
-          setIsStreaming(false);
+          resetStream();
         }
       }
     };
@@ -615,107 +621,28 @@ export default function David() {
     };
   }, [selectedConversationId]);
 
-  // Função para fazer streaming
+  // Função para fazer streaming (usando hook useChatStream)
   const streamMessage = async (conversationId: number, content: string) => {
-    setIsStreaming(true);
-    setStreamingMessage("");
     extractedThinkingRef.current = ""; // Limpar thinking da sessão anterior
 
-    // Criar novo AbortController para este stream
-    abortControllerRef.current = new AbortController();
-
-    try {
-      const response = await fetch("/api/david/stream", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        credentials: "include", // Importante: enviar cookies de sessão
-        body: JSON.stringify({ conversationId, content }),
-        signal: abortControllerRef.current.signal,
-      });
-
-      if (!response.ok) {
-        let errorMessage = "Erro ao iniciar streaming";
-        try {
-          const errorData = await response.json();
-          if (errorData.details) errorMessage += `: ${errorData.details}`;
-          else if (errorData.error) errorMessage += `: ${errorData.error}`;
-        } catch (e) {
-          errorMessage += ` (${response.status} ${response.statusText})`;
+    await performStream(conversationId, content, {
+      onDone: async () => {
+        // IMPORTANTE: Primeiro buscar mensagens, DEPOIS limpar
+        await refetchMessages();
+        await refetchMessages();
+        resetStream();
+        setPendingUserMessage(null);
+        // Gerar título automático após primeira resposta (se título é genérico)
+        const currentTitle = conversationData?.conversation?.title?.trim();
+        if (conversationId && (!currentTitle || currentTitle.toLowerCase() === "nova conversa")) {
+          generateTitleMutation.mutate({ conversationId });
         }
-        throw new Error(errorMessage);
-      }
-
-      if (!response.body) {
-        throw new Error("Response body is null");
-      }
-
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = "";
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split("\n");
-        buffer = lines.pop() || "";
-
-        for (const line of lines) {
-          const trimmed = line.trim();
-          if (!trimmed || !trimmed.startsWith("data: ")) continue;
-
-          try {
-            const data = JSON.parse(trimmed.slice(6));
-
-            if (data.type === "chunk") {
-              // Acumular conteúdo bruto
-              setStreamingMessage((prev) => {
-                const newContent = prev + (data.content as string);
-                return newContent;
-              });
-            } else if (data.type === "thinking") {
-              setThinkingMessage((prev) => prev + data.content);
-            } else if (data.type === "done") {
-              // IMPORTANTE: Primeiro buscar mensagens, DEPOIS limpar streaming
-              // Isso evita o "flash" onde não há mensagem visível
-              await refetchMessages();
-              await refetchMessages();
-              setIsStreaming(false);
-              setStreamingMessage("");
-              setThinkingMessage("");
-              extractedThinkingRef.current = ""; // Limpar thinking extraído
-              setPendingUserMessage(null);
-              // Gerar título automático após primeira resposta (se título é genérico)
-              const currentTitle = conversationData?.conversation?.title?.trim();
-              if (conversationId && (!currentTitle || currentTitle.toLowerCase() === "nova conversa")) {
-                generateTitleMutation.mutate({ conversationId });
-              }
-            } else if (data.type === "error") {
-              toast.error("Erro ao gerar resposta");
-              setIsStreaming(false);
-              setStreamingMessage("");
-            }
-          } catch (e) {
-            console.error("Failed to parse SSE:", e);
-          }
-        }
-      }
-    } catch (error) {
-      console.error("Stream error:", error);
-      if (error instanceof Error && error.name === "AbortError") {
-        // Stream foi cancelado pelo usuário
-        toast.info("Geração interrompida");
-      } else {
-        toast.error("Erro ao enviar mensagem");
-      }
-      setIsStreaming(false);
-      setStreamingMessage("");
-    } finally {
-      abortControllerRef.current = null;
-    }
+      },
+      onError: (error) => {
+        toast.error(error || "Erro ao enviar mensagem");
+        resetStream();
+      },
+    });
   };
 
   // Funções de aprovação de minuta
@@ -764,13 +691,10 @@ export default function David() {
     }
   };
 
-  // Função para parar a geração
-  const stopGeneration = () => {
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
-      setIsStreaming(false);
-      setStreamingMessage("");
-    }
+  // Função para parar a geração (agora usa hook)
+  const handleStopGeneration = () => {
+    stopGeneration();
+    toast.info("Geração interrompida");
   };
 
   const renameConversationMutation = trpc.david.renameConversation.useMutation({
@@ -833,8 +757,7 @@ export default function David() {
     setSelectedProcessId(undefined);
     setMessageInput("");
     setPendingUserMessage(null);
-    setStreamingMessage("");
-    setIsStreaming(false);
+    resetStream();
   };
 
   const handleSendMessage = async () => {

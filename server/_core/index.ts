@@ -18,30 +18,14 @@ import { createContext } from "./context";
 import { serveStatic } from "./vite";
 import cors from "cors";
 import { getConversationById, getConversationMessages, createMessage, getProcessForContext, getUserSettings, getUserKnowledgeBase, getProcessDocuments } from "../db";
-import { hybridSearch } from "./hybridSearch";
 import { invokeLLMStreamWithThinking as streamFn } from "../_core/llm";
 import { sdk } from "./sdk";
 
-// Core do DAVID (Identidade + Estilo + Segurança - Universal)
-import {
-  CORE_IDENTITY,
-  CORE_TONE,
-  CORE_GATEKEEPER,
-  CORE_TRACEABILITY,
-  CORE_ZERO_TOLERANCE,
-  CORE_TRANSPARENCY,
-  CORE_STYLE,
-  CORE_THINKING
-} from "../prompts/core";
-// Orquestrador + Motores
-import {
-  CORE_ORCHESTRATOR,
-  CORE_MOTOR_A,
-  CORE_MOTOR_B,
-  CORE_MOTOR_C,
-  CORE_MOTOR_D
-} from "../prompts/engines";
-// Módulo específico (Cartucho JEC)
+// Novos serviços refatorados
+import { getRagService } from "../services/RagService";
+import { createChatBuilder } from "../services/ContextBuilder";
+
+// Cartucho JEC
 import { JEC_CONTEXT } from "../modules/jec/context";
 
 function isPortAvailable(port: number): Promise<boolean> {
@@ -171,86 +155,88 @@ async function startServer() {
         }
       }
 
-      // === BUSCA RAG HÍBRIDA (Exata + Semântica) ===
+      // === BUSCA RAG COM HIERARQUIA (usando RagService) ===
       let knowledgeBaseContext = "";
       try {
-        const allDocs = await getUserKnowledgeBase(user.id);
-        console.log(`[Stream-RAG] Total de documentos na base: ${allDocs.length}`);
+        const ragService = getRagService();
+        const ragResults = await ragService.searchWithHierarchy(content, {
+          userId: user.id,
+          limit: 12,
+        });
 
-        if (allDocs.length > 0) {
-          // Busca híbrida: exata para números, semântica para conceitos
-          const relevantDocs = await hybridSearch(
-            allDocs.map(doc => ({
-              id: doc.id,
-              title: doc.title,
-              content: doc.content,
-              documentType: doc.documentType || undefined,
-              embedding: doc.embedding,
-            })),
-            content,
-            {
-              limit: 12,
-              minSimilarity: 0.1,
-            }
+        console.log(`[Stream-RAG] Documentos encontrados: ${ragResults.length}`);
+        ragResults.forEach(d => console.log(`  - ${d.title} (${d.documentType}) sim=${d.similarity.toFixed(3)} [${d.searchMethod}] auth=${d.authorityLevel}`));
+
+        if (ragResults.length > 0) {
+          const citableDocs = ragResults.filter(d =>
+            d.documentType === 'enunciado' ||
+            d.documentType === 'sumula' ||
+            d.documentType === 'sumula_stj' ||
+            d.documentType === 'sumula_stf' ||
+            d.documentType === 'sumula_vinculante'
           );
+          const referenceDocs = ragResults.filter(d => !citableDocs.includes(d));
 
-          console.log(`[Stream-RAG] Documentos encontrados: ${relevantDocs.length}`);
-          relevantDocs.forEach(d => console.log(`  - ${d.title} (${d.documentType}) sim=${d.similarity.toFixed(3)} [${d.searchMethod}]`));
+          knowledgeBaseContext = `\n\n## BASE DE CONHECIMENTO\n\n`;
 
-          if (relevantDocs.length > 0) {
-            const citableDocs = relevantDocs.filter(d => d.documentType === 'enunciado' || d.documentType === 'sumula');
-            const referenceDocs = relevantDocs.filter(d => d.documentType !== 'enunciado' && d.documentType !== 'sumula');
+          if (citableDocs.length > 0) {
+            knowledgeBaseContext += `### Súmulas e Enunciados Aplicáveis\n\n`;
+            citableDocs.forEach((doc) => {
+              const contentPreview = doc.content.length > 3000 ? doc.content.substring(0, 3000) + "..." : doc.content;
+              knowledgeBaseContext += `**${doc.title}**\n${contentPreview}\n\n`;
+            });
+            knowledgeBaseContext += `**INSTRUÇÃO:** Cite essas súmulas/enunciados EXPLICITAMENTE. São fontes oficiais.\n\n`;
+          }
 
-            knowledgeBaseContext = `\n\n## BASE DE CONHECIMENTO\n\n`;
-
-            if (citableDocs.length > 0) {
-              knowledgeBaseContext += `### Súmulas e Enunciados Aplicáveis\n\n`;
-              citableDocs.forEach((doc) => {
-                const contentPreview = doc.content.length > 3000 ? doc.content.substring(0, 3000) + "..." : doc.content;
-                knowledgeBaseContext += `**${doc.title}**\n${contentPreview}\n\n`;
-              });
-              knowledgeBaseContext += `**INSTRUÇÃO:** Cite essas súmulas/enunciados EXPLICITAMENTE. São fontes oficiais.\n\n`;
-            }
-
-            if (referenceDocs.length > 0) {
-              knowledgeBaseContext += `### Referências Internas\n\n`;
-              referenceDocs.forEach((doc) => {
-                const contentPreview = doc.content.length > 2000 ? doc.content.substring(0, 2000) + "..." : doc.content;
-                knowledgeBaseContext += `${contentPreview}\n\n`;
-              });
-            }
+          if (referenceDocs.length > 0) {
+            knowledgeBaseContext += `### Referências Internas\n\n`;
+            referenceDocs.forEach((doc) => {
+              const contentPreview = doc.content.length > 2000 ? doc.content.substring(0, 2000) + "..." : doc.content;
+              knowledgeBaseContext += `${contentPreview}\n\n`;
+            });
           }
         }
       } catch (error) {
         console.error("[Stream-RAG] Erro ao buscar documentos:", error);
       }
 
-      // MONTAGEM DINÂMICA DO CÉREBRO (Brain Assembly)
-      // Core (Universal) + Estilo + Módulo (JEC) + Orquestrador + Motores + Thinking
-      const baseSystemPrompt = `
-${CORE_IDENTITY}
-${CORE_TONE}
-${CORE_GATEKEEPER}
-${CORE_TRACEABILITY}
-${CORE_ZERO_TOLERANCE}
-${CORE_TRANSPARENCY}
-${CORE_STYLE}
-${CORE_THINKING}
-${JEC_CONTEXT}
-${CORE_ORCHESTRATOR}
-${CORE_MOTOR_A}
-${CORE_MOTOR_B}
-${CORE_MOTOR_C}
-${CORE_MOTOR_D}
-`;
+      // MONTAGEM DINÂMICA DO CÉREBRO (usando ContextBuilder)
+      const builder = createChatBuilder();
 
-      // Preferências de Estilo do Gabinete (CONCATENA, não substitui)
-      const stylePreferences = systemPromptOverride
-        ? `\n[PREFERÊNCIAS DE ESTILO DO GABINETE]\n${systemPromptOverride}`
-        : "";
-      const systemPrompt = baseSystemPrompt + stylePreferences;
+      // Injetar contexto do processo se houver
+      if (conversation.processId) {
+        const process = await getProcessForContext(conversation.processId);
+        if (process) {
+          builder.injectProcess({
+            processNumber: process.processNumber || undefined,
+            plaintiff: process.plaintiff || undefined,
+            defendant: process.defendant || undefined,
+            court: process.court || undefined,
+            subject: process.subject || undefined,
+            facts: process.facts || undefined,
+            requests: process.requests || undefined,
+          });
+        }
+      }
+
+      // Injetar contexto RAG
+      if (knowledgeBaseContext) {
+        builder.addSection("RAG", knowledgeBaseContext);
+      }
+
+      // Injetar contexto do processo (documentos)
+      if (processContext) {
+        builder.addSection("PROCESSO", processContext);
+      }
+
+      // Preferências de estilo
+      if (systemPromptOverride) {
+        builder.injectStylePreferences(systemPromptOverride);
+      }
+
+      const systemPrompt = builder.build();
       const llmMessages: Array<{ role: "system" | "user" | "assistant"; content: string }> = [
-        { role: "system", content: systemPrompt + knowledgeBaseContext + processContext },
+        { role: "system", content: systemPrompt },
       ];
 
       // Adicionar histórico
