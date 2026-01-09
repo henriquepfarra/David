@@ -183,10 +183,31 @@ async function startServer() {
       if (intentResult.ragScope !== "OFF") {
         try {
           const ragService = getRagService();
+
+          // Converter ragScope para filterTypes
+          let filterTypes: string[] | undefined;
+          if (intentResult.ragScope === "STF_STJ") {
+            filterTypes = ["sumula_stf", "sumula_stj", "sumula_vinculante"];
+          } else if (intentResult.ragScope === "FILTERED" && intentResult.ragFilter) {
+            // Filtros específicos como FONAJE, VINCULANTE, STJ, STF etc
+            const filterMap: Record<string, string[]> = {
+              "STJ": ["sumula_stj"],
+              "STF": ["sumula_stf"],
+              "FONAJE": ["enunciado"],
+              "VINCULANTE": ["sumula_vinculante"],
+              "ENUNCIADOS": ["enunciado"],
+              "REPETITIVOS": ["tema_repetitivo"],
+            };
+            filterTypes = filterMap[intentResult.ragFilter];
+          }
+          // ragScope === "ALL" ou "USER" não filtra por tipo
+
+          console.log(`[Stream-RAG] filterTypes: ${filterTypes?.join(",") || "ALL"}`);
+
           const ragResults = await ragService.searchWithHierarchy(content, {
             userId: user.id,
             limit: 12,
-            // TODO: Implementar filtro por ragScope e ragFilter
+            filterTypes,
           });
 
           console.log(`[Stream-RAG] Documentos encontrados: ${ragResults.length}`);

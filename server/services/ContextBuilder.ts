@@ -128,12 +128,18 @@ export class ContextBuilder {
 
     /**
      * Adiciona todos os blocos core padrão
+     * @param options.skipGatekeeper - Se true, não inclui CORE_GATEKEEPER (para quando não há arquivos)
      */
-    addAllCore(): this {
+    addAllCore(options: { skipGatekeeper?: boolean } = {}): this {
         this.sections.push(CORE_IDENTITY.trim());
         this.sections.push(CORE_TONE.trim());
-        this.sections.push(CORE_GATEKEEPER.trim());
-        this.sections.push(CORE_TRACEABILITY.trim());
+
+        // GATEKEEPER só é relevante quando há arquivos (Motor A ativo)
+        if (!options.skipGatekeeper) {
+            this.sections.push(CORE_GATEKEEPER.trim());
+            this.sections.push(CORE_TRACEABILITY.trim());
+        }
+
         this.sections.push(CORE_ZERO_TOLERANCE.trim());
         this.sections.push(CORE_TRANSPARENCY.trim());
 
@@ -401,9 +407,12 @@ export function createBuilderForIntent(
     intent: string,
     motors: Array<"A" | "B" | "C" | "D">
 ): ContextBuilder {
+    // Se Motor A não está ativo, não precisamos do GATEKEEPER (protocolo de leitura de arquivos)
+    const hasMotorA = motors.includes("A");
+
     const builder = new ContextBuilder()
         .enableThinking(true)
-        .addAllCore();
+        .addAllCore({ skipGatekeeper: !hasMotorA });
 
     // Configurar baseado no intent
     switch (intent) {
@@ -454,7 +463,16 @@ export function createAbstractBuilder(
 ): ContextBuilder {
     // Filtra Motor A para modo abstrato
     const safeMotors = motors.filter(m => m !== "A");
-    return createBuilderForIntent(intent, safeMotors as Array<"A" | "B" | "C" | "D">);
+    const builder = createBuilderForIntent(intent, safeMotors as Array<"A" | "B" | "C" | "D">);
+
+    // INSTRUÇÃO CRÍTICA: Bloquear DIAGNÓSTICO DE LEITURA em consultas abstratas
+    builder.addSection("NO_DIAGNOSTICO",
+        `**INSTRUÇÃO CRÍTICA:** Esta é uma consulta jurídica abstrata (sem documentos anexados). ` +
+        `NÃO gere "DIAGNÓSTICO DE LEITURA" ou "RESPOSTA TÉCNICA" formatada. ` +
+        `Responda de forma direta e objetiva, como um assistente jurídico respondendo uma pergunta conceitual.`
+    );
+
+    return builder;
 }
 
 /**

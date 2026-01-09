@@ -85,6 +85,7 @@ export default function David() {
     isStreaming,
     streamedContent: streamingMessage,
     thinkingContent: thinkingMessage,
+    statusMessage,
     streamMessage: performStream,
     stopGeneration,
     resetStream,
@@ -92,38 +93,66 @@ export default function David() {
 
   // Ref para armazenar thinking extraído permanentemente durante a sessão de streaming
   const extractedThinkingRef = useRef<string>("");
+  const wasStreamingRef = useRef<boolean>(false);
 
-  // Parse thinking tags from streaming message em tempo de render
+  // Resetar thinking ref quando UMA NOVA MENSAGEM COMEÇA (transição de não-streaming para streaming)
+  useEffect(() => {
+    if (isStreaming && !wasStreamingRef.current) {
+      // Nova mensagem começou - resetar ref
+      extractedThinkingRef.current = "";
+    }
+    wasStreamingRef.current = isStreaming;
+  }, [isStreaming]);
+
+  // Parse thinking: prioriza thinkingMessage do hook, depois tags no content
   const parsedStreaming = useMemo(() => {
+    // Se não há mensagem, limpa o ref de thinking imediatamente
+    if (!streamingMessage && !thinkingMessage) {
+      extractedThinkingRef.current = "";
+      return { thinking: "", content: "", inProgress: false };
+    }
+
     const raw = streamingMessage;
 
-    // Caso 1: Thinking completo (tag fechada) - extrair e armazenar permanentemente
+    // Fonte 1: thinkingMessage do hook (já vem separado do backend/protocolo v2)
+    if (thinkingMessage) {
+      extractedThinkingRef.current = thinkingMessage;
+      // Retornar content raw pois o thinking já foi removido pelo hook se usar protocolo v2
+      // Se for protocolo v1, precisamos remover as tags ainda
+      return {
+        thinking: extractedThinkingRef.current,
+        content: raw.replace(/<thinking>[\s\S]*?<\/thinking>\s*/g, "").replace(/<thinking>[\s\S]*/g, "").trim(),
+        inProgress: false
+      };
+    }
+
+    // Fonte 2: Parsing de tags <thinking> no content (fallback / protocolo v1)
     const completeMatch = raw.match(/<thinking>([\s\S]*?)<\/thinking>/);
     if (completeMatch) {
-      // Armazenar thinking no ref (permanente)
       extractedThinkingRef.current = completeMatch[1].trim();
-      // Retornar content sem as tags
-      const content = raw.replace(/<thinking>[\s\S]*?<\/thinking>\s*/g, "").trim();
-      return { thinking: extractedThinkingRef.current, content };
+    } else {
+      // Verifica se tem tag aberta mas não fechada
+      const openMatch = raw.match(/<thinking>([\s\S]*)/);
+      if (openMatch) {
+        extractedThinkingRef.current = openMatch[1].trim();
+        // IMPORTANTE: Se o thinking está aberto, o content deve ser vazio (esconde o thinking do chat)
+        return {
+          thinking: extractedThinkingRef.current,
+          content: raw.substring(0, openMatch.index).trim(), // Mostra apenas o que veio ANTES do thinking
+          inProgress: true
+        };
+      }
     }
 
-    // Caso 2: Thinking em progresso (tag aberta, não fechada ainda)
-    if (raw.includes("<thinking>") && !raw.includes("</thinking>")) {
-      const startIdx = raw.indexOf("<thinking>");
-      const thinking = raw.slice(startIdx + 10).trim();
-      // Não armazenar em ref ainda (ainda em progresso)
-      const content = raw.slice(0, startIdx).trim();
-      return { thinking, content, inProgress: true };
-    }
+    // Remover tags completas do content
+    const content = raw.replace(/<thinking>[\s\S]*?<\/thinking>\s*/g, "").trim();
 
-    // Caso 3: Sem tag no texto atual, mas pode ter thinking armazenado anteriormente
-    if (extractedThinkingRef.current) {
-      return { thinking: extractedThinkingRef.current, content: raw };
-    }
-
-    // Caso 4: Sem thinking, apenas conteúdo
-    return { thinking: "", content: raw };
-  }, [streamingMessage]);
+    return {
+      thinking: extractedThinkingRef.current,
+      content,
+      inProgress: raw.includes("<thinking>") && !raw.includes("</thinking>")
+    };
+  }, [streamingMessage, thinkingMessage]);
 
   // Ref para rastrear o último ID da URL (evita problemas de closure)
   const lastUrlIdRef = useRef<number | null>(selectedConversationId);
@@ -331,12 +360,14 @@ export default function David() {
   // Queries
   const { data: conversations, refetch: refetchConversations } = trpc.david.listConversations.useQuery();
   const { data: processes } = trpc.processes.list.useQuery();
-  const { data: conversationData, refetch: refetchMessages } = trpc.david.getConversation.useQuery(
+  const { data: conversationData, refetch: refetchMessages, isFetching } = trpc.david.getConversation.useQuery(
     { id: selectedConversationId! },
     {
       enabled: !!selectedConversationId,
-      staleTime: 1000, // Considera dados frescos por 1s (evita refetch desnecessário)
-      refetchOnWindowFocus: false, // Não refetch ao focar janela
+      staleTime: 30000, // 30s sem refetch automático
+      refetchOnWindowFocus: false,
+      refetchOnMount: false, // Não refetch ao montar
+      refetchOnReconnect: false, // Não refetch ao reconectar
     }
   );
 
@@ -624,12 +655,21 @@ export default function David() {
   // Função para fazer streaming (usando hook useChatStream)
   const streamMessage = async (conversationId: number, content: string) => {
     extractedThinkingRef.current = ""; // Limpar thinking da sessão anterior
+    // IMPORTANTE: Resetar stream do ANTERIOR aqui, no início da NOVA mensagem
+    // Isso evita o "piscar" porque a mensagem anterior já está renderizada do banco
+    resetStream();
 
     await performStream(conversationId, content, {
       onDone: async () => {
-        // IMPORTANTE: Primeiro buscar mensagens, DEPOIS limpar
+
+
+        // Buscar novas mensagens do banco (inclui a que acabou de ser salva)
         await refetchMessages();
-        await refetchMessages();
+
+
+
+        // AGORA resetar o stream - mensagens do banco já estão carregadas
+        // Isso elimina o gap visual entre isStreaming=false e mensagens do banco
         resetStream();
         setPendingUserMessage(null);
         // Gerar título automático após primeira resposta (se título é genérico)
@@ -1112,7 +1152,7 @@ export default function David() {
                         <div className="thinking-circle">
                           <img src={APP_LOGO} alt="D" className="thinking-logo" />
                         </div>
-                        <span className="text-sm text-muted-foreground">Só um segundo...</span>
+                        <span className="text-sm text-muted-foreground">{statusMessage}</span>
                       </div>
                     </div>
                   )}
@@ -1125,7 +1165,7 @@ export default function David() {
                         <img src={APP_LOGO} alt="D" className="w-[60px] h-[60px] object-contain" />
                         <div className="flex items-center gap-2 -ml-2">
                           <span className="font-semibold text-sm text-foreground/90">David</span>
-                          <span className="text-[10px] text-muted-foreground/80">• {parsedStreaming.content ? "Digitando..." : "Pensando..."}</span>
+                          <span className="text-[10px] text-muted-foreground/80">• {statusMessage}</span>
                         </div>
                       </div>
 

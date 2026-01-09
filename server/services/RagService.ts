@@ -168,7 +168,8 @@ export class RagService {
 
     /**
      * Busca com hierarquia de autoridade aplicada
-     * Súmulas Vinculantes ganham de tudo, STF ganha de STJ, etc.
+     * IMPORTANTE: Ordena por SIMILARIDADE primeiro.
+     * Hierarquia só é usada para resolver conflitos (mesmo número de súmula).
      */
     async searchWithHierarchy(
         query: string,
@@ -181,15 +182,9 @@ export class RagService {
 
         if (rawResults.length === 0) return [];
 
-        // Ordenar por: 1) autoridade, 2) similaridade
-        const sorted = rawResults.sort((a, b) => {
-            // Primeiro por autoridade (menor = melhor)
-            if (a.authorityLevel !== b.authorityLevel) {
-                return a.authorityLevel - b.authorityLevel;
-            }
-            // Depois por similaridade (maior = melhor)
-            return b.similarity - a.similarity;
-        });
+        // Ordenar APENAS por similaridade (maior = melhor)
+        // Hierarquia só é usada em resolveConflicts para súmulas de mesmo número
+        const sorted = rawResults.sort((a, b) => b.similarity - a.similarity);
 
         // Regra de conflito: Se tiver Vinculante, remove STF/STJ comuns sobre o mesmo tema
         const filtered = this.resolveConflicts(sorted);

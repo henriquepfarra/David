@@ -33,6 +33,7 @@ export interface UseChatStreamReturn {
     streamedContent: string;
     thinkingContent: string;
     error: string | null;
+    statusMessage: string;
 
     // Ações
     streamMessage: (conversationId: number, content: string, callbacks?: StreamCallbacks) => Promise<void>;
@@ -49,6 +50,7 @@ export function useChatStream(): UseChatStreamReturn {
     const [streamedContent, setStreamedContent] = useState("");
     const [thinkingContent, setThinkingContent] = useState("");
     const [error, setError] = useState<string | null>(null);
+    const [statusMessage, setStatusMessage] = useState("Pensando...");
 
     const abortControllerRef = useRef<AbortController | null>(null);
 
@@ -64,6 +66,22 @@ export function useChatStream(): UseChatStreamReturn {
         setStreamedContent("");
         setThinkingContent("");
         setError(null);
+        setStatusMessage("Conectando...");
+
+        // Mensagens de status variadas para dar sensação de atividade
+        const statusMessages = [
+            "Analisando sua solicitação...",
+            "Pesquisando base de dados...",
+            "Consultando jurisprudência...",
+            "Cruzando informações...",
+            "Verificando precedentes...",
+            "Processando resposta..."
+        ];
+        let messageIndex = 0;
+        const statusInterval = setInterval(() => {
+            messageIndex = (messageIndex + 1) % statusMessages.length;
+            setStatusMessage(statusMessages[messageIndex]);
+        }, 3500); // Muda a cada 3.5 segundos - ritmo mais profissional
 
         // Criar novo AbortController para este stream
         abortControllerRef.current = new AbortController();
@@ -119,7 +137,9 @@ export function useChatStream(): UseChatStreamReturn {
                         } else if (data.type === "thinking") {
                             setThinkingContent((prev) => prev + data.content);
                         } else if (data.type === "done") {
-                            setIsStreaming(false);
+                            clearInterval(statusInterval);
+                            // NÃO setar isStreaming=false aqui! O callback onDone fará isso
+                            // DEPOIS do refetch completar, evitando gap visual
                             callbacks?.onDone?.();
 
                             // Gerar título se necessário
@@ -127,6 +147,7 @@ export function useChatStream(): UseChatStreamReturn {
                                 callbacks.onTitleGenerate(conversationId);
                             }
                         } else if (data.type === "error") {
+                            clearInterval(statusInterval);
                             setError("Erro ao gerar resposta");
                             setIsStreaming(false);
                             callbacks?.onError?.("Erro ao gerar resposta");
@@ -137,6 +158,7 @@ export function useChatStream(): UseChatStreamReturn {
                 }
             }
         } catch (err) {
+            clearInterval(statusInterval);
             console.error("Stream error:", err);
 
             if (err instanceof Error && err.name === "AbortError") {
@@ -180,6 +202,7 @@ export function useChatStream(): UseChatStreamReturn {
         streamedContent,
         thinkingContent,
         error,
+        statusMessage,
         streamMessage,
         stopGeneration,
         resetStream,

@@ -73,7 +73,16 @@ const JURISPRUDENCE_PATTERNS = [
     /\b(jurisprudência|precedente|entendimento (do|da))\b/i,
 ];
 
+// Padrões para filtrar por tribunal específico
+const STJ_SPECIFIC_PATTERN = /\b(stj|superior tribunal de justiça)\b/i;
+const STF_SPECIFIC_PATTERN = /\b(stf|supremo|tribunal federal)\b/i;
+
 const SPECIFIC_PATTERNS: Array<{ pattern: RegExp; filter: string }> = [
+    // Adicionando STJ e STF como filtros específicos (maior prioridade que JURISPRUDENCE geral)
+    { pattern: /\bsúmula.{0,20}stj\b/i, filter: "STJ" },
+    { pattern: /\bstj.{0,20}súmula\b/i, filter: "STJ" },
+    { pattern: /\bsúmula.{0,20}stf\b/i, filter: "STF" },
+    { pattern: /\bstf.{0,20}súmula\b/i, filter: "STF" },
     { pattern: /\b(fonaje|fórum nacional)\b/i, filter: "FONAJE" },
     { pattern: /\bsúmula vinculante\b/i, filter: "VINCULANTE" },
     { pattern: /\benunciado\b/i, filter: "ENUNCIADOS" },
