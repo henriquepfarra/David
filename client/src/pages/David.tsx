@@ -182,17 +182,13 @@ export default function David() {
     // Escutar popstate (navegação via botões voltar/avançar)
     window.addEventListener('popstate', updateFromUrl);
 
-    // Poll interval para detectar mudanças via setLocation do wouter
-    const interval = setInterval(updateFromUrl, 100);
-
-    // Atualizar imediatamente
+    // Atualizar imediatamente quando location ou query string mudam
     updateFromUrl();
 
     return () => {
       window.removeEventListener('popstate', updateFromUrl);
-      clearInterval(interval);
     };
-  }, []); // Sem dependências - usa refs internamente
+  }, [location, resetStream]); // Reagir a mudanças de location do wouter
 
   // Estados para seleção múltipla
   const [isSelectionMode, setIsSelectionMode] = useState(false);
