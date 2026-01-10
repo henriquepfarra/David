@@ -575,18 +575,31 @@ export const davidRouter = router({
 
           // Buscar casos similares baseados no assunto
           if (process.subject) {
-            const keywords = process.subject.split(" ").filter(w => w.length > 3).slice(0, 5);
-            const similarTheses = await searchSimilarTheses(ctx.user.id, keywords);
+            // ✨ BUSCA SEMÂNTICA COM EMBEDDINGS (v2.0)
+            const { getRagService } = await import("./services/RagService");
+            const ragService = getRagService();
 
-            if (similarTheses.length > 0) {
+            // Buscar teses jurídicas (Motor C - Argumentação)
+            const legalTheses = await ragService.searchLegalTheses(
+              process.subject,
+              ctx.user.id,
+              { limit: 3, threshold: 0.6 }
+            );
+
+            if (legalTheses.length > 0) {
               similarCasesContext = `\n\n## MEMÓRIA: CASOS SIMILARES JÁ DECIDIDOS POR VOCÊ\n\n`;
-              similarCasesContext += `Encontrei ${similarTheses.length} decisões suas anteriores sobre temas relacionados. Use-as como referência:\n\n`;
+              similarCasesContext += `Encontrei ${legalTheses.length} decisões suas anteriores sobre temas relacionados. Use-as como referência:\n\n`;
 
-              similarTheses.forEach((thesis, index) => {
-                similarCasesContext += `### Precedente ${index + 1}\n`;
-                similarCasesContext += `**Tese Firmada:** ${thesis.thesis}\n`;
-                similarCasesContext += `**Fundamentos:** ${thesis.legalFoundations}\n`;
-                similarCasesContext += `**Palavras-chave:** ${thesis.keywords}\n\n`;
+              legalTheses.forEach((thesis, index) => {
+                similarCasesContext += `### Precedente ${index + 1} (Similaridade: ${(thesis.similarity * 100).toFixed(0)}%)\n`;
+                similarCasesContext += `**Tese Firmada:** ${thesis.legalThesis}\n`;
+                if (thesis.legalFoundations) {
+                  similarCasesContext += `**Fundamentos:** ${thesis.legalFoundations}\n`;
+                }
+                if (thesis.keywords) {
+                  similarCasesContext += `**Palavras-chave:** ${thesis.keywords}\n`;
+                }
+                similarCasesContext += `\n`;
               });
 
               similarCasesContext += `\n**INSTRUÇÃO:** Ao gerar minutas, considere essas decisões anteriores para manter consistência e aplicar teses já firmadas. Se houver divergência, mencione ao usuário.\n`;
@@ -835,20 +848,34 @@ ${CORE_MOTOR_D}
           }
           console.log(`[ProcessDocs] processDocsContext length: ${processDocsContext.length}`);
 
+
           // Buscar casos similares baseados no assunto
           if (process.subject) {
-            const keywords = process.subject.split(" ").filter(w => w.length > 3).slice(0, 5);
-            const similarTheses = await searchSimilarTheses(ctx.user.id, keywords);
+            // ✨ BUSCA SEMÂNTICA COM EMBEDDINGS (v2.0)
+            const { getRagService } = await import("./services/RagService");
+            const ragService = getRagService();
 
-            if (similarTheses.length > 0) {
+            // Buscar teses jurídicas (Motor C - Argumentação)
+            const legalTheses = await ragService.searchLegalTheses(
+              process.subject,
+              ctx.user.id,
+              { limit: 3, threshold: 0.6 }
+            );
+
+            if (legalTheses.length > 0) {
               similarCasesContext = `\n\n## MEMÓRIA: CASOS SIMILARES JÁ DECIDIDOS POR VOCÊ\n\n`;
-              similarCasesContext += `Encontrei ${similarTheses.length} decisões suas anteriores sobre temas relacionados. Use-as como referência:\n\n`;
+              similarCasesContext += `Encontrei ${legalTheses.length} decisões suas anteriores sobre temas relacionados. Use-as como referência:\n\n`;
 
-              similarTheses.forEach((thesis, index) => {
-                similarCasesContext += `### Precedente ${index + 1}\n`;
-                similarCasesContext += `**Tese Firmada:** ${thesis.thesis}\n`;
-                similarCasesContext += `**Fundamentos:** ${thesis.legalFoundations}\n`;
-                similarCasesContext += `**Palavras-chave:** ${thesis.keywords}\n\n`;
+              legalTheses.forEach((thesis, index) => {
+                similarCasesContext += `### Precedente ${index + 1} (Similaridade: ${(thesis.similarity * 100).toFixed(0)}%)\n`;
+                similarCasesContext += `**Tese Firmada:** ${thesis.legalThesis}\n`;
+                if (thesis.legalFoundations) {
+                  similarCasesContext += `**Fundamentos:** ${thesis.legalFoundations}\n`;
+                }
+                if (thesis.keywords) {
+                  similarCasesContext += `**Palavras-chave:** ${thesis.keywords}\n`;
+                }
+                similarCasesContext += `\n`;
               });
 
               similarCasesContext += `\n**INSTRUÇÃO:** Ao gerar minutas, considere essas decisões anteriores para manter consistência e aplicar teses já firmadas. Se houver divergência, mencione ao usuário.\n`;
