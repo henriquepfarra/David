@@ -13,6 +13,7 @@ import ProcessoDetalhes from "./pages/ProcessoDetalhes";
 import David from "./pages/David";
 import DavidPrompts from "./pages/DavidPrompts";
 import MemoriaDavid from "./pages/MemoriaDavid";
+import Intelligence from "./pages/Intelligence";
 import LocalAuth from "./pages/LocalAuth";
 
 function Router() {
@@ -27,6 +28,7 @@ function Router() {
       <Route path={"/david"} component={David} />
       <Route path={"/david/prompts"} component={DavidPrompts} />
       <Route path={"/david/memoria"} component={MemoriaDavid} />
+      <Route path={"/intelligence"} component={Intelligence} />
       <Route path={"/jurisprudencia"} component={Jurisprudencia} />
       <Route path={"/configuracoes"} component={Configuracoes} />
       <Route path={"/404"} component={NotFound} />
