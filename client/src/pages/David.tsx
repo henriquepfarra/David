@@ -410,6 +410,10 @@ export default function David() {
       setSelectedConversationId(data.id);
       refetchConversations();
     },
+    onError: (error) => {
+      toast.error("Erro ao criar conversa: " + error.message);
+      console.error("[CreateConv] Erro ao criar conversa:", error);
+    },
   });
 
   const utils = trpc.useUtils();
@@ -433,6 +437,10 @@ export default function David() {
     onSuccess: () => {
       refetchConversations(); // Atualiza lista de conversas na sidebar
     },
+    onError: (error) => {
+      console.error("[TitleGen] Erro ao gerar título:", error.message);
+      // Não mostrar toast pois é operação em background
+    },
   });
 
   // Mutation para limpar arquivo Google ao sair da conversa
@@ -454,6 +462,10 @@ export default function David() {
         console.log("Conversa vazia deletada automaticamente ao sair");
         refetchConversations();
       }
+    },
+    onError: (error) => {
+      console.error("[Cleanup] Erro ao limpar conversa vazia:", error.message);
+      // Não mostrar toast pois é operação em background
     },
   });
 
@@ -637,8 +649,17 @@ export default function David() {
       if (selectedConversationId) {
         // Usa sendBeacon para garantir que a requisição seja enviada
         // mesmo com o navegador fechando
-        const data = JSON.stringify({ conversationId: selectedConversationId });
-        navigator.sendBeacon('/api/david/cleanup', data);
+        try {
+          const data = JSON.stringify({ conversationId: selectedConversationId });
+          const blob = new Blob([data], { type: 'application/json' });
+          const queued = navigator.sendBeacon('/api/david/cleanup', blob);
+
+          if (!queued) {
+            console.warn('[Cleanup] sendBeacon falhou ao enfileirar requisição');
+          }
+        } catch (error) {
+          console.error('[Cleanup] Erro ao enviar beacon:', error);
+        }
       }
     };
 
@@ -657,21 +678,26 @@ export default function David() {
 
     await performStream(conversationId, content, {
       onDone: async () => {
+        try {
+          // Buscar novas mensagens do banco (inclui a que acabou de ser salva)
+          await refetchMessages();
 
+          // AGORA resetar o stream - mensagens do banco já estão carregadas
+          // Isso elimina o gap visual entre isStreaming=false e mensagens do banco
+          resetStream();
+          setPendingUserMessage(null);
 
-        // Buscar novas mensagens do banco (inclui a que acabou de ser salva)
-        await refetchMessages();
-
-
-
-        // AGORA resetar o stream - mensagens do banco já estão carregadas
-        // Isso elimina o gap visual entre isStreaming=false e mensagens do banco
-        resetStream();
-        setPendingUserMessage(null);
-        // Gerar título automático após primeira resposta (se título é genérico)
-        const currentTitle = conversationData?.conversation?.title?.trim();
-        if (conversationId && (!currentTitle || currentTitle.toLowerCase() === "nova conversa")) {
-          generateTitleMutation.mutate({ conversationId });
+          // Gerar título automático após primeira resposta (se título é genérico)
+          const currentTitle = conversationData?.conversation?.title?.trim();
+          if (conversationId && (!currentTitle || currentTitle.toLowerCase() === "nova conversa")) {
+            generateTitleMutation.mutate({ conversationId });
+          }
+        } catch (error) {
+          console.error("[Stream] Erro ao finalizar streaming:", error);
+          toast.error("Resposta recebida, mas houve erro ao atualizar mensagens");
+          // Garantir que estados sejam resetados mesmo com erro
+          resetStream();
+          setPendingUserMessage(null);
         }
       },
       onError: (error) => {

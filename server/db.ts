@@ -7,6 +7,7 @@ import {
 } from "../drizzle/schema";
 import * as schema from "../drizzle/schema";
 import { ENV } from './_core/env';
+import { logger } from './_core/logger';
 
 let _db: MySql2Database<typeof schema> | null = null;
 export { _db as db };
@@ -24,7 +25,7 @@ export async function getDb() {
         waitForConnections: true
       });
       _db = drizzle(connectionPool, { mode: "default", schema });
-      console.log("[Database] ✅ Connected to MySQL successfully");
+      logger.info("[Database] ✅ Connected to MySQL successfully");
     } catch (error) {
       console.error("[Database] ❌ Failed to connect to MySQL:", error);
       if (process.env.NODE_ENV !== "development") {
@@ -46,7 +47,7 @@ export async function upsertUser(user: InsertUser): Promise<void> {
     // If DB is not available in development, we allow upserting the dev user silently
     // effectively doing nothing but preventing the crash.
     if (process.env.NODE_ENV === "development" && user.openId === "dev-user-id") {
-      console.log("[Database] Dev mode: Mock upsert for dev user");
+      logger.debug("[Database] Dev mode: Mock upsert for dev user");
       return;
     }
     console.warn("[Database] Cannot upsert user: database not available");
@@ -106,7 +107,7 @@ export async function getUserByOpenId(openId: string) {
   if (!db) {
     // In dev mode, return a mock user if DB is down
     if (process.env.NODE_ENV === "development" && openId === "dev-user-id") {
-      console.log("[Database] Dev mode: Returning mock user for", openId);
+      logger.debug("[Database] Dev mode: Returning mock user for", openId);
       const { users } = await import("../drizzle/schema");
       // Return a mock implementation of the User type
       // We need to cast it or match the shape perfectly. 
@@ -391,7 +392,7 @@ export async function deleteEmptyConversations(userId: number) {
     // 4. Deletar
     if (idsToDelete.length > 0) {
       await db.delete(conversations).where(inArray(conversations.id, idsToDelete));
-      console.log(`[Cleanup] Deletadas ${idsToDelete.length} conversas vazias automaticamente.`);
+      logger.info(`[Cleanup] Deletadas ${idsToDelete.length} conversas vazias automaticamente.`);
     }
   } catch (err) {
     console.error("[Cleanup] Erro ao limpar conversas vazias:", err);
