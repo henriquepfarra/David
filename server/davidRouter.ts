@@ -1199,26 +1199,18 @@ Diretrizes de Execução:
           ...input,
         });
 
-        // Se foi aprovada (não rejeitada), extrair tese automaticamente
+        // ✨ ACTIVE LEARNING v2.0: Trigger de extração com Quality Gate
         if (input.approvalStatus !== "rejected") {
-          try {
-            const draftContent = input.editedDraft || input.originalDraft;
-            const extracted = await extractThesisFromDraft(draftContent, input.draftType);
-
-            // Salvar tese extraída
-            await createLearnedThesis({
-              userId: ctx.user.id,
-              approvedDraftId: draftId,
-              processId: input.processId,
-              thesis: extracted.thesis,
-              legalFoundations: extracted.legalFoundations,
-              keywords: extracted.keywords,
-              decisionPattern: extracted.decisionPattern,
+          // Chamar ThesisLearningService em background (não bloqueia resposta)
+          const { getThesisLearningService } = await import("./services/ThesisLearningService");
+          getThesisLearningService()
+            .processApprovedDraft(draftId)
+            .then(() => {
+              console.log(`[ActiveLearning] Tese extraída com sucesso para draft #${draftId}`);
+            })
+            .catch((error) => {
+              console.error(`[ActiveLearning] Erro ao extrair tese do draft #${draftId}:`, error);
             });
-          } catch (error) {
-            console.error("Erro ao extrair tese automaticamente:", error);
-            // Não falhar a aprovação se a extração falhar
-          }
         }
 
         return { id: draftId };
