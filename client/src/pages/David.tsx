@@ -182,17 +182,13 @@ export default function David() {
     // Escutar popstate (navegação via botões voltar/avançar)
     window.addEventListener('popstate', updateFromUrl);
 
-    // Poll interval para detectar mudanças via setLocation do wouter
-    const interval = setInterval(updateFromUrl, 100);
-
-    // Atualizar imediatamente
+    // Atualizar imediatamente quando location ou query string mudam
     updateFromUrl();
 
     return () => {
       window.removeEventListener('popstate', updateFromUrl);
-      clearInterval(interval);
     };
-  }, []); // Sem dependências - usa refs internamente
+  }, [location, resetStream]); // Reagir a mudanças de location do wouter
 
   // Estados para seleção múltipla
   const [isSelectionMode, setIsSelectionMode] = useState(false);
@@ -355,7 +351,12 @@ export default function David() {
 
 
   // Mutation para upload de documentos
-  const uploadDocMutation = trpc.processDocuments.upload.useMutation();
+  const uploadDocMutation = trpc.processDocuments.upload.useMutation({
+    onError: (error) => {
+      console.error("[UploadDoc] Erro ao fazer upload:", error);
+      // Erro já é tratado no catch onde mutateAsync é chamado
+    },
+  });
 
   // Queries
   const { data: conversations, refetch: refetchConversations } = trpc.david.listConversations.useQuery();
@@ -414,6 +415,10 @@ export default function David() {
       setSelectedConversationId(data.id);
       refetchConversations();
     },
+    onError: (error) => {
+      toast.error("Erro ao criar conversa: " + error.message);
+      console.error("[CreateConv] Erro ao criar conversa:", error);
+    },
   });
 
   const utils = trpc.useUtils();
@@ -437,6 +442,10 @@ export default function David() {
     onSuccess: () => {
       refetchConversations(); // Atualiza lista de conversas na sidebar
     },
+    onError: (error) => {
+      console.error("[TitleGen] Erro ao gerar título:", error.message);
+      // Não mostrar toast pois é operação em background
+    },
   });
 
   // Mutation para limpar arquivo Google ao sair da conversa
@@ -458,6 +467,10 @@ export default function David() {
         console.log("Conversa vazia deletada automaticamente ao sair");
         refetchConversations();
       }
+    },
+    onError: (error) => {
+      console.error("[Cleanup] Erro ao limpar conversa vazia:", error.message);
+      // Não mostrar toast pois é operação em background
     },
   });
 
@@ -533,6 +546,27 @@ export default function David() {
     if (acceptedFiles.length === 0) return;
 
     const file = acceptedFiles[0];
+
+    // Validação de tamanho (máximo 50MB)
+    const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB em bytes
+    if (file.size > MAX_FILE_SIZE) {
+      toast.error(`Arquivo muito grande! Tamanho máximo: 50MB. Tamanho do arquivo: ${(file.size / 1024 / 1024).toFixed(2)}MB`);
+      return;
+    }
+
+    // Validação de tipo de arquivo
+    const allowedTypes = ['application/pdf'];
+    if (!allowedTypes.includes(file.type)) {
+      toast.error(`Tipo de arquivo não permitido: ${file.type}. Apenas PDF é aceito.`);
+      return;
+    }
+
+    // Validação de extensão (dupla verificação)
+    const extension = file.name.split('.').pop()?.toLowerCase();
+    if (extension !== 'pdf') {
+      toast.error(`Extensão não permitida: .${extension}. Apenas .pdf é aceito.`);
+      return;
+    }
 
     // Inicia estado de loading
     setUploadState({
@@ -633,7 +667,7 @@ export default function David() {
         });
       }
     };
-  }, []);
+  }, [cleanupIfEmptyMutation]);
 
   // Effect para cleanup ao fechar o navegador
   useEffect(() => {
@@ -641,8 +675,17 @@ export default function David() {
       if (selectedConversationId) {
         // Usa sendBeacon para garantir que a requisição seja enviada
         // mesmo com o navegador fechando
-        const data = JSON.stringify({ conversationId: selectedConversationId });
-        navigator.sendBeacon('/api/david/cleanup', data);
+        try {
+          const data = JSON.stringify({ conversationId: selectedConversationId });
+          const blob = new Blob([data], { type: 'application/json' });
+          const queued = navigator.sendBeacon('/api/david/cleanup', blob);
+
+          if (!queued) {
+            console.warn('[Cleanup] sendBeacon falhou ao enfileirar requisição');
+          }
+        } catch (error) {
+          console.error('[Cleanup] Erro ao enviar beacon:', error);
+        }
       }
     };
 
@@ -661,21 +704,26 @@ export default function David() {
 
     await performStream(conversationId, content, {
       onDone: async () => {
+        try {
+          // Buscar novas mensagens do banco (inclui a que acabou de ser salva)
+          await refetchMessages();
 
+          // AGORA resetar o stream - mensagens do banco já estão carregadas
+          // Isso elimina o gap visual entre isStreaming=false e mensagens do banco
+          resetStream();
+          setPendingUserMessage(null);
 
-        // Buscar novas mensagens do banco (inclui a que acabou de ser salva)
-        await refetchMessages();
-
-
-
-        // AGORA resetar o stream - mensagens do banco já estão carregadas
-        // Isso elimina o gap visual entre isStreaming=false e mensagens do banco
-        resetStream();
-        setPendingUserMessage(null);
-        // Gerar título automático após primeira resposta (se título é genérico)
-        const currentTitle = conversationData?.conversation?.title?.trim();
-        if (conversationId && (!currentTitle || currentTitle.toLowerCase() === "nova conversa")) {
-          generateTitleMutation.mutate({ conversationId });
+          // Gerar título automático após primeira resposta (se título é genérico)
+          const currentTitle = conversationData?.conversation?.title?.trim();
+          if (conversationId && (!currentTitle || currentTitle.toLowerCase() === "nova conversa")) {
+            generateTitleMutation.mutate({ conversationId });
+          }
+        } catch (error) {
+          console.error("[Stream] Erro ao finalizar streaming:", error);
+          toast.error("Resposta recebida, mas houve erro ao atualizar mensagens");
+          // Garantir que estados sejam resetados mesmo com erro
+          resetStream();
+          setPendingUserMessage(null);
         }
       },
       onError: (error) => {

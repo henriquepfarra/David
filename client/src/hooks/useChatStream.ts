@@ -8,7 +8,7 @@
  * - Tratar erros de conexão
  */
 
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 
 // ============================================
 // TIPOS
@@ -53,6 +53,23 @@ export function useChatStream(): UseChatStreamReturn {
     const [statusMessage, setStatusMessage] = useState("Pensando...");
 
     const abortControllerRef = useRef<AbortController | null>(null);
+    const statusIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+    // Cleanup ao desmontar componente
+    useEffect(() => {
+        return () => {
+            // Limpar interval se ainda estiver rodando
+            if (statusIntervalRef.current) {
+                clearInterval(statusIntervalRef.current);
+                statusIntervalRef.current = null;
+            }
+            // Abortar requisição se ainda estiver em andamento
+            if (abortControllerRef.current) {
+                abortControllerRef.current.abort();
+                abortControllerRef.current = null;
+            }
+        };
+    }, []);
 
     /**
      * Inicia streaming de mensagem para o servidor
@@ -68,6 +85,12 @@ export function useChatStream(): UseChatStreamReturn {
         setError(null);
         setStatusMessage("Conectando...");
 
+        // Limpar interval anterior se existir
+        if (statusIntervalRef.current) {
+            clearInterval(statusIntervalRef.current);
+            statusIntervalRef.current = null;
+        }
+
         // Mensagens de status variadas para dar sensação de atividade
         const statusMessages = [
             "Analisando sua solicitação...",
@@ -78,7 +101,7 @@ export function useChatStream(): UseChatStreamReturn {
             "Processando resposta..."
         ];
         let messageIndex = 0;
-        const statusInterval = setInterval(() => {
+        statusIntervalRef.current = setInterval(() => {
             messageIndex = (messageIndex + 1) % statusMessages.length;
             setStatusMessage(statusMessages[messageIndex]);
         }, 3500); // Muda a cada 3.5 segundos - ritmo mais profissional
@@ -137,7 +160,10 @@ export function useChatStream(): UseChatStreamReturn {
                         } else if (data.type === "thinking") {
                             setThinkingContent((prev) => prev + data.content);
                         } else if (data.type === "done") {
-                            clearInterval(statusInterval);
+                            if (statusIntervalRef.current) {
+                                clearInterval(statusIntervalRef.current);
+                                statusIntervalRef.current = null;
+                            }
                             // NÃO setar isStreaming=false aqui! O callback onDone fará isso
                             // DEPOIS do refetch completar, evitando gap visual
                             callbacks?.onDone?.();
@@ -147,7 +173,10 @@ export function useChatStream(): UseChatStreamReturn {
                                 callbacks.onTitleGenerate(conversationId);
                             }
                         } else if (data.type === "error") {
-                            clearInterval(statusInterval);
+                            if (statusIntervalRef.current) {
+                                clearInterval(statusIntervalRef.current);
+                                statusIntervalRef.current = null;
+                            }
                             setError("Erro ao gerar resposta");
                             setIsStreaming(false);
                             callbacks?.onError?.("Erro ao gerar resposta");
@@ -158,7 +187,10 @@ export function useChatStream(): UseChatStreamReturn {
                 }
             }
         } catch (err) {
-            clearInterval(statusInterval);
+            if (statusIntervalRef.current) {
+                clearInterval(statusIntervalRef.current);
+                statusIntervalRef.current = null;
+            }
             console.error("Stream error:", err);
 
             if (err instanceof Error && err.name === "AbortError") {
@@ -172,6 +204,11 @@ export function useChatStream(): UseChatStreamReturn {
 
             setIsStreaming(false);
         } finally {
+            // Garantir que interval seja limpo mesmo em casos não tratados
+            if (statusIntervalRef.current) {
+                clearInterval(statusIntervalRef.current);
+                statusIntervalRef.current = null;
+            }
             abortControllerRef.current = null;
         }
     }, []);
@@ -184,6 +221,11 @@ export function useChatStream(): UseChatStreamReturn {
             abortControllerRef.current.abort();
             setIsStreaming(false);
             // Mantém o conteúdo streamado para exibição
+        }
+        // Limpar interval de status ao parar
+        if (statusIntervalRef.current) {
+            clearInterval(statusIntervalRef.current);
+            statusIntervalRef.current = null;
         }
     }, []);
 

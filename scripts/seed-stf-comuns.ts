@@ -49,7 +49,7 @@ async function seedStfComuns(): Promise<void> {
     const sumulaRegex = /S\s*Ú\s*M\s*U\s*L\s*A\s+(\d+)\s+(.*?)(?=Data de Aprovação|S\s*Ú\s*M\s*U\s*L\s*A\s+\d+|$)/gi;
 
     let match;
-    let counts = { created: 0, updated: 0, skipped: 0 };
+    let counts = { created: 0, updated: 0, skipped: 0, embeddingErrors: 0 };
 
     const sumulasEncontradas = [];
 
@@ -95,7 +95,13 @@ async function seedStfComuns(): Promise<void> {
                 // Update
                 const textToEmbed = `${titulo}\n${conteudo}\nStatus: ${tags.join(", ")}`;
                 let embedding = null;
-                try { embedding = await generateEmbedding(textToEmbed); } catch { }
+                try {
+                    embedding = await generateEmbedding(textToEmbed);
+                } catch (error) {
+                    console.warn(`⚠️  Falha ao gerar embedding para ${titulo}:`, error instanceof Error ? error.message : String(error));
+                    console.warn(`   Documento será atualizado sem embedding (busca semântica não funcionará)`);
+                    counts.embeddingErrors++;
+                }
 
                 await db.update(knowledgeBase).set({
                     content: conteudo,
@@ -112,7 +118,13 @@ async function seedStfComuns(): Promise<void> {
             // Insert
             const textToEmbed = `${titulo}\n${conteudo}\nStatus: ${tags.join(", ")}`;
             let embedding = null;
-            try { embedding = await generateEmbedding(textToEmbed); } catch { }
+            try {
+                embedding = await generateEmbedding(textToEmbed);
+            } catch (error) {
+                console.warn(`⚠️  Falha ao gerar embedding para ${titulo}:`, error instanceof Error ? error.message : String(error));
+                console.warn(`   Documento será criado sem embedding (busca semântica não funcionará)`);
+                counts.embeddingErrors++;
+            }
 
             await db.insert(knowledgeBase).values({
                 userId: 1,
@@ -136,6 +148,9 @@ async function seedStfComuns(): Promise<void> {
     console.log(`   ✅ Criados: ${counts.created}`);
     console.log(`   🔄 Atualizados: ${counts.updated}`);
     console.log(`   💤 Ignorados: ${counts.skipped}`);
+    if (counts.embeddingErrors > 0) {
+        console.log(`   ⚠️  Erros de Embedding: ${counts.embeddingErrors}`);
+    }
     console.log("=".repeat(50));
 }
 

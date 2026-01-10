@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { protectedProcedure, router } from "./_core/trpc";
+import { logger } from "./_core/logger";
 import {
   createConversation,
   getUserConversations,
@@ -351,7 +352,7 @@ export const davidRouter = router({
         try {
           const { deleteFileFromGoogle } = await import("./_core/fileApi");
           await deleteFileFromGoogle(googleFile.googleFileName);
-          console.log(`[Cleanup] Arquivo ${googleFile.googleFileName} deletado do Google`);
+          logger.info(`[Cleanup] Arquivo ${googleFile.googleFileName} deletado do Google`);
         } catch (error) {
           console.error("[Cleanup] Erro ao deletar arquivo do Google:", error);
         }
@@ -422,7 +423,7 @@ export const davidRouter = router({
         if (conversation.processId) {
           const process = await getProcessForContext(conversation.processId);
           if (process) {
-            console.log(`[DavidRouter] Detectado comando: ${input.content}. Verificando prompts salvos...`);
+            logger.debug(`[DavidRouter] Detectado comando: ${input.content}. Verificando prompts salvos...`);
             const commandResult = await executeSavedPrompt({
               userId: ctx.user.id,
               promptCommand: input.content,
@@ -431,7 +432,7 @@ export const davidRouter = router({
             });
 
             if (commandResult) {
-              console.log(`[DavidRouter] Prompt executado com sucesso: ${input.content}`);
+              logger.debug(`[DavidRouter] Prompt executado com sucesso: ${input.content}`);
               // Salvar resposta do assistente
               await createMessage({
                 conversationId: input.conversationId,
@@ -470,7 +471,7 @@ export const davidRouter = router({
         generateConversationTitle(input.content, processInfo)
           .then(async (title) => {
             await updateConversationTitle(input.conversationId, title);
-            console.log(`[DAVID] Título gerado automaticamente: "${title}"`);
+            logger.info(`[DAVID] Título gerado automaticamente: "${title}"`);
           })
           .catch((error) => {
             console.error('[DAVID] Erro ao gerar título:', error);
@@ -481,7 +482,7 @@ export const davidRouter = router({
       let knowledgeBaseContext = "";
       try {
         const allDocs = await getUserKnowledgeBase(ctx.user.id);
-        console.log(`[RAG] Total de documentos na base: ${allDocs.length}`);
+        logger.debug(`[RAG] Total de documentos na base: ${allDocs.length}`);
         if (allDocs.length > 0) {
           // Buscar documentos similares à mensagem do usuário (Busca Híbrida: TF-IDF + Embeddings)
           const relevantDocs = await hybridSearch(
@@ -499,7 +500,7 @@ export const davidRouter = router({
             }
           );
 
-          console.log(`[RAG] Documentos encontrados: ${relevantDocs.length} (método: ${relevantDocs[0]?.searchMethod || 'n/a'})`);
+          logger.debug(`[RAG] Documentos encontrados: ${relevantDocs.length} (método: ${relevantDocs[0]?.searchMethod || 'n/a'})`);
 
           if (relevantDocs.length > 0) {
             // Separar documentos citáveis (enunciados e súmulas) de não-citáveis
@@ -555,9 +556,9 @@ export const davidRouter = router({
 
           // Buscar documentos do processo
           try {
-            console.log(`[ProcessDocs] Buscando documentos para processId=${conversation.processId}, userId=${ctx.user.id}`);
+            logger.debug(`[ProcessDocs] Buscando documentos para processId=${conversation.processId}, userId=${ctx.user.id}`);
             const processDocs = await getProcessDocuments(conversation.processId, ctx.user.id);
-            console.log(`[ProcessDocs] Encontrados ${processDocs.length} documentos`);
+            logger.debug(`[ProcessDocs] Encontrados ${processDocs.length} documentos`);
             if (processDocs.length > 0) {
               processDocsContext = `\n\n### DOCUMENTOS DO PROCESSO\n\n`;
               processDocs.forEach((doc: any) => {
@@ -571,7 +572,7 @@ export const davidRouter = router({
           } catch (error) {
             console.error("[ProcessDocs] Erro ao buscar documentos:", error);
           }
-          console.log(`[ProcessDocs] processDocsContext length: ${processDocsContext.length}`);
+          logger.debug(`[ProcessDocs] processDocsContext length: ${processDocsContext.length}`);
 
           // Buscar casos similares baseados no assunto
           if (process.subject) {
@@ -694,7 +695,7 @@ ${CORE_MOTOR_D}
         if (conversation.processId) {
           const process = await getProcessForContext(conversation.processId);
           if (process) {
-            console.log(`[DavidRouter] Detectado comando (Stream): ${input.content}`);
+            logger.debug(`[DavidRouter] Detectado comando (Stream): ${input.content}`);
             const commandResult = await executeSavedPrompt({
               userId: ctx.user.id,
               promptCommand: input.content,
@@ -745,7 +746,7 @@ ${CORE_MOTOR_D}
         generateConversationTitle(input.content, processInfo)
           .then(async (title) => {
             await updateConversationTitle(input.conversationId, title);
-            console.log(`[DAVID] Título gerado automaticamente: "${title}"`);
+            logger.info(`[DAVID] Título gerado automaticamente: "${title}"`);
           })
           .catch((error) => {
             console.error('[DAVID] Erro ao gerar título:', error);
@@ -830,9 +831,9 @@ ${CORE_MOTOR_D}
 
           // Buscar documentos do processo
           try {
-            console.log(`[ProcessDocs] Buscando documentos para processId=${conversation.processId}, userId=${ctx.user.id}`);
+            logger.debug(`[ProcessDocs] Buscando documentos para processId=${conversation.processId}, userId=${ctx.user.id}`);
             const processDocs = await getProcessDocuments(conversation.processId, ctx.user.id);
-            console.log(`[ProcessDocs] Encontrados ${processDocs.length} documentos`);
+            logger.debug(`[ProcessDocs] Encontrados ${processDocs.length} documentos`);
             if (processDocs.length > 0) {
               processDocsContext = `\n\n### DOCUMENTOS DO PROCESSO\n\n`;
               processDocs.forEach((doc: any) => {
@@ -846,7 +847,7 @@ ${CORE_MOTOR_D}
           } catch (error) {
             console.error("[ProcessDocs] Erro ao buscar documentos:", error);
           }
-          console.log(`[ProcessDocs] processDocsContext length: ${processDocsContext.length}`);
+          logger.debug(`[ProcessDocs] processDocsContext length: ${processDocsContext.length}`);
 
 
           // Buscar casos similares baseados no assunto

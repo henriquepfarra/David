@@ -261,7 +261,7 @@ function DashboardLayoutContent({
       document.body.style.cursor = "";
       document.body.style.userSelect = "";
     };
-  }, [isResizing, setSidebarWidth]);
+  }, [isResizing]); // setSidebarWidth é estável (função setter do useState)
 
   const handleNewChat = () => {
     // Navega para a Home - a conversa será criada quando o usuário enviar uma mensagem
@@ -296,17 +296,13 @@ function DashboardLayoutContent({
     // Escutar popstate (navegação via botões voltar/avançar)
     window.addEventListener('popstate', updateConversationId);
 
-    // Poll interval para detectar mudanças via setLocation do wouter
-    const interval = setInterval(updateConversationId, 100);
-
-    // Atualizar imediatamente
+    // Atualizar imediatamente quando location muda
     updateConversationId();
 
     return () => {
       window.removeEventListener('popstate', updateConversationId);
-      clearInterval(interval);
     };
-  }, []); // Sem dependências - usa refs internamente
+  }, [location]); // Reagir a mudanças de location do wouter
 
   return (
     <>
