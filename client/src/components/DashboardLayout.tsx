@@ -38,7 +38,6 @@ import { DashboardLayoutSkeleton } from './DashboardLayoutSkeleton';
 import { MemoriaJuridicaMenuItem } from './MemoriaJuridicaMenuItem';
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
-import { ScrollArea } from "./ui/scroll-area";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "./ui/dialog";
 import { Checkbox } from "./ui/checkbox";
 import { trpc } from "@/lib/trpc";
@@ -457,7 +456,7 @@ function DashboardLayoutContent({
                     </button>
                   </div>
                 )}
-                <ScrollArea className="flex-1 px-2">
+                <div className="flex-1 px-2 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300">
                   {groupedConversations && Object.entries(groupedConversations).map(([group, convs]) => (
                     <div key={group} className="mb-4 overflow-hidden">
                       <p className="text-xs text-muted-foreground font-medium px-2 py-1">
@@ -556,7 +555,7 @@ function DashboardLayoutContent({
                       ))}
                     </div>
                   ))}
-                </ScrollArea>
+                </div>
               </>
             )}
           </SidebarContent>

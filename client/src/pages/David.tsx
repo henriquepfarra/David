@@ -17,7 +17,6 @@ import {
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input"; // Adicionado Input
 import { Badge } from "@/components/ui/badge"; // Adicionado Badge
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Loader2, Send, Plus, Trash2, FileText, Settings, BookMarked, X, Check, Edit, XCircle, ArrowLeft, ArrowDown, ArrowRight, Pencil, Upload, MessageSquare, ChevronRight, ChevronDown, Pin, PinOff, Gavel, Brain, Mic, Wand2, MoreVertical, Eye, CheckSquare, Search, Folder, FolderOpen, Bot } from "lucide-react";
 
 
@@ -82,7 +81,6 @@ export default function David() {
   const [selectedProcessId, setSelectedProcessId] = useState<number | undefined>();
   const [messageInput, setMessageInput] = useState("");
   const [pendingUserMessage, setPendingUserMessage] = useState<string | null>(null); // Mensagem otimista do usuário
-  const scrollRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const previousConversationIdRef = useRef<number | null>(null);
 
@@ -151,11 +149,12 @@ export default function David() {
 
   // Ref para rastrear o último ID da URL (evita problemas de closure)
   const lastUrlIdRef = useRef<number | null>(selectedConversationId);
+  // Ref para garantir acesso ao ID mais recente nos callbacks (race condition fix)
+  const selectedConversationIdRef = useRef<number | null>(selectedConversationId);
 
   // Sincronizar selectedConversationId com URL quando muda
   useEffect(() => {
-    debugLog('David.tsx - useEffect[location]', 'Effect triggered', { location, resetStream: typeof resetStream });
-
+    selectedConversationIdRef.current = selectedConversationId;
     const updateFromUrl = () => {
       const params = new URLSearchParams(window.location.search);
       const cParam = params.get("c");
@@ -470,6 +469,16 @@ export default function David() {
     },
   });
 
+  // Mutation para atualizar arquivo Google na conversa
+  const updateGoogleFileMutation = trpc.david.updateGoogleFile.useMutation({
+    onSuccess: () => {
+      console.log("[UpdateGoogle] Arquivo vinculado à conversa");
+    },
+    onError: (error) => {
+      console.error("[UpdateGoogle] Erro:", error.message);
+    },
+  });
+
   // Mutation para limpar arquivo Google ao sair da conversa
   const cleanupGoogleFileMutation = trpc.david.cleanupGoogleFile.useMutation({
     onSuccess: () => {
@@ -504,7 +513,31 @@ export default function David() {
     error: string | null;
   }>({ isUploading: false, stage: null, fileName: null, error: null });
 
-  // Mutation nova para cadastro silencioso
+  // Mutation para upload rápido (NOVO)
+  const uploadPdfQuickMutation = trpc.processes.uploadPdfQuick.useMutation({
+    onSuccess: (data) => {
+      console.log("[UploadQuick] Upload completo:", data);
+
+      // Conversa já deve existir (criada no onDrop)
+      const currentConvId = selectedConversationIdRef.current || selectedConversationId;
+      if (currentConvId) {
+        updateGoogleFileMutation.mutate({
+          conversationId: currentConvId,
+          googleFileUri: data.fileUri,
+          googleFileName: data.displayName,
+        });
+      }
+
+      toast.success("📄 PDF anexado! Faça sua primeira pergunta.");
+      setUploadState({ isUploading: false, stage: null, fileName: null, error: null });
+    },
+    onError: (error) => {
+      console.error("[UploadQuick] Erro:", error);
+      setUploadState(prev => ({ ...prev, isUploading: false, error: error.message }));
+      toast.error("Erro no upload: " + error.message);
+    }
+  });
+
   const registerFromUploadMutation = trpc.processes.registerFromUpload.useMutation({
     onSuccess: async (data) => {
       debugLog('David.tsx - registerFromUpload', 'SUCCESS', {
@@ -587,6 +620,22 @@ export default function David() {
 
     const file = acceptedFiles[0];
 
+    // Criar conversa se não existir
+    let conversationId = selectedConversationId;
+    if (!conversationId) {
+      try {
+        const newConv = await createConversationMutation.mutateAsync({
+          title: file.name.replace('.pdf', '') || "Nova Conversa",
+        });
+        conversationId = newConv.id;
+        setSelectedConversationId(newConv.id);
+        selectedConversationIdRef.current = newConv.id; // Atualiza ref imediatamente
+      } catch (error: any) {
+        toast.error("Erro ao criar conversa: " + error.message);
+        return;
+      }
+    }
+
     // Validação de tamanho (máximo 50MB)
     const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB em bytes
     if (file.size > MAX_FILE_SIZE) {
@@ -617,7 +666,7 @@ export default function David() {
     });
 
     try {
-      // Stage 1: Enviando arquivo
+      // Converter para base64
       const buffer = await file.arrayBuffer();
       const base64 = btoa(
         new Uint8Array(buffer)
@@ -625,15 +674,8 @@ export default function David() {
       );
       const extension = file.name.split('.').pop()?.toLowerCase() || 'pdf';
 
-      // Stage 2: Lendo documento
-      setUploadState(prev => ({ ...prev, stage: 'reading' }));
-
-      // Stage 3: Extraindo metadados
-      setUploadState(prev => ({ ...prev, stage: 'extracting' }));
-
-      await registerFromUploadMutation.mutateAsync({
-        text: "", // Força extração no servidor via File API
-        images: [],
+      // Upload rápido
+      await uploadPdfQuickMutation.mutateAsync({
         filename: file.name,
         fileData: base64,
         fileType: extension
@@ -699,15 +741,20 @@ export default function David() {
   }, [selectedConversationId]);
 
   // Effect para cleanup ao desmontar componente (navegação para outra rota)
+  // Effect para cleanup ao desmontar componente (navegação para outra rota)
   useEffect(() => {
     return () => {
-      if (previousConversationIdRef.current) {
-        cleanupIfEmptyMutation.mutate({
-          conversationId: previousConversationIdRef.current
-        });
+      const previousId = previousConversationIdRef.current;
+      if (previousId) {
+        // Delay para evitar race conditions
+        setTimeout(() => {
+          cleanupIfEmptyMutation.mutate({
+            conversationId: previousId
+          });
+        }, 100);
       }
     };
-  }, [cleanupIfEmptyMutation]);
+  }, []); // Mutation é estável, não precisa nas dependências
 
   // Effect para cleanup ao fechar o navegador
   useEffect(() => {
@@ -1117,10 +1164,9 @@ export default function David() {
             </div>
           </div>
 
-          {/* Área Central: Mensagens OU Bem-vindo */}
           {selectedConversationId ? (
             <div className="flex-1 min-h-0 relative">
-              <ScrollArea className="h-full p-4" ref={scrollRef}>
+              <div className="h-full overflow-y-auto p-4 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-transparent">
                 <div className="space-y-4 max-w-4xl mx-auto pb-4">
 
                   {/* Processo Vinculado em destaque */}
@@ -1175,7 +1221,6 @@ export default function David() {
                             </details>
                           )}
 
-                          {/* Conteúdo da Mensagem */}
                           <div className="pl-10 w-full text-foreground leading-relaxed space-y-2 text-justify">
                             <Streamdown>{message.content}</Streamdown>
 
@@ -1301,7 +1346,7 @@ export default function David() {
                   {/* Elemento invisível para scroll automático */}
                   <div ref={messagesEndRef} />
                 </div>
-              </ScrollArea>
+              </div>
             </div>
           ) : (
             // HOME - Estado sem conversa selecionada (Estilo Gemini)
@@ -1463,7 +1508,7 @@ export default function David() {
                                 <X className="h-5 w-5" />
                               </button>
                             </div>
-                            <ScrollArea className="flex-1 p-4 space-y-3">
+                            <div className="flex-1 p-4 space-y-3 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300">
                               <div className="flex items-center justify-between gap-4">
                                 <input
                                   type="text"
@@ -1502,7 +1547,7 @@ export default function David() {
                                 onChange={(e) => setNewPromptContent(e.target.value)}
                                 className="min-h-[200px] resize-none border-0 shadow-none focus-visible:ring-0 text-base p-0 placeholder:text-muted-foreground/40"
                               />
-                            </ScrollArea>
+                            </div>
                           </div>
                         ) : viewingPrompt ? (
                           /* View Prompt View - content only, footer is separate bar below */
@@ -1516,10 +1561,10 @@ export default function David() {
                                 <X className="h-5 w-5" />
                               </button>
                             </div>
-                            <ScrollArea className="flex-1 p-4">
+                            <div className="flex-1 p-4 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300">
                               <h2 className="text-xl font-bold mb-4">{viewingPrompt.title}</h2>
                               <p className="text-muted-foreground whitespace-pre-wrap">{viewingPrompt.content}</p>
-                            </ScrollArea>
+                            </div>
                           </div>
                         ) : (
                           /* Prompts List */
@@ -1706,7 +1751,7 @@ export default function David() {
                               </div>
                             )}
 
-                            <ScrollArea className="flex-1">
+                            <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300">
                               {filteredPrompts && filteredPrompts.length > 0 ? (
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3 p-4">
                                   {filteredPrompts.map((prompt: any) => (
@@ -1827,7 +1872,7 @@ export default function David() {
                                   </Button>
                                 </div>
                               )}
-                            </ScrollArea>
+                            </div>
                           </div>
                         )}
                       </div>
