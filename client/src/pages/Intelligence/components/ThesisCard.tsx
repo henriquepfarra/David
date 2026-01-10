@@ -24,7 +24,7 @@ interface ThesisCardProps {
 export default function ThesisCard({ thesis, onApprove, onEdit, onReject, isLoading }: ThesisCardProps) {
     const [isEditing, setIsEditing] = useState(false);
     const [editedLegalThesis, setEditedLegalThesis] = useState(thesis.legalThesis);
-    const [editedWrit ingStyle, setEditedWritingStyle] = useState(thesis.writingStyleSample || "");
+    const [editedWritingStyle, setEditedWritingStyle] = useState(thesis.writingStyleSample || "");
     const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
     const [rejectionReason, setRejectionReason] = useState("");
 

@@ -56,7 +56,7 @@ export default function Configuracoes() {
   } | null>(null);
 
   const { data: settings, isLoading: settingsLoading } = trpc.settings.get.useQuery();
-  const { data: knowledgeDocs, isLoading: docsLoading } = trpc.knowledgeBase.list.useQuery();
+  const { data: knowledgeDocs, isLoading: docsLoading } = trpc.knowledgeBase.listUserDocs.useQuery();
   const utils = trpc.useUtils();
 
   const updateSettingsMutation = trpc.settings.update.useMutation({
@@ -70,7 +70,7 @@ export default function Configuracoes() {
 
   const updateDocMutation = trpc.knowledgeBase.update.useMutation({
     onSuccess: () => {
-      utils.knowledgeBase.list.invalidate();
+      utils.knowledgeBase.listUserDocs.invalidate();
       toast.success("Documento atualizado com sucesso!");
       setIsEditDialogOpen(false);
       setEditingDoc(null);
@@ -82,7 +82,7 @@ export default function Configuracoes() {
 
   const deleteDocMutation = trpc.knowledgeBase.delete.useMutation({
     onSuccess: () => {
-      utils.knowledgeBase.list.invalidate();
+      utils.knowledgeBase.listUserDocs.invalidate();
       toast.success("Documento deletado com sucesso!");
       setIsDeleteDialogOpen(false);
       setDocToDelete(null);
@@ -406,10 +406,22 @@ Deixe vazio se não tiver preferências específicas.`}
                               </p>
                             </div>
                             <div className="flex gap-0.5 flex-shrink-0">
-                              <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => handleEditDoc(doc)}>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-6 w-6 p-0"
+                                onClick={() => handleEditDoc(doc)}
+                                disabled={doc.source === "sistema"}
+                              >
                                 <Edit className="h-3 w-3" />
                               </Button>
-                              <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => handleDeleteDoc(doc)}>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-6 w-6 p-0"
+                                onClick={() => handleDeleteDoc(doc)}
+                                disabled={doc.source === "sistema"}
+                              >
                                 <Trash2 className="h-3 w-3" />
                               </Button>
                             </div>
