@@ -414,6 +414,74 @@ export class RagService {
 
         return filtered;
     }
+
+    /**
+     * Busca e formata o contexto completo da base de conhecimento para incluir em prompts
+     * Separa documentos citáveis (enunciados/súmulas) de não-citáveis (minutas/teses)
+     *
+     * @param userId - ID do usuário
+     * @param query - Conteúdo da mensagem/query do usuário
+     * @returns Contexto formatado para prompt ou string vazia se não houver documentos
+     */
+    async buildKnowledgeBaseContext(userId: number, query: string): Promise<string> {
+        let context = "";
+
+        try {
+            // Buscar documentos com o método de busca
+            const results = await this.search(query, {
+                userId,
+                limit: 12,
+                minSimilarity: 0.1,
+            });
+
+            if (results.length === 0) {
+                return context;
+            }
+
+            // Separar documentos citáveis (enunciados e súmulas) de não-citáveis
+            const citableDocs = results.filter(d =>
+                d.documentType === 'enunciado' ||
+                d.documentType === 'sumula' ||
+                d.documentType === 'sumula_stj' ||
+                d.documentType === 'sumula_stf' ||
+                d.documentType === 'sumula_vinculante'
+            );
+            const referenceDocs = results.filter(d => !citableDocs.includes(d));
+
+            context = `\n\n## BASE DE CONHECIMENTO\n\n`;
+
+            // Enunciados e Súmulas (CITÁVEIS)
+            if (citableDocs.length > 0) {
+                context += `### Enunciados e Súmulas Aplicáveis\n\n`;
+                citableDocs.forEach((doc) => {
+                    const contentPreview = doc.content.length > 3000
+                        ? doc.content.substring(0, 3000) + "..."
+                        : doc.content;
+                    context += `**${doc.title}** (similaridade: ${(doc.similarity * 100).toFixed(1)}%)\n${contentPreview}\n\n`;
+                });
+                context += `**INSTRUÇÃO:** Cite esses enunciados/súmulas EXPLICITAMENTE quando aplicável (ex: "Conforme Enunciado X do FONAJE..."). Eles são fontes oficiais e devem ser mencionados.\n\n`;
+            }
+
+            // Minutas/Teses/Decisões (NÃO-CITÁVEIS - apenas referência interna)
+            if (referenceDocs.length > 0) {
+                context += `### Referências Internas (Uso Implícito)\n\n`;
+                referenceDocs.forEach((doc) => {
+                    const contentPreview = doc.content.length > 2000
+                        ? doc.content.substring(0, 2000) + "..."
+                        : doc.content;
+                    context += `${contentPreview}\n\n`;
+                });
+                context += `**INSTRUÇÃO:** Use o conhecimento acima para enriquecer sua resposta, MAS NÃO cite a fonte (minutas/teses/decisões são repositórios internos). Apresente como seu próprio conhecimento jurídico.\n`;
+            }
+
+            console.log(`[RagService] Contexto RAG construído: ${citableDocs.length} citáveis + ${referenceDocs.length} referências`);
+
+        } catch (error) {
+            console.error("[RagService] Erro ao construir contexto:", error);
+        }
+
+        return context;
+    }
 }
 
 // ============================================

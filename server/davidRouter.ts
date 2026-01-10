@@ -34,12 +34,10 @@ import {
   updateLearnedThesis,
   deleteLearnedThesis,
   searchSimilarTheses,
-  getUserKnowledgeBase,
   getProcessDocuments,
   findConversationsByProcessNumber,
   getUserSettings,
 } from "./db";
-import { hybridSearch } from "./_core/hybridSearch";
 import { invokeLLM, invokeLLMStream, transcribeAudio } from "./_core/llm";
 import { observable } from "@trpc/server/observable";
 import { extractThesisFromDraft } from "./thesisExtractor";
@@ -69,83 +67,7 @@ import {
 } from "./prompts/engines";
 // Módulo específico (Cartucho JEC)
 import { JEC_CONTEXT } from "./modules/jec/context";
-
-/**
- * Busca e formata o contexto da base de conhecimento para uma query
- * @param userId - ID do usuário
- * @param query - Conteúdo da mensagem do usuário
- * @returns Contexto formatado da base de conhecimento ou string vazia
- */
-async function buildKnowledgeBaseContext(userId: number, query: string): Promise<string> {
-  let knowledgeBaseContext = "";
-
-  try {
-    const allDocs = await getUserKnowledgeBase(userId);
-    logger.debug(`[RAG] Total de documentos na base: ${allDocs.length}`);
-
-    if (allDocs.length > 0) {
-      // Buscar documentos similares à mensagem do usuário (Busca Híbrida: TF-IDF + Embeddings)
-      const relevantDocs = await hybridSearch(
-        allDocs.map(doc => ({
-          id: doc.id,
-          title: doc.title,
-          content: doc.content,
-          documentType: doc.documentType || undefined,
-          embedding: doc.embedding,
-        })),
-        query,
-        {
-          limit: 12,
-          minSimilarity: 0.1,
-        }
-      );
-
-      logger.debug(`[RAG] Documentos encontrados: ${relevantDocs.length} (método: ${relevantDocs[0]?.searchMethod || 'n/a'})`);
-
-      if (relevantDocs.length > 0) {
-        // Separar documentos citáveis (enunciados e súmulas) de não-citáveis
-        const citableDocs = relevantDocs.filter(d =>
-          d.documentType === 'enunciado' ||
-          d.documentType === 'sumula' ||
-          d.documentType === 'sumula_stj' ||
-          d.documentType === 'sumula_stf' ||
-          d.documentType === 'sumula_vinculante'
-        );
-        const referenceDocs = relevantDocs.filter(d => !citableDocs.includes(d));
-
-        knowledgeBaseContext = `\n\n## BASE DE CONHECIMENTO\n\n`;
-
-        // Enunciados (CITÁVEIS)
-        if (citableDocs.length > 0) {
-          knowledgeBaseContext += `### Enunciados Aplicáveis\n\n`;
-          citableDocs.forEach((doc) => {
-            const contentPreview = doc.content.length > 3000
-              ? doc.content.substring(0, 3000) + "..."
-              : doc.content;
-            knowledgeBaseContext += `**${doc.title}**\n${contentPreview}\n\n`;
-          });
-          knowledgeBaseContext += `**INSTRUÇÃO:** Cite esses enunciados EXPLICITAMENTE quando aplicável (ex: "Conforme Enunciado X do FONAJE..."). Eles são fontes oficiais e devem ser mencionados.\n\n`;
-        }
-
-        // Minutas/Teses/Decisões (NÃO-CITÁVEIS - apenas referência interna)
-        if (referenceDocs.length > 0) {
-          knowledgeBaseContext += `### Referências Internas (Uso Implícito)\n\n`;
-          referenceDocs.forEach((doc) => {
-            const contentPreview = doc.content.length > 2000
-              ? doc.content.substring(0, 2000) + "..."
-              : doc.content;
-            knowledgeBaseContext += `${contentPreview}\n\n`;
-          });
-          knowledgeBaseContext += `**INSTRUÇÃO:** Use o conhecimento acima para enriquecer sua resposta, MAS NÃO cite a fonte (minutas/teses/decisões são repositórios internos). Apresente como seu próprio conhecimento jurídico.\n`;
-        }
-      }
-    }
-  } catch (error) {
-    logger.error("[RAG] Erro ao buscar documentos:", error);
-  }
-
-  return knowledgeBaseContext;
-}
+import { getRagService } from "./services/RagService";
 
 export const davidRouter = router({
   // Criar nova conversa
@@ -556,7 +478,8 @@ export const davidRouter = router({
       }
 
       // Buscar documentos relevantes na Base de Conhecimento (RAG)
-      const knowledgeBaseContext = await buildKnowledgeBaseContext(ctx.user.id, input.content);
+      const ragService = getRagService();
+      const knowledgeBaseContext = await ragService.buildKnowledgeBaseContext(ctx.user.id, input.content);
 
       // Montar contexto do processo se houver
       let processContext = "";
@@ -768,7 +691,8 @@ ${CORE_MOTOR_D}
       }
 
       // Buscar documentos relevantes na Base de Conhecimento (RAG)
-      const knowledgeBaseContext = await buildKnowledgeBaseContext(ctx.user.id, input.content);
+      const ragService = getRagService();
+      const knowledgeBaseContext = await ragService.buildKnowledgeBaseContext(ctx.user.id, input.content);
 
       // Montar contexto do processo se houver
       let processContext = "";
