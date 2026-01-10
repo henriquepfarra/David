@@ -24,11 +24,12 @@ import { APP_LOGO, APP_TITLE, getLoginUrl } from "@/const";
 import { useIsMobile } from "@/hooks/useMobile";
 import {
   LogOut, PanelLeft, Plus, Search, Settings, MessageSquare, Pin, MoreVertical,
-  Pencil, Trash2, FolderOpen, Menu, ChevronLeft, ChevronRight, CheckSquare, X, SquarePen
+  Pencil, Trash2, FolderOpen, Menu, ChevronLeft, ChevronRight, CheckSquare, X, SquarePen, GraduationCap
 } from "lucide-react";
 import { CSSProperties, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { DashboardLayoutSkeleton } from './DashboardLayoutSkeleton';
+import { MemoriaJuridicaMenuItem } from './MemoriaJuridicaMenuItem';
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { ScrollArea } from "./ui/scroll-area";
@@ -394,6 +395,11 @@ function DashboardLayoutContent({
                   className="pl-9 h-9"
                 />
               </div>
+            )}
+
+            {/* 🎓 Memória Jurídica - Novo item com badge */}
+            {!isCollapsed && (
+              <MemoriaJuridicaMenuItem />
             )}
           </SidebarHeader>
 
