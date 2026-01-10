@@ -195,6 +195,114 @@ export class RagService {
     }
 
     /**
+     * Busca TESES JURÍDICAS do gabinete (Motor C - Argumentação)
+     * Usa embedding de legalThesis para busca semântica
+     */
+    async searchLegalTheses(
+        query: string,
+        userId: number,
+        options: { limit?: number; threshold?: number } = {}
+    ): Promise<Array<{
+        id: number;
+        legalThesis: string;
+        legalFoundations: string | null;
+        keywords: string | null;
+        similarity: number;
+    }>> {
+        const db = await getDb();
+        if (!db) return [];
+
+        const { limit = 5, threshold = 0.6 } = options;
+
+        // Buscar teses ativas do usuário
+        const theses = await db.select()
+            .from(learnedTheses)
+            .where(and(
+                eq(learnedTheses.userId, userId),
+                eq(learnedTheses.status, "ACTIVE" as any),
+                eq(learnedTheses.isObsolete, 0)
+            ));
+
+        if (theses.length === 0) return [];
+
+        // Gerar embedding da query
+        const { generateEmbedding, cosineSimilarity } = await import("../_core/embeddings");
+        const queryEmbedding = await generateEmbedding(query);
+
+        // Calcular similaridade com embeddings de teses
+        const results = theses
+            .map(t => ({
+                id: t.id,
+                legalThesis: t.legalThesis,
+                legalFoundations: t.legalFoundations,
+                keywords: t.keywords,
+                similarity: t.thesisEmbedding
+                    ? cosineSimilarity(queryEmbedding, t.thesisEmbedding as number[])
+                    : 0,
+            }))
+            .filter(r => r.similarity > threshold)
+            .sort((a, b) => b.similarity - a.similarity)
+            .slice(0, limit);
+
+        console.log(`[RagService] Teses Jurídicas: ${results.length} encontradas (threshold: ${threshold})`);
+        return results;
+    }
+
+    /**
+     * Busca AMOSTRAS DE ESTILO do gabinete (Motor B - Redação)
+     * Usa embedding de writingStyleSample para busca semântica
+     */
+    async searchWritingStyle(
+        query: string,
+        userId: number,
+        options: { limit?: number; threshold?: number } = {}
+    ): Promise<Array<{
+        id: number;
+        writingStyleSample: string;
+        writingCharacteristics: any;
+        similarity: number;
+    }>> {
+        const db = await getDb();
+        if (!db) return [];
+
+        const { limit = 3, threshold = 0.6 } = options;
+
+        // Buscar teses ativas com estilo
+        const theses = await db.select()
+            .from(learnedTheses)
+            .where(and(
+                eq(learnedTheses.userId, userId),
+                eq(learnedTheses.status, "ACTIVE" as any),
+                eq(learnedTheses.isObsolete, 0)
+            ));
+
+        if (theses.length === 0) return [];
+
+        // Gerar embedding da query
+        const { generateEmbedding, cosineSimilarity } = await import("../_core/embeddings");
+        const queryEmbedding = await generateEmbedding(query);
+
+        // Calcular similaridade com embeddings de estilo
+        const results = theses
+            .filter(t => t.writingStyleSample != null) // Apenas teses com amostra de estilo
+            .map(t => ({
+                id: t.id,
+                writingStyleSample: t.writingStyleSample!,
+                writingCharacteristics: t.writingCharacteristics,
+                similarity: t.styleEmbedding
+                    ? cosineSimilarity(queryEmbedding, t.styleEmbedding as number[])
+                    : 0,
+            }))
+            .filter(r => r.similarity > threshold)
+            .sort((a, b) => b.similarity - a.similarity)
+            .slice(0, limit);
+
+        console.log(`[RagService] Amostras de Estilo: ${results.length} encontradas (threshold: ${threshold})`);
+        return results;
+    }
+
+    /**
+     * DEPRECATED: searchPrecedents - Usar searchLegalTheses() + searchWritingStyle()
      * Busca precedentes do gabinete (learnedTheses)
      */
     async searchPrecedents(
