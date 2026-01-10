@@ -10,6 +10,7 @@ import { fetchDriveContentCached } from "./driveHelper";
 import { listAvailableModels } from "./llmModels";
 import { davidRouter } from "./davidRouter";
 import { processDocumentsRouter } from "./processDocumentsRouter";
+import { thesisRouter } from "./routers/thesisRouter"; // ← NOVO: Router de Active Learning
 import { ENV } from "./_core/env";
 import { sdk } from "./_core/sdk";
 
@@ -17,6 +18,7 @@ export const appRouter = router({
   system: systemRouter,
   david: davidRouter,
   processDocuments: processDocumentsRouter,
+  thesis: thesisRouter, // ← NOVO: Endpoints de Active Learning
   auth: router({
     me: publicProcedure.query(opts => opts.ctx.user),
     logout: publicProcedure.mutation(({ ctx }) => {
@@ -397,8 +399,14 @@ export const appRouter = router({
 
   // Base de Conhecimento
   knowledgeBase: router({
+    // Usado pelo RAG - retorna documentos do sistema + usuário
     list: protectedProcedure.query(async ({ ctx }) => {
       return db.getUserKnowledgeBase(ctx.user.id);
+    }),
+
+    // Usado pela UI - retorna APENAS documentos do usuário
+    listUserDocs: protectedProcedure.query(async ({ ctx }) => {
+      return db.getUserOwnKnowledgeBase(ctx.user.id);
     }),
 
     create: protectedProcedure
