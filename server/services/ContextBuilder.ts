@@ -284,7 +284,112 @@ export class ContextBuilder {
     }
 
     /**
-     * Injeta precedentes do gabinete (learnedTheses)
+     * Injeta TESES JURÍDICAS do gabinete (Motor C - Argumentação)
+     * 
+     * Busca em legalThesis + legalFoundations para fundamentar decisões
+     */
+    injectLegalTheses(
+        theses: Array<{
+            id: number;
+            legalThesis: string;
+            legalFoundations?: string;
+            keywords?: string;
+        }>
+    ): this {
+        if (!theses || theses.length === 0) return this;
+
+        const parts: string[] = ["[TESES DO GABINETE - Memória Jurídica do Juiz Titular]"];
+        parts.push("");
+        parts.push("**INSTRUÇÃO CRÍTICA:** As teses abaixo foram firmadas pelo juiz titular em casos anteriores.");
+        parts.push("Elas têm PRIORIDADE ABSOLUTA sobre jurisprudência externa. Respeite a 'caneta do juiz'.");
+        parts.push("");
+
+        for (let i = 0; i < theses.length; i++) {
+            const t = theses[i];
+            parts.push(`### Tese ${i + 1}: Precedente #${t.id}`);
+            parts.push(`**Ratio Decidendi:** ${t.legalThesis}`);
+            if (t.legalFoundations) {
+                parts.push(`**Fundamentos:** ${t.legalFoundations}`);
+            }
+            if (t.keywords) {
+                parts.push(`**Aplicável em:** ${t.keywords}`);
+            }
+            parts.push("");
+        }
+
+        parts.push("**CENÁRIO A - Memória Encontrada:** Ignore jurisprudência divergente. A tese do juiz é soberana.");
+        parts.push("**CENÁRIO B - Memória Não Aplicável:** Use jurisprudência externa normalmente.");
+
+        this.sections.push(parts.join("\n"));
+        return this;
+    }
+
+    /**
+     * Injeta AMOSTRAS DE ESTILO DE REDAÇÃO do gabinete (Motor B - Estilo)
+     * 
+     * Busca em writingStyleSample para imitar tom de voz e padrão de redação
+     */
+    injectWritingStyle(
+        styleData: {
+            samples: Array<{
+                id: number;
+                writingStyleSample: string;
+                writingCharacteristics?: {
+                    formality?: string;
+                    structure?: string;
+                    tone?: string;
+                };
+            }>;
+            customSystemPrompt?: string; // Preferências gerais (se houver)
+        }
+    ): this {
+        if (
+            (!styleData.samples || styleData.samples.length === 0) &&
+            !styleData.customSystemPrompt
+        ) {
+            return this;
+        }
+
+        const parts: string[] = ["[PADRÃO DE REDAÇÃO DO GABINETE - Motor B]"];
+        parts.push("");
+        parts.push("**INSTRUÇÃO:** As amostras abaixo representam o estilo de escrita do juiz titular.");
+        parts.push("Imite o tom, estrutura e formalidade ao redigir.");
+        parts.push("");
+
+        // Amostras de estilo (extraídas de minutas aprovadas)
+        if (styleData.samples && styleData.samples.length > 0) {
+            parts.push("### Amostras Representativas:");
+            parts.push("");
+
+            for (const sample of styleData.samples) {
+                parts.push(`**Amostra #${sample.id}:**`);
+                parts.push(`> ${sample.writingStyleSample}`);
+                parts.push("");
+
+                if (sample.writingCharacteristics) {
+                    const chars = sample.writingCharacteristics;
+                    parts.push("**Características:**");
+                    if (chars.formality) parts.push(`- Formalidade: ${chars.formality}`);
+                    if (chars.structure) parts.push(`- Estrutura: ${chars.structure}`);
+                    if (chars.tone) parts.push(`- Tom: ${chars.tone}`);
+                    parts.push("");
+                }
+            }
+        }
+
+        // Preferências customizadas (configurações do usuário)
+        if (styleData.customSystemPrompt) {
+            parts.push("### Preferências Customizadas:");
+            parts.push(styleData.customSystemPrompt);
+        }
+
+        this.sections.push(parts.join("\n"));
+        return this;
+    }
+
+    /**
+     * DEPRECATED: Usar injectLegalTheses() + injectWritingStyle()
+     * Mantido para compatibilidade
      */
     injectPrecedents(precedents: RagResult[]): this {
         if (!precedents || precedents.length === 0) return this;
@@ -303,7 +408,8 @@ export class ContextBuilder {
     }
 
     /**
-     * Injeta preferências de estilo do gabinete (custom system prompt)
+     * DEPRECATED: Usar injectWritingStyle({ customSystemPrompt: ... })
+     * Mantido para compatibilidade
      */
     injectStylePreferences(preferences: string | null): this {
         if (!preferences || !preferences.trim()) return this;

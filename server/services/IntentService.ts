@@ -94,6 +94,15 @@ const DRAFT_PATTERNS = [
     /\bminute\b/i,
 ];
 
+// Padrões para USER_PATTERN (como o próprio juiz decide/escreve)
+const USER_PATTERN_PATTERNS = [
+    /\b(como (eu|o juiz titular|este gabinete|nós|este juízo)|qual (meu|nosso)) (\w+ )*(decido|entendimento|posicionamento|decidi|decide)\b/i,
+    /\b(meu|nosso) (padrão|estilo|tese|entendimento|posicionamento)\b/i,
+    /\b(já decidi|tenho decidido|costumo decidir|normalmente decido)\b/i,
+    /\bcomo eu (costumo|normalmente|geralmente) (escrevo|redijo|decido)\b/i,
+];
+
+
 /**
  * Tenta classificar usando heurísticas (sem LLM)
  */
@@ -123,6 +132,20 @@ function tryHeuristic(message: string): IntentResult | null {
                 motors: [],
                 ragScope: "OFF",
                 confidence: 0.85,
+                method: "heuristic",
+            };
+        }
+    }
+
+    // USER_PATTERN: perguntas sobre padrão do gabinete (PRIORIDADE ALTA)
+    for (const pattern of USER_PATTERN_PATTERNS) {
+        if (pattern.test(trimmed)) {
+            return {
+                intent: "USER_PATTERN",
+                path: "ABSTRACT",
+                motors: ["B"], // Motor B: Estilo/Padrão
+                ragScope: "USER", // Buscar apenas teses do usuário
+                confidence: 0.9,
                 method: "heuristic",
             };
         }
