@@ -91,66 +91,55 @@ export default function David() {
     resetStream,
   } = useChatStream();
 
-  // Ref para armazenar thinking extraído permanentemente durante a sessão de streaming
-  const extractedThinkingRef = useRef<string>("");
-  const wasStreamingRef = useRef<boolean>(false);
-
-  // Resetar thinking ref quando UMA NOVA MENSAGEM COMEÇA (transição de não-streaming para streaming)
-  useEffect(() => {
-    if (isStreaming && !wasStreamingRef.current) {
-      // Nova mensagem começou - resetar ref
-      extractedThinkingRef.current = "";
-    }
-    wasStreamingRef.current = isStreaming;
-  }, [isStreaming]);
-
   // Parse thinking: prioriza thinkingMessage do hook, depois tags no content
   const parsedStreaming = useMemo(() => {
-    // Se não há mensagem, limpa o ref de thinking imediatamente
+    // Se não há mensagem, retornar vazio
     if (!streamingMessage && !thinkingMessage) {
-      extractedThinkingRef.current = "";
       return { thinking: "", content: "", inProgress: false };
     }
 
     const raw = streamingMessage;
 
     // Fonte 1: thinkingMessage do hook (já vem separado do backend/protocolo v2)
+    // Este é o caminho principal - o hook já gerencia o thinking corretamente
     if (thinkingMessage) {
-      extractedThinkingRef.current = thinkingMessage;
-      // Retornar content raw pois o thinking já foi removido pelo hook se usar protocolo v2
-      // Se for protocolo v1, precisamos remover as tags ainda
       return {
-        thinking: extractedThinkingRef.current,
+        thinking: thinkingMessage,
         content: raw.replace(/<thinking>[\s\S]*?<\/thinking>\s*/g, "").replace(/<thinking>[\s\S]*/g, "").trim(),
         inProgress: false
       };
     }
 
     // Fonte 2: Parsing de tags <thinking> no content (fallback / protocolo v1)
+    // Verifica tag completa
     const completeMatch = raw.match(/<thinking>([\s\S]*?)<\/thinking>/);
     if (completeMatch) {
-      extractedThinkingRef.current = completeMatch[1].trim();
-    } else {
-      // Verifica se tem tag aberta mas não fechada
-      const openMatch = raw.match(/<thinking>([\s\S]*)/);
-      if (openMatch) {
-        extractedThinkingRef.current = openMatch[1].trim();
-        // IMPORTANTE: Se o thinking está aberto, o content deve ser vazio (esconde o thinking do chat)
-        return {
-          thinking: extractedThinkingRef.current,
-          content: raw.substring(0, openMatch.index).trim(), // Mostra apenas o que veio ANTES do thinking
-          inProgress: true
-        };
-      }
+      const thinking = completeMatch[1].trim();
+      const content = raw.replace(/<thinking>[\s\S]*?<\/thinking>\s*/g, "").trim();
+      return {
+        thinking,
+        content,
+        inProgress: false
+      };
     }
 
-    // Remover tags completas do content
-    const content = raw.replace(/<thinking>[\s\S]*?<\/thinking>\s*/g, "").trim();
+    // Verifica se tem tag aberta mas não fechada (streaming em progresso)
+    const openMatch = raw.match(/<thinking>([\s\S]*)/);
+    if (openMatch) {
+      const thinking = openMatch[1].trim();
+      const content = raw.substring(0, openMatch.index).trim(); // Mostra apenas o que veio ANTES do thinking
+      return {
+        thinking,
+        content,
+        inProgress: true
+      };
+    }
 
+    // Sem thinking encontrado
     return {
-      thinking: extractedThinkingRef.current,
-      content,
-      inProgress: raw.includes("<thinking>") && !raw.includes("</thinking>")
+      thinking: "",
+      content: raw,
+      inProgress: false
     };
   }, [streamingMessage, thinkingMessage]);
 
@@ -697,7 +686,6 @@ export default function David() {
 
   // Função para fazer streaming (usando hook useChatStream)
   const streamMessage = async (conversationId: number, content: string) => {
-    extractedThinkingRef.current = ""; // Limpar thinking da sessão anterior
     // IMPORTANTE: Resetar stream do ANTERIOR aqui, no início da NOVA mensagem
     // Isso evita o "piscar" porque a mensagem anterior já está renderizada do banco
     resetStream();
