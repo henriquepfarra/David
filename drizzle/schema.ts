@@ -285,16 +285,43 @@ export const learnedTheses = mysqlTable("learnedTheses", {
   userId: int("userId").notNull(),
   approvedDraftId: int("approvedDraftId").notNull(), // Minuta de origem
   processId: int("processId"), // Processo vinculado
-  thesis: longtext("thesis").notNull(), // Tese firmada (ratio decidendi)
+
+  // ✨ NOVOS CAMPOS - Separação Tese Jurídica vs Estilo
+  legalThesis: longtext("legalThesis").notNull(), // Ratio decidendi (Motor C - Argumentação)
+  writingStyleSample: longtext("writingStyleSample"), // Padrão de redação (Motor B - Estilo)
+  writingCharacteristics: json("writingCharacteristics").$type<{
+    formality?: string;
+    structure?: string;
+    tone?: string;
+  }>(), // Metadados do estilo
+
+  // Campos legados (manter compatibilidade)
+  thesis: longtext("thesis"), // DEPRECATED - usar legalThesis
   legalFoundations: longtext("legalFoundations"), // Fundamentos jurídicos (artigos, súmulas)
   keywords: text("keywords"), // Palavras-chave para busca
-  decisionPattern: longtext("decisionPattern"), // Padrão de redação identificado
+  decisionPattern: longtext("decisionPattern"), // DEPRECATED - usar writingStyleSample
+
+  // ✨ Quality Gate - Status Workflow
+  status: mysqlEnum("status", ["PENDING_REVIEW", "ACTIVE", "REJECTED"])
+    .default("PENDING_REVIEW")
+    .notNull(),
+  reviewedAt: timestamp("reviewedAt"), // Quando foi revisado
+  reviewedBy: int("reviewedBy"), // Quem revisou (userId)
+  rejectionReason: text("rejectionReason"), // Motivo da rejeição (se status = REJECTED)
+
+  // ✨ Embeddings Duais (Busca Semântica Separada)
+  thesisEmbedding: json("thesisEmbedding").$type<number[]>(), // Vector do legalThesis
+  styleEmbedding: json("styleEmbedding").$type<number[]>(), // Vector do writingStyleSample
+
+  // Flags de controle
   isObsolete: int("isObsolete").default(0).notNull(), // Marca se a tese foi superada
+
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 }, (table) => ({
   userIdIdx: index("learnedTheses_userId_idx").on(table.userId),
   approvedDraftIdIdx: index("learnedTheses_approvedDraftId_idx").on(table.approvedDraftId),
+  statusIdx: index("learnedTheses_status_idx").on(table.status), // ← Novo índice para queries eficientes
 }));
 
 export type LearnedThesis = typeof learnedTheses.$inferSelect;
