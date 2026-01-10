@@ -7,6 +7,12 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+
+// 🐛 DEBUG: Helper para logs com timestamp
+const debugLog = (source: string, message: string, data?: any) => {
+  const timestamp = new Date().toISOString().split('T')[1];
+  console.log(`[${timestamp}] 🔍 [${source}]`, message, data || '');
+};
 import {
   Sidebar,
   SidebarContent,
@@ -137,6 +143,8 @@ function DashboardLayoutContent({
   const { data: conversations, refetch: refetchConversations } = trpc.david.listConversations.useQuery();
   const createConversationMutation = trpc.david.createConversation.useMutation({
     onSuccess: (data) => {
+      debugLog('DashboardLayout - createConversation', 'SUCCESS', { newConversationId: data.id });
+      debugLog('DashboardLayout - setLocation', 'Setting location', { newLocation: `/david?c=${data.id}` });
       setLocation(`/david?c=${data.id}`);
       refetchConversations();
     },
@@ -264,7 +272,9 @@ function DashboardLayoutContent({
   }, [isResizing]); // setSidebarWidth é estável (função setter do useState)
 
   const handleNewChat = () => {
+    debugLog('DashboardLayout - handleNewChat', 'Called');
     // Navega para a Home - a conversa será criada quando o usuário enviar uma mensagem
+    debugLog('DashboardLayout - setLocation', 'Setting location', { newLocation: '/david' });
     setLocation("/david");
   };
 
@@ -281,14 +291,26 @@ function DashboardLayoutContent({
 
   // Atualizar currentConversationId quando URL muda (via popstate ou clique na sidebar)
   useEffect(() => {
+    debugLog('DashboardLayout - useEffect[location]', 'Effect triggered', { location });
+
     const updateConversationId = () => {
       const urlParams = new URLSearchParams(window.location.search);
       const cParam = urlParams.get("c");
       const newId = cParam ? parseInt(cParam, 10) : null;
 
+      debugLog('DashboardLayout - updateConversationId', 'URL read', {
+        lastUrlId: lastUrlIdRef.current,
+        newId,
+        willUpdate: newId !== lastUrlIdRef.current
+      });
+
       // Comparar com ref para evitar problemas de closure
       if (newId !== lastUrlIdRef.current) {
         lastUrlIdRef.current = newId;
+        debugLog('DashboardLayout - setCurrentConversationId', 'Setting state', {
+          from: 'updateConversationId',
+          newValue: newId
+        });
         setCurrentConversationId(newId);
       }
     };
@@ -451,6 +473,8 @@ function DashboardLayoutContent({
                             if (isSelectionMode) {
                               toggleSelection(conv.id);
                             } else {
+                              debugLog('DashboardLayout - conversationClick', 'User clicked conversation', { conversationId: conv.id });
+                              debugLog('DashboardLayout - setLocation', 'Setting location', { newLocation: `/david?c=${conv.id}` });
                               setLocation(`/david?c=${conv.id}`);
                             }
                           }}

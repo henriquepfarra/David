@@ -61,6 +61,12 @@ import { APP_LOGO } from "@/const";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { useChatStream } from "@/hooks/useChatStream";
 
+// 🐛 DEBUG: Helper para logs com timestamp
+const debugLog = (source: string, message: string, data?: any) => {
+  const timestamp = new Date().toISOString().split('T')[1];
+  console.log(`[${timestamp}] 🔍 [${source}]`, message, data || '');
+};
+
 export default function David() {
   const [location, setLocation] = useLocation();
   const { user } = useAuth();
@@ -148,21 +154,36 @@ export default function David() {
 
   // Sincronizar selectedConversationId com URL quando muda
   useEffect(() => {
+    debugLog('David.tsx - useEffect[location]', 'Effect triggered', { location, resetStream: typeof resetStream });
+
     const updateFromUrl = () => {
       const params = new URLSearchParams(window.location.search);
       const cParam = params.get("c");
       const newId = cParam ? parseInt(cParam, 10) : null;
+
+      debugLog('David.tsx - updateFromUrl', 'URL read', {
+        lastUrlId: lastUrlIdRef.current,
+        newId,
+        willUpdate: newId !== lastUrlIdRef.current
+      });
 
       // Comparar com ref para evitar problemas de closure
       if (newId !== lastUrlIdRef.current) {
         console.log("[David.tsx] URL changed:", lastUrlIdRef.current, "->", newId);
         const wasFromHome = lastUrlIdRef.current === null;
         lastUrlIdRef.current = newId;
+
+        debugLog('David.tsx - setSelectedConversationId', 'Setting state', {
+          from: 'updateFromUrl',
+          newValue: newId
+        });
         setSelectedConversationId(newId);
+
         // Limpar mensagem pendente e estados de streaming ao mudar de conversa
         // MAS não limpar se estamos vindo da Home (onde criamos a conversa com mensagem)
         if (!wasFromHome || newId === null) {
           setPendingUserMessage(null);
+          debugLog('David.tsx - resetStream', 'Calling resetStream');
           resetStream();
         }
       }
@@ -372,7 +393,13 @@ export default function David() {
 
   // Forçar refetch quando conversa muda (garante que dados sejam carregados)
   useEffect(() => {
+    debugLog('David.tsx - useEffect[refetch]', 'Effect triggered', {
+      selectedConversationId,
+      willRefetch: !!selectedConversationId
+    });
+
     if (selectedConversationId) {
+      debugLog('David.tsx - refetchMessages', 'Calling refetch', { conversationId: selectedConversationId });
       refetchMessages();
     }
   }, [selectedConversationId, refetchMessages]);
@@ -401,10 +428,16 @@ export default function David() {
   // Mutations
   const createConversationMutation = trpc.david.createConversation.useMutation({
     onSuccess: (data) => {
+      debugLog('David.tsx - createConversation', 'SUCCESS', { newConversationId: data.id });
+      debugLog('David.tsx - setSelectedConversationId', 'Setting state', {
+        from: 'createConversation.onSuccess',
+        newValue: data.id
+      });
       setSelectedConversationId(data.id);
       refetchConversations();
     },
     onError: (error) => {
+      debugLog('David.tsx - createConversation', 'ERROR', { error: error.message });
       toast.error("Erro ao criar conversa: " + error.message);
       console.error("[CreateConv] Erro ao criar conversa:", error);
     },
@@ -474,6 +507,12 @@ export default function David() {
   // Mutation nova para cadastro silencioso
   const registerFromUploadMutation = trpc.processes.registerFromUpload.useMutation({
     onSuccess: async (data) => {
+      debugLog('David.tsx - registerFromUpload', 'SUCCESS', {
+        processId: data.processId,
+        processNumber: data.processNumber,
+        selectedConversationId
+      });
+
       // Atualiza estado de upload
       setUploadState(prev => ({ ...prev, stage: 'done' }));
 
@@ -482,6 +521,11 @@ export default function David() {
         const duplicateCheck = await utils.david.checkDuplicateProcess.fetch({
           processNumber: data.processNumber,
           excludeConversationId: selectedConversationId ?? undefined,
+        });
+
+        debugLog('David.tsx - duplicateCheck', 'Result', {
+          isDuplicate: duplicateCheck.isDuplicate,
+          existingCount: duplicateCheck.existingConversations.length
         });
 
         if (duplicateCheck.isDuplicate && duplicateCheck.existingConversations.length > 0) {
@@ -499,11 +543,17 @@ export default function David() {
           return;
         }
       } catch (e) {
+        debugLog('David.tsx - duplicateCheck', 'ERROR', e);
         console.error("[Duplicate Check] Erro:", e);
       }
 
       // Se não há duplicata, procede normalmente
       if (selectedConversationId && data.processId) {
+        debugLog('David.tsx - updateProcessMutation', 'Calling', {
+          conversationId: selectedConversationId,
+          processId: data.processId
+        });
+
         updateProcessMutation.mutate({
           conversationId: selectedConversationId,
           processId: data.processId,
@@ -526,6 +576,7 @@ export default function David() {
       }, 2000);
     },
     onError: (error) => {
+      debugLog('David.tsx - registerFromUpload', 'ERROR', { error: error.message });
       setUploadState(prev => ({ ...prev, isUploading: false, error: error.message }));
       toast.error("Erro ao processar arquivo: " + error.message);
     }
@@ -827,8 +878,14 @@ export default function David() {
   }, [conversationData?.messages, streamingMessage, pendingUserMessage]);
 
   const handleNewConversation = () => {
+    debugLog('David.tsx - handleNewConversation', 'Called');
     // Navegar para /david sem ID de conversa - a sidebar também lerá isso
+    debugLog('David.tsx - setLocation', 'Setting location', { newLocation: '/david' });
     setLocation("/david");
+    debugLog('David.tsx - setSelectedConversationId', 'Setting state', {
+      from: 'handleNewConversation',
+      newValue: null
+    });
     setSelectedConversationId(null);
     setSelectedProcessId(undefined);
     setMessageInput("");
@@ -843,16 +900,28 @@ export default function David() {
     setMessageInput("");
     setPendingUserMessage(userMessage); // Mostrar mensagem imediatamente (otimista)
 
+    debugLog('David.tsx - handleSendMessage', 'Called', {
+      hasConversation: !!selectedConversationId,
+      selectedConversationId
+    });
+
     // Se não tiver conversa selecionada, cria uma nova primeiro
     if (!selectedConversationId) {
+      debugLog('David.tsx - handleSendMessage', 'Creating new conversation');
       // Otimisticamente mostra loading ou algo, mas aqui vamos esperar a criação
       createConversationMutation.mutate({
         processId: selectedProcessId,
         title: "Nova Conversa" // O backend ou usuário pode renomear depois
       }, {
         onSuccess: async (newConv) => {
+          debugLog('David.tsx - handleSendMessage.onSuccess', 'Conversation created', { newConvId: newConv.id });
           // Navegar via URL para sincronizar com sidebar
+          debugLog('David.tsx - setLocation', 'Setting location', { newLocation: `/david?c=${newConv.id}` });
           setLocation(`/david?c=${newConv.id}`);
+          debugLog('David.tsx - setSelectedConversationId', 'Setting state', {
+            from: 'handleSendMessage.onSuccess',
+            newValue: newConv.id
+          });
           setSelectedConversationId(newConv.id);
           // Pequeno delay para garantir que o estado atualize
           setTimeout(() => {
