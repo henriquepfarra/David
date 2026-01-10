@@ -351,7 +351,12 @@ export default function David() {
 
 
   // Mutation para upload de documentos
-  const uploadDocMutation = trpc.processDocuments.upload.useMutation();
+  const uploadDocMutation = trpc.processDocuments.upload.useMutation({
+    onError: (error) => {
+      console.error("[UploadDoc] Erro ao fazer upload:", error);
+      // Erro já é tratado no catch onde mutateAsync é chamado
+    },
+  });
 
   // Queries
   const { data: conversations, refetch: refetchConversations } = trpc.david.listConversations.useQuery();
@@ -542,6 +547,27 @@ export default function David() {
 
     const file = acceptedFiles[0];
 
+    // Validação de tamanho (máximo 50MB)
+    const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB em bytes
+    if (file.size > MAX_FILE_SIZE) {
+      toast.error(`Arquivo muito grande! Tamanho máximo: 50MB. Tamanho do arquivo: ${(file.size / 1024 / 1024).toFixed(2)}MB`);
+      return;
+    }
+
+    // Validação de tipo de arquivo
+    const allowedTypes = ['application/pdf'];
+    if (!allowedTypes.includes(file.type)) {
+      toast.error(`Tipo de arquivo não permitido: ${file.type}. Apenas PDF é aceito.`);
+      return;
+    }
+
+    // Validação de extensão (dupla verificação)
+    const extension = file.name.split('.').pop()?.toLowerCase();
+    if (extension !== 'pdf') {
+      toast.error(`Extensão não permitida: .${extension}. Apenas .pdf é aceito.`);
+      return;
+    }
+
     // Inicia estado de loading
     setUploadState({
       isUploading: true,
@@ -641,7 +667,7 @@ export default function David() {
         });
       }
     };
-  }, []);
+  }, [cleanupIfEmptyMutation]);
 
   // Effect para cleanup ao fechar o navegador
   useEffect(() => {
