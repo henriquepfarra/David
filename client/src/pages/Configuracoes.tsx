@@ -207,11 +207,31 @@ export default function Configuracoes() {
   ) : false;
 
   const handleLoadModels = () => {
-    if (!llmApiKey) {
+    // Permitir se tiver chave no input OU chave salva (isLlmConfigured)
+    if (!llmApiKey && !isLlmConfigured) {
       toast.error("Insira a chave de API primeiro");
       return;
     }
     loadModels(llmProvider, llmApiKey);
+  };
+
+  const handleRemoveLlmApiKey = () => {
+    if (!window.confirm("Remover a chave de API? O Cérebro deixará de funcionar.")) return;
+
+    updateSettingsMutation.mutate(
+      {
+        llmApiKey: "",
+        llmModel: "",
+      },
+      {
+        onSuccess: () => {
+          setLlmApiKey("");
+          setLlmModel("");
+          setAvailableModels([]);
+          toast.success("Chave removida!");
+        },
+      }
+    );
   };
 
   const handleSaveApiKeys = () => {
@@ -628,7 +648,15 @@ Deixe vazio se não tiver preferências específicas.`}
                             placeholder={llmProvider === 'groq' ? "gsk_..." : "sk-..."}
                             className="pr-10"
                           />
-                          <Key className="absolute right-3 top-2.5 h-4 w-4 text-muted-foreground opacity-50" />
+                          {isLlmConfigured ? (
+                            <Trash2
+                              className="absolute right-3 top-2.5 h-4 w-4 text-destructive opacity-70 hover:opacity-100 cursor-pointer transition-opacity"
+                              onClick={handleRemoveLlmApiKey}
+                              title="Remover chave de API"
+                            />
+                          ) : (
+                            <Key className="absolute right-3 top-2.5 h-4 w-4 text-muted-foreground opacity-50" />
+                          )}
                         </div>
                       </div>
                     </div>
@@ -641,7 +669,7 @@ Deixe vazio se não tiver preferências específicas.`}
                           variant="ghost"
                           size="sm"
                           onClick={handleLoadModels}
-                          disabled={isLoadingModels || !llmApiKey}
+                          disabled={isLoadingModels || (!isLlmConfigured && !llmApiKey)}
                           className="h-6 text-xs"
                         >
                           {isLoadingModels ? (
