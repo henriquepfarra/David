@@ -49,28 +49,40 @@ Os testes usam:
 
 ### Pré-requisitos
 
-**⚠️ IMPORTANTE**: Configure o arquivo `.env` antes de rodar testes!
+**⚠️ IMPORTANTE**: Configure o ambiente de testes antes de rodar!
 
 **Guia completo**: 📚 [TESTING_ENV_SETUP.md](../../docs/TESTING_ENV_SETUP.md)
 
-**Configuração rápida**:
+**Se você usa Railway (banco em nuvem)**: Recomendamos criar `.env.test` com banco local para testes seguros e rápidos.
 
-1. **Criar `.env` na raiz do projeto**
-   ```bash
-   cp .env.test.example .env
-   ```
+**Configuração rápida** (SQLite local - recomendado):
 
-2. **Configurar variáveis obrigatórias**
+1. **Criar `.env.test` na raiz do projeto**
    ```bash
-   DATABASE_URL="mysql://root@localhost:3306/david_test"
+   cat > .env.test << 'EOF'
+   DATABASE_URL="file:./test.db"
    JWT_SECRET="test_secret_dev"
+   GEMINI_API_KEY=""
+   NODE_ENV="test"
+   EOF
    ```
 
-3. **Criar banco e rodar migrations**
+2. **Rodar migrations**
    ```bash
-   mysql -u root -e "CREATE DATABASE david_test;"
    npm run db:push
    ```
+
+3. **Rodar testes**
+   ```bash
+   npm test
+   ```
+
+**Alternativa** (MySQL local):
+```bash
+DATABASE_URL="mysql://root@localhost:3306/david_test"
+mysql -u root -e "CREATE DATABASE david_test;"
+npm run db:push
+```
 
 Se encontrar erro de env vars, consulte: [docs/TESTING_ENV_SETUP.md](../../docs/TESTING_ENV_SETUP.md)
 

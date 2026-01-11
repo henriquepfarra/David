@@ -13,7 +13,66 @@ Isso significa que o arquivo `.env` não existe ou está incompleto.
 
 ---
 
-## ✅ Solução Rápida (3 Passos)
+## 🚂 Você usa Railway? Leia isto primeiro!
+
+Se você já tem `.env` configurado com banco Railway (produção/desenvolvimento), **NÃO** use esse banco para testes!
+
+### ⚠️ Por que não usar Railway para testes?
+
+- Testes criam e deletam dados constantemente
+- Pode causar lentidão (latência de rede)
+- Pode interferir com dados reais
+- Pode gerar custos desnecessários
+
+### ✅ Solução Recomendada: `.env.test` com SQLite
+
+Crie um arquivo `.env.test` na raiz do projeto com banco **local** para testes:
+
+```bash
+# .env.test (arquivo separado para testes)
+DATABASE_URL="file:./test.db"
+JWT_SECRET="test_secret_development_only"
+GEMINI_API_KEY=""  # Deixe vazio para pular testes de LLM
+NODE_ENV="test"
+```
+
+**Como funciona**:
+1. Setup de testes tenta carregar `.env.test` primeiro
+2. Se não existir, usa `.env` (seu Railway)
+3. Se Railway detectado, mostra aviso mas permite rodar
+
+**Comandos**:
+```bash
+# 1. Criar .env.test
+cat > .env.test << 'EOF'
+DATABASE_URL="file:./test.db"
+JWT_SECRET="test_secret_dev"
+GEMINI_API_KEY=""
+NODE_ENV="test"
+EOF
+
+# 2. Rodar migrations no SQLite
+npm run db:push
+
+# 3. Rodar testes
+npm test
+```
+
+### Alternativa: Banco Railway Separado para Testes
+
+Se preferir não usar SQLite, crie um segundo banco Railway **apenas para testes**:
+
+1. Criar novo banco no Railway (ex: "david-test")
+2. Copiar DATABASE_URL do Railway
+3. Criar `.env.test` com essa URL
+4. Rodar `npm run db:push`
+
+**Vantagem**: Testa com MySQL real (igual produção)
+**Desvantagem**: Latência de rede, custos
+
+---
+
+## ✅ Solução Rápida para MySQL Local (3 Passos)
 
 ### **Passo 1: Criar arquivo `.env`**
 
