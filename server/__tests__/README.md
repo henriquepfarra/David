@@ -49,21 +49,30 @@ Os testes usam:
 
 ### Pré-requisitos
 
-1. **Banco de dados configurado**
+**⚠️ IMPORTANTE**: Configure o arquivo `.env` antes de rodar testes!
+
+**Guia completo**: 📚 [TESTING_ENV_SETUP.md](../../docs/TESTING_ENV_SETUP.md)
+
+**Configuração rápida**:
+
+1. **Criar `.env` na raiz do projeto**
    ```bash
-   # .env deve ter DATABASE_URL configurado
-   DATABASE_URL="mysql://root@localhost:3306/david"
+   cp .env.test.example .env
    ```
 
-2. **Migrações rodadas**
+2. **Configurar variáveis obrigatórias**
    ```bash
+   DATABASE_URL="mysql://root@localhost:3306/david_test"
+   JWT_SECRET="test_secret_dev"
+   ```
+
+3. **Criar banco e rodar migrations**
+   ```bash
+   mysql -u root -e "CREATE DATABASE david_test;"
    npm run db:push
    ```
 
-3. **API Key configurada** (para testes com LLM real)
-   ```bash
-   GEMINI_API_KEY="sua-chave-aqui"
-   ```
+Se encontrar erro de env vars, consulte: [docs/TESTING_ENV_SETUP.md](../../docs/TESTING_ENV_SETUP.md)
 
 ## 📝 Escrevendo Novos Testes
 
