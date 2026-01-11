@@ -1,6 +1,6 @@
 # TODO - DAVID (Assistente Jurídico IA)
 
-> **Última atualização**: 30/12/2025
+> **Última atualização**: 10/01/2026
 
 ---
 
@@ -35,6 +35,9 @@
 - [x] **Barra de progresso animada durante upload** (novo!)
 - [x] **Upload não reinicia mais a conversa** (corrigido!)
 - [x] Modelos Gemini atualizados com preços corretos
+- [x] **Armazenamento de fileUri por conversa** (googleFileUri + googleFileName)
+- [x] **Cleanup automático de arquivos** (ao sair do chat, deletar conversa, fechar navegador)
+- [x] Alerta se processo já existe em outro chat
 
 ### Sistema de Aprendizado
 - [x] Tabela `approved_drafts` para minutas aprovadas
@@ -56,10 +59,41 @@
 - [x] Base de conhecimento com upload
 - [x] **Fix: Anthropic auth headers corrigidos** (x-api-key + anthropic-version)
 
+### RAG e Busca Semântica (Janeiro/2026)
+- [x] **Busca Híbrida**: TF-IDF (exata) + embeddings (semântica)
+- [x] **Embeddings em 3 tabelas**: knowledgeBase, learnedTheses, processDocumentChunks
+- [x] **RagService completo**: search, searchWithHierarchy, searchLegalTheses, searchWritingStyle
+- [x] **Cache LRU** para performance
+- [x] **Hierarquia de autoridade jurídica**: Vinculante > STF > STJ > FONAJE
+- [x] **Busca dual de teses**: Argumentação (thesis) + Estilo (writing)
+
+### IntentService - Orquestração Cognitiva (Janeiro/2026)
+- [x] **IntentService v7.1**: Router Semântico
+- [x] Classificação heurística (padrões rápidos)
+- [x] Classificação com LLM (Gemini Flash)
+- [x] Ativação seletiva de motores (A: Detetive, B: Redação, C: Jurista, D: Auditor)
+- [x] Escopo RAG dinâmico (NONE, JURISPRUDENCE, PRECEDENTS, FULL)
+- [x] Filtros por tribunal (STJ, STF)
+
+### Active Learning v2.0 (Janeiro/2026)
+- [x] **ThesisLearningService v2.0**: Extração automática ao aprovar minuta
+- [x] **Separação Tese vs Estilo**: legalThesis + writingStyleSample
+- [x] **Embeddings duais**: thesisEmbedding + styleEmbedding
+- [x] **Quality Gate**: Status workflow (PENDING_REVIEW, ACTIVE, REJECTED)
+- [x] Integração com davidRouter (trigger assíncrono)
+- [x] Busca semântica dual no RagService
+
+### Intelligence - Memória Jurídica (Janeiro/2026)
+- [x] **Frontend completo** em /pages/Intelligence/
+- [x] Componente PendingTheses (revisão de teses pendentes)
+- [x] Componente KnowledgeLibrary (biblioteca de conhecimento)
+- [x] ThesisCard e StatsWidget
+- [x] Item na sidebar com badge
+
 ### Interface
 - [x] Layout dashboard com sidebar
 - [x] Menu de ferramentas no chat
-- [x] Página Memória do DAVID
+- [x] **Página Memória do DAVID / Intelligence**
 - [x] Página de Processos
 - [x] Botão "Enviar Processo" (renomeado)
 - [x] Referência visual do processo anexado no chat
@@ -69,21 +103,11 @@
 
 ## 🔧 Em Andamento / Pendente Imediato
 
-### Upload Melhorado (Fase Final)
-- [x] File API retorna `fileUri` para sessão
-- [ ] Armazenar `fileUri` por conversa para consultas múltiplas
-- [ ] Deletar arquivo do Google ao sair do chat
-- [x] Alerta se processo já existe em outro chat
+**Nenhuma tarefa pendente imediata.** O sistema está estável.
 
 ---
 
 ## 📋 Próximas Prioridades
-
-### RAG - Busca Semântica na Base de Conhecimento
-- [ ] Adicionar campo `embedding` em `knowledgeBase`
-- [ ] Gerar embeddings para documentos existentes
-- [ ] Função `searchSimilarDocuments(query, limit)`
-- [ ] Injetar documentos relevantes no contexto do DAVID
 
 ### Rastreabilidade de Documentos
 - [ ] Instrução de extração com número de eventos/páginas
@@ -94,6 +118,11 @@
 - [ ] Exportar minuta para PDF
 - [ ] Exportar minuta para DOCX
 
+### Melhorias no Active Learning
+- [ ] Interface para aprovação/rejeição de teses pendentes (PENDING_REVIEW)
+- [ ] Dashboard de estatísticas de aprendizado
+- [ ] Bulk actions (aprovar/rejeitar múltiplas teses)
+
 ---
 
 ## 🚀 Melhorias Futuras
@@ -103,10 +132,10 @@
 - [ ] Sugestões contextuais durante chat
 - [ ] Comando `/precedentes` para busca manual
 
-### Memória do DAVID
-- [ ] Interface com abas (Teses | Minutas | Temas)
-- [ ] Seleção múltipla e ações em massa
-- [ ] Dashboard de estatísticas de aprendizado
+### Thinking e Performance
+- [ ] Otimização de cache de embeddings
+- [ ] Monitoring de performance do RAG hybrid
+- [ ] Thinking logs para debug de Intent classification
 
 ### Integração Avançada
 - [ ] Armazenamento de PDFs em S3/R2

@@ -247,6 +247,14 @@ export default function David() {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null); // null = Todas, "uncategorized" = Geral (sem pasta), string = Nome da pasta
 
+  // Estado local para manter o arquivo visível imediatamente após upload (Optimistic UI)
+  const [localAttachedFile, setLocalAttachedFile] = useState<{ name: string, uri: string } | null>(null);
+
+  // Limpar arquivo local ao mudar de conversa
+  useEffect(() => {
+    setLocalAttachedFile(null);
+  }, [selectedConversationId]);
+
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearch(searchQuery), 300);
     return () => clearTimeout(timer);
@@ -370,16 +378,38 @@ export default function David() {
   // Queries
   const { data: conversations, refetch: refetchConversations } = trpc.david.listConversations.useQuery();
   const { data: processes } = trpc.processes.list.useQuery();
-  const { data: conversationData, refetch: refetchMessages, isFetching } = trpc.david.getConversation.useQuery(
+  const { data: conversationData, refetch: refetchMessages, isFetching, error: conversationError, status: conversationStatus } = trpc.david.getConversation.useQuery(
     { id: selectedConversationId! },
     {
       enabled: !!selectedConversationId,
-      staleTime: 30000, // 30s sem refetch automático
+      staleTime: 30000,
       refetchOnWindowFocus: false,
-      refetchOnMount: false, // Não refetch ao montar
-      refetchOnReconnect: false, // Não refetch ao reconectar
+      refetchOnMount: false,
+      refetchOnReconnect: false,
     }
   );
+
+  // Debug de erros de carregamento
+  useEffect(() => {
+    if (conversationError) {
+      console.error("[David] Erro carregando conversa:", conversationError);
+      toast.error("Erro ao carregar conversa. Tente recarregar a página.");
+    }
+  }, [conversationError]);
+
+  // Debug de navegação
+  useEffect(() => {
+    console.log("[David] Location mudou:", location, "SelectedID:", selectedConversationId);
+  }, [location, selectedConversationId]);
+
+  // Log de render para detectar loops
+  console.log("[David] Render. Status:", conversationStatus, "ID:", selectedConversationId, "Fetching:", isFetching);
+
+  // Computar arquivo ativo para exibir (local ou remoto)
+  const activeFile = localAttachedFile || (conversationData?.conversation?.googleFileUri ? {
+    name: conversationData.conversation.googleFileName || 'Documento',
+    uri: conversationData.conversation.googleFileUri
+  } : null);
 
   // Sincronizar selectedProcessId com a conversa carregada
   useEffect(() => {
@@ -515,8 +545,21 @@ export default function David() {
 
   // Mutation para upload rápido (NOVO)
   const uploadPdfQuickMutation = trpc.processes.uploadPdfQuick.useMutation({
+    onMutate: () => {
+      // Estágio 2: Processando no servidor
+      setUploadState(prev => ({ ...prev, stage: 'reading' }));
+    },
     onSuccess: (data) => {
       console.log("[UploadQuick] Upload completo:", data);
+
+      // Estágio 3: Finalizando
+      setUploadState(prev => ({ ...prev, stage: 'done' }));
+
+      // Atualizar estado local para badge aparecer imediatamente
+      setLocalAttachedFile({
+        name: data.displayName,
+        uri: data.fileUri
+      });
 
       // Conversa já deve existir (criada no onDrop)
       const currentConvId = selectedConversationIdRef.current || selectedConversationId;
@@ -529,7 +572,11 @@ export default function David() {
       }
 
       toast.success("📄 PDF anexado! Faça sua primeira pergunta.");
-      setUploadState({ isUploading: false, stage: null, fileName: null, error: null });
+
+      // Manter isUploading=true por 1s para mostrar animação de concluído
+      setTimeout(() => {
+        setUploadState({ isUploading: false, stage: null, fileName: null, error: null });
+      }, 1000);
     },
     onError: (error) => {
       console.error("[UploadQuick] Erro:", error);
@@ -928,13 +975,18 @@ export default function David() {
     debugLog('David.tsx - handleNewConversation', 'Called');
     // Navegar para /david sem ID de conversa - a sidebar também lerá isso
     debugLog('David.tsx - setLocation', 'Setting location', { newLocation: '/david' });
+    console.log("[David] Iniciando novo chat...");
     setLocation("/david");
+
     debugLog('David.tsx - setSelectedConversationId', 'Setting state', {
       from: 'handleNewConversation',
       newValue: null
     });
+
+    // Reset explícito de todos os estados
     setSelectedConversationId(null);
     setSelectedProcessId(undefined);
+    setLocalAttachedFile(null); // Resetar arquivo local
     setMessageInput("");
     setPendingUserMessage(null);
     resetStream();
@@ -946,6 +998,13 @@ export default function David() {
     const userMessage = messageInput;
     setMessageInput("");
     setPendingUserMessage(userMessage); // Mostrar mensagem imediatamente (otimista)
+
+    // Forçar scroll para o fundo imediatamente para ver a mensagem pendente
+    setTimeout(() => {
+      if (messagesEndRef.current) {
+        messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
+      }
+    }, 100);
 
     debugLog('David.tsx - handleSendMessage', 'Called', {
       hasConversation: !!selectedConversationId,
@@ -1092,75 +1151,10 @@ export default function David() {
         <div className="flex-1 flex flex-col relative h-full overflow-hidden"> {/* Added relative for positioning if needed */}
 
 
-          {/* Header com seletor de processo e Menu de Histórico */}
+          {/* Header minimalista - badge agora fica na área do input */}
           <div className="p-2 border-b bg-card/50 backdrop-blur-sm sticky top-0 z-10 flex items-center justify-between">
             <div className="flex items-center gap-4">
-              <div className="flex-1 flex items-center justify-end">
-
-                {/* Progress bar durante upload OU Badge quando concluído */}
-                <AnimatePresence mode="wait">
-                  {uploadState.isUploading ? (
-                    <motion.div
-                      key="progress"
-                      initial={{ opacity: 0, scale: 0.9 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      exit={{ opacity: 0, scale: 0.9 }}
-                      className="flex items-center gap-2 bg-muted/50 border rounded-lg px-3 py-1.5 min-w-[200px] max-w-[300px]"
-                    >
-                      <Loader2 className="h-4 w-4 text-primary animate-spin flex-shrink-0" />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs font-medium truncate" title={uploadState.fileName || ''}>
-                          {uploadState.fileName && uploadState.fileName.length > 25
-                            ? uploadState.fileName.substring(0, 22) + '...'
-                            : uploadState.fileName}
-                        </p>
-                        <div className="flex items-center gap-1.5 mt-0.5">
-                          <div className="flex-1 h-1 bg-muted rounded-full overflow-hidden">
-                            <div
-                              className="h-full bg-primary transition-all duration-300 rounded-full"
-                              style={{
-                                width: uploadState.stage === 'sending' ? '25%'
-                                  : uploadState.stage === 'reading' ? '50%'
-                                    : uploadState.stage === 'extracting' ? '75%'
-                                      : uploadState.stage === 'done' ? '100%'
-                                        : '0%'
-                              }}
-                            />
-                          </div>
-                          <span className="text-[10px] text-muted-foreground">
-                            {uploadState.stage === 'sending' && '25%'}
-                            {uploadState.stage === 'reading' && '50%'}
-                            {uploadState.stage === 'extracting' && '75%'}
-                            {uploadState.stage === 'done' && '100%'}
-                          </span>
-                        </div>
-                      </div>
-                    </motion.div>
-                  ) : selectedProcessId && processes?.find(p => p.id === selectedProcessId) ? (
-                    <motion.div
-                      key="badge"
-                      initial={{ opacity: 0, scale: 0.9 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      exit={{ opacity: 0, scale: 0.9 }}
-                      className="flex items-center gap-2 bg-muted/50 border rounded-lg px-3 py-1.5"
-                    >
-                      <FileText className="h-4 w-4 text-primary" />
-                      <span className="text-sm font-medium truncate max-w-[180px]" title={processes.find(p => p.id === selectedProcessId)?.processNumber}>
-                        {processes.find(p => p.id === selectedProcessId)?.processNumber || 'Processo anexado'}
-                      </span>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-5 w-5 p-0 hover:bg-destructive/20"
-                        onClick={() => setSelectedProcessId(undefined)}
-                        title="Remover processo"
-                      >
-                        <XCircle className="h-3.5 w-3.5" />
-                      </Button>
-                    </motion.div>
-                  ) : null}
-                </AnimatePresence>
-              </div>
+              {/* Espaço reservado para possíveis controles futuros */}
             </div>
           </div>
 
@@ -1981,6 +1975,80 @@ export default function David() {
                 ) : (
                   /* Regular input container */
                   <div className={`border p-4 relative shadow-sm bg-white rounded-[2rem] transition-all duration-200 z-30 ${isPromptsModalOpen ? 'opacity-60 pointer-events-none' : 'focus-within:ring-1 focus-within:ring-primary/50'}`}>
+
+                    {/* Badge do Processo/Arquivo (Estilo Gemini) - ACIMA DO INPUT */}
+                    <AnimatePresence>
+                      {(uploadState.isUploading || activeFile || selectedProcessId) && (
+                        <motion.div
+                          initial={{ opacity: 0, y: 10, height: 0 }}
+                          animate={{ opacity: 1, y: 0, height: 'auto' }}
+                          exit={{ opacity: 0, y: 10, height: 0 }}
+                          className="mb-3"
+                        >
+                          {uploadState.isUploading ? (
+                            /* Progress durante upload */
+                            <div className="flex items-center gap-3 p-3 bg-muted/30 rounded-xl border border-border/50">
+                              <div className="relative">
+                                <div className="w-12 h-12 rounded-lg bg-red-50 flex items-center justify-center text-red-600">
+                                  <FileText className="h-6 w-6" />
+                                </div>
+                                <div className="absolute -bottom-1 -right-1 bg-primary text-white rounded-full p-0.5">
+                                  <Loader2 className="h-3 w-3 animate-spin" />
+                                </div>
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-medium truncate max-w-[200px]" title={uploadState.fileName || ''}>{uploadState.fileName}</p>
+                                <div className="flex items-center gap-2 mt-1">
+                                  <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
+                                    <div
+                                      className="h-full bg-primary transition-all duration-500 rounded-full"
+                                      style={{
+                                        width: uploadState.stage === 'sending' ? '25%'
+                                          : uploadState.stage === 'reading' ? '50%'
+                                            : uploadState.stage === 'extracting' ? '75%'
+                                              : uploadState.stage === 'done' ? '100%'
+                                                : '0%'
+                                      }}
+                                    />
+                                  </div>
+                                  <span className="text-xs text-muted-foreground shrink-0">
+                                    {uploadState.stage === 'sending' && 'Enviando...'}
+                                    {uploadState.stage === 'reading' && 'Processando...'}
+                                    {uploadState.stage === 'extracting' && 'Extraindo...'}
+                                    {uploadState.stage === 'done' && 'Concluído!'}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                          ) : (activeFile || selectedProcessId) ? (
+                            /* Badge do processo anexado */
+                            <div className="flex items-center gap-3 p-3 bg-muted/30 rounded-xl border border-border/50 group">
+                              <div className="w-12 h-12 rounded-lg bg-red-50 flex items-center justify-center text-red-600">
+                                <FileText className="h-6 w-6" />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-medium truncate max-w-[200px]" title={activeFile?.name || processes?.find(p => p.id === selectedProcessId)?.processNumber}>
+                                  {activeFile?.name || processes?.find(p => p.id === selectedProcessId)?.processNumber || 'Processo anexado'}
+                                </p>
+                                <p className="text-xs text-muted-foreground">PDF</p>
+                              </div>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive"
+                                onClick={() => {
+                                  setSelectedProcessId(undefined);
+                                  setLocalAttachedFile(null); // Limpar local também
+                                  // TODO: Limpar googleFileUri no server via mutation se necessário
+                                }}
+                              >
+                                <X className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          ) : null}
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
 
                     <div className="flex justify-between items-start mb-2 relative">
                       <Textarea

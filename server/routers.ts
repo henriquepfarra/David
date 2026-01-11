@@ -157,6 +157,52 @@ export const appRouter = router({
         return { success: true };
       }),
 
+    // Upload rápido (NOVO - apenas salva no Google File API)
+    uploadPdfQuick: protectedProcedure
+      .input(z.object({
+        filename: z.string(),
+        fileData: z.string(), // Base64
+        fileType: z.string(), // pdf
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const settings = await db.getUserSettings(ctx.user.id);
+
+        // Validação: API key necessária
+        if (!settings?.readerApiKey && !ENV.geminiApiKey) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "⚙️ Configure sua chave de API do Google em Configurações."
+          });
+        }
+
+        try {
+          // Apenas fazer upload para Google (rápido - ~2s)
+          const { uploadPdfForMultipleQueries } = await import("./_core/fileApi");
+          const buffer = Buffer.from(input.fileData, "base64");
+
+          console.log(`[uploadPdfQuick] Iniciando upload: ${input.filename}`);
+          const result = await uploadPdfForMultipleQueries(
+            buffer,
+            settings?.readerApiKey || ENV.geminiApiKey
+          );
+
+          console.log(`[uploadPdfQuick] ✅ Upload completo: ${result.fileUri}`);
+
+          return {
+            fileUri: result.fileUri,
+            fileName: result.fileName,
+            displayName: input.filename,
+          };
+        } catch (error: any) {
+          console.error("[uploadPdfQuick] Erro:", error);
+          throw new TRPCError({
+            code: "INTERNAL_SERVER_ERROR",
+            message: `Erro ao fazer upload: ${error.message}`
+          });
+        }
+      }),
+
+    // Upload com processamento (ANTIGO - mantido para compatibilidade)
     registerFromUpload: protectedProcedure
       .input(z.object({
         text: z.string(),
@@ -194,11 +240,19 @@ export const appRouter = router({
             const buffer = Buffer.from(input.fileData, "base64");
 
             if (input.fileType === "pdf") {
-              // Usar File API para leitura visual do PDF
+              // Usar File API apenas para extração LEVE de metadados
               const { readPdfWithVision } = await import("./_core/fileApi");
               const result = await readPdfWithVision(buffer, {
                 apiKey: settings?.readerApiKey || ENV.geminiApiKey || undefined,
                 model: settings?.readerModel || "gemini-2.0-flash-lite",
+                // ⚡ INSTRUÇÃO OTIMIZADA: Extrai APENAS metadados (não o conteúdo todo)
+                instruction: `Leia apenas as PRIMEIRAS 2 PÁGINAS deste documento jurídico e extraia:
+- Número do processo
+- Nome das partes (autor/réu)
+- Vara/Tribunal
+- Assunto/Tipo da ação
+
+Retorne APENAS essas informações, de forma objetiva. Ignore o restante do documento.`,
               });
               textToAnalyze = result.content;
               console.log(`[registerFromUpload] File API: Leitura visual concluída. Tokens: ${result.tokensUsed}`);
@@ -229,45 +283,26 @@ export const appRouter = router({
           throw new Error("Conteúdo insuficiente para análise (Falha na extração local e remota)");
         }
 
-        // 2. Criar Processo no BD
-        // Usa "Processo s/n..." se não conseguir extrair o número
+        // 2. Auto-save metadados (NOVO - usa UPSERT)
+        const { upsertProcessMetadata } = await import("./db");
+
         const processNumber = extractedData.numeroProcesso || `Processo Importado ${new Date().toLocaleDateString()}`;
 
-        const process = await db.createProcess({
-          userId: ctx.user.id,
-          processNumber,
-          court: extractedData.vara || undefined,
-          judge: undefined, // Geralmente não extrai bem, deixa quieto
-          plaintiff: extractedData.autor || undefined,
-          defendant: extractedData.reu || undefined,
-          subject: extractedData.assunto || input.filename || undefined,
-          facts: extractedData.resumoFatos || undefined,
-          evidence: undefined,
-          requests: extractedData.pedidos || undefined,
-          status: "Importado via Chat",
-          notes: "Processo cadastrado automaticamente via upload no chat.",
-        });
+        const result = await upsertProcessMetadata(
+          {
+            processNumber,
+            plaintiff: extractedData.autor || null,
+            defendant: extractedData.reu || null,
+            court: extractedData.vara || null,
+            subject: extractedData.assunto || input.filename || null,
+          },
+          ctx.user.id
+        );
 
-        // 3. Salvar o conteúdo do documento para acesso posterior pelo DAVID
-        if (textToAnalyze && textToAnalyze.length > 100) {
-          try {
-            await db.createProcessDocument({
-              userId: ctx.user.id,
-              processId: process.id,
-              title: input.filename || `Documento Principal - ${processNumber}`,
-              content: textToAnalyze,
-              fileType: input.fileType || "pdf",
-              documentType: "inicial", // Assume que é a petição inicial
-            });
-            console.log(`[registerFromUpload] Documento salvo em processDocuments. Tamanho: ${textToAnalyze.length} chars`);
-          } catch (err) {
-            console.error("[registerFromUpload] Erro ao salvar documento:", err);
-            // Não falha - o processo foi criado, só o documento não foi salvo
-          }
-        }
+        console.log(`[registerFromUpload] ${result.isNew ? 'Novo processo criado' : 'Processo atualizado'}: ${processNumber}`);
 
         return {
-          processId: process.id,
+          processId: result.processId,
           processNumber,
           extractedData
         };
@@ -406,7 +441,7 @@ export const appRouter = router({
 
     // Usado pela UI - retorna APENAS documentos do usuário
     listUserDocs: protectedProcedure.query(async ({ ctx }) => {
-      return db.getUserOwnKnowledgeBase(ctx.user.id);
+      return db.getUserKnowledgeBase(ctx.user.id);
     }),
 
     create: protectedProcedure

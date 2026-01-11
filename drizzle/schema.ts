@@ -43,6 +43,7 @@ export const processes = mysqlTable("processes", {
   notes: text("notes"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  lastActivityAt: timestamp("lastActivityAt").defaultNow().notNull(),
 }, (table) => ({
   userIdIdx: index("processes_userId_idx").on(table.userId),
 }));

@@ -109,6 +109,72 @@ export const davidRouter = router({
       return { content };
     }),
 
+  // 🔧 ADMIN: Rodar migration (TEMPORÁRIO - remover após uso)
+  runMigration: protectedProcedure
+    .mutation(async ({ ctx }) => {
+      // Apenas admin
+      if (ctx.user.role !== 'admin') {
+        throw new Error("Apenas admins podem rodar migrations");
+      }
+
+      const { getDb } = await import("./db");
+      const { sql } = await import("drizzle-orm");
+      const db = await getDb();
+      if (!db) throw new Error("Database not available");
+
+      const results = [];
+
+      try {
+        // 1. Add lastActivityAt column
+        await db.execute(sql`
+          ALTER TABLE processes 
+          ADD COLUMN lastActivityAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL
+          AFTER updatedAt
+        `);
+        results.push("✓ Added lastActivityAt column");
+      } catch (error: any) {
+        if (error.message?.includes('Duplicate column')) {
+          results.push("⚠ Column lastActivityAt already exists");
+        } else {
+          results.push(`❌ Failed to add column: ${error.message}`);
+          throw error;
+        }
+      }
+
+      try {
+        // 2. Create index for duplicate detection
+        await db.execute(sql`
+          CREATE INDEX idx_process_number_user 
+          ON processes(userId, processNumber(50))
+        `);
+        results.push("✓ Created index idx_process_number_user");
+      } catch (error: any) {
+        if (error.message?.includes('Duplicate key name')) {
+          results.push("⚠ Index idx_process_number_user already exists");
+        } else {
+          results.push(`⚠ Index creation skipped: ${error.message}`);
+        }
+      }
+
+      try {
+        // 3. Create index for activity timeline
+        await db.execute(sql`
+          CREATE INDEX idx_process_last_activity 
+          ON processes(userId, lastActivityAt DESC)
+        `);
+        results.push("✓ Created index idx_process_last_activity");
+      } catch (error: any) {
+        if (error.message?.includes('Duplicate key name')) {
+          results.push("⚠ Index idx_process_last_activity already exists");
+        } else {
+          results.push(`⚠ Index creation skipped: ${error.message}`);
+        }
+      }
+
+      return { success: true, results };
+    }),
+
+
   // Transcrever áudio (Whisper)
   transcribeAudio: protectedProcedure
     .input(z.object({ audio: z.string() }))
@@ -665,6 +731,61 @@ ${CORE_MOTOR_D}
       const isFirstMessage = history.length === 1; // Apenas a mensagem do usuário que acabou de ser salva
 
       if (isFirstMessage) {
+        // ⚡ LAZY LOADING: Extrair metadados de processo se houver PDF anexado
+        if (conversation.googleFileUri && !conversation.processId) {
+          console.log("[LazyMetadata] Primeira mensagem com PDF - extraindo metadados...");
+
+          try {
+            // Obter conteúdo do PDF que será processado pelo LLM de qualquer forma
+            const { extractProcessMetadata } = await import("./services/ProcessMetadataExtractor");
+            const settings = await getUserSettings(ctx.user.id);
+
+            // TODO: Pegar o texto extraído da análise do LLM em vez de reprocessar
+            // Por enquanto, usamos o googleFileUri diretamente
+
+            // Extrair metadados do PDF
+            const { readPdfWithVision } = await import("./_core/fileApi");
+            const pdfAnalysis = await readPdfWithVision(conversation.googleFileUri, {
+              apiKey: settings?.readerApiKey || undefined,
+              model: "gemini-2.0-flash-lite",
+              instruction: `Leia apenas as PRIMEIRAS 2 PÁGINAS e extraia:
+- Número do processo
+- Nome das partes (autor/réu)
+- Vara/Tribunal
+- Assunto/Tipo da ação
+
+Retorne APENAS essas informações de forma objetiva.`,
+            });
+
+            const metadata = await extractProcessMetadata(pdfAnalysis.content, settings?.llmApiKey || undefined);
+
+            if (metadata.processNumber) {
+              const { upsertProcessMetadata } = await import("./db");
+              const result = await upsertProcessMetadata(
+                {
+                  processNumber: metadata.processNumber,
+                  plaintiff: metadata.plaintiff,
+                  defendant: metadata.defendant,
+                  court: metadata.court,
+                  subject: metadata.subject,
+                },
+                ctx.user.id
+              );
+
+              // Vincular processo à conversa
+              await updateConversationProcess(input.conversationId, result.processId);
+
+              // Atualizar título da conversa
+              await updateConversationTitle(input.conversationId, metadata.processNumber);
+
+              console.log(`[LazyMetadata] ✅ ${result.isNew ? 'Novo processo criado' : 'Processo atualizado'}: ${metadata.processNumber}`);
+            }
+          } catch (error) {
+            console.error("[LazyMetadata] Erro ao extrair metadados:", error);
+            // Não falha a resposta se extração falhar
+          }
+        }
+
         // Buscar informações do processo se houver
         let processInfo;
         if (conversation.processId) {

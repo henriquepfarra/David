@@ -316,12 +316,18 @@ async function startServer() {
 
       try {
         // streamFn is now statically imported
+        // Passar o googleFileUri da conversa para o LLM processar o PDF
+        const fileUri = conversation.googleFileUri || undefined;
+        if (fileUri) {
+          console.log(`[Stream] Incluindo arquivo PDF no contexto: ${fileUri}`);
+        }
 
         for await (const yieldData of streamFn({
           messages: llmMessages,
           apiKey: llmConfig.apiKey,
           model: llmConfig.model,
-          provider: llmConfig.provider
+          provider: llmConfig.provider,
+          fileUri
         })) {
           if (chunkCount === 0) {
             console.log(`[Stream] First chunk received after ${Date.now() - startTime}ms`);

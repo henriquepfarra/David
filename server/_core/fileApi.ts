@@ -171,13 +171,24 @@ export async function deleteFileFromGoogle(fileName: string, apiKey?: string): P
         return;
     }
 
+    // Extrair ID se for um URI completo
+    // Ex: https://generativelanguage.googleapis.com/v1beta/files/abc123... -> files/abc123...
+    let cleanName = fileName;
+    if (fileName.includes("/files/")) {
+        const parts = fileName.split("/files/");
+        if (parts.length > 1) {
+            cleanName = "files/" + parts[1].split("?")[0]; // Remove query params se houver
+        }
+    }
+
     try {
         const fileManager = new GoogleAIFileManager(key);
-        await fileManager.deleteFile(fileName);
-        console.log(`[FileAPI] File ${fileName} deleted from Google servers.`);
+        await fileManager.deleteFile(cleanName);
+        console.log(`[FileAPI] File ${cleanName} deleted from Google servers.`);
     } catch (error) {
-        console.error(`[FileAPI] Failed to delete file ${fileName}:`, error);
-        throw error;
+        console.error(`[FileAPI] Failed to delete file ${fileName} (parsed as ${cleanName}):`, error);
+        // Não lançar erro para não quebrar fluxo de cleanup
+        // throw error; 
     }
 }
 

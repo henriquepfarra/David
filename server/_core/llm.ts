@@ -69,6 +69,8 @@ export type InvokeParams = {
   apiKey?: string;
   model?: string;
   provider?: string;
+  /** URI do arquivo anexado (File API do Gemini) */
+  fileUri?: string;
 };
 
 export type ToolCall = {
@@ -538,7 +540,8 @@ export async function* invokeLLMStreamWithThinking(
     response_format,
     apiKey,
     model,
-    provider
+    provider,
+    fileUri
   } = params;
 
   const normalizedProvider = provider?.toLowerCase() || "google";
@@ -548,10 +551,10 @@ export async function* invokeLLMStreamWithThinking(
     const geminiApiKey = apiKey || ENV.geminiApiKey;
     const geminiModel = model || "gemini-2.5-flash";
 
-    console.log(`[LLM] Usando API nativa do Gemini para modelo: ${geminiModel}`);
+    console.log(`[LLM] Usando API nativa do Gemini para modelo: ${geminiModel}${fileUri ? ` com arquivo: ${fileUri}` : ''}`);
 
     // Delegar para função de streaming nativa do Gemini
-    yield* geminiNativeStreamWithThinking(messages, geminiModel, geminiApiKey);
+    yield* geminiNativeStreamWithThinking(messages, geminiModel, geminiApiKey, fileUri);
     return;
   }
 
@@ -711,14 +714,16 @@ export async function* invokeLLMStreamWithThinking(
  * Usa a API nativa do Gemini (não OpenAI-compatible) para:
  * - Expor campos de thinking/reasoning
  * - Suporte a modelos Gemini 2.0/3.0 com thinking nativo
+ * - Suporte a arquivos via File API (fileUri)
  */
 async function* geminiNativeStreamWithThinking(
   messages: Message[],
   model: string,
-  apiKey: string
+  apiKey: string,
+  fileUri?: string
 ): AsyncGenerator<StreamYield, void, unknown> {
   // Converter formato OpenAI para formato Gemini
-  const contents: Array<{ role: string; parts: Array<{ text: string }> }> = [];
+  const contents: Array<{ role: string; parts: Array<{ text?: string; fileData?: { fileUri: string; mimeType: string } }> }> = [];
   let systemInstruction = "";
 
   for (const msg of messages) {
@@ -737,10 +742,26 @@ async function* geminiNativeStreamWithThinking(
         : Array.isArray(msg.content)
           ? msg.content.map(c => typeof c === "string" ? c : (c as any).text || "").join("\n")
           : "";
-      contents.push({
-        role,
-        parts: [{ text: content }]
-      });
+
+      // Construir parts da mensagem
+      const parts: Array<{ text?: string; fileData?: { fileUri: string; mimeType: string } }> = [];
+
+      // Se é uma mensagem user e temos fileUri, incluir o arquivo NO INÍCIO
+      // (o arquivo deve vir junto com a primeira mensagem do usuário ou na última)
+      if (role === "user" && fileUri && contents.length === 0) {
+        parts.push({
+          fileData: {
+            fileUri: fileUri,
+            mimeType: "application/pdf"
+          }
+        });
+        console.log(`[Gemini Native] Incluindo arquivo PDF na mensagem: ${fileUri}`);
+      }
+
+      // Adicionar o texto da mensagem
+      parts.push({ text: content });
+
+      contents.push({ role, parts });
     }
   }
 
@@ -761,7 +782,7 @@ async function* geminiNativeStreamWithThinking(
   // URL da API nativa com streaming
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:streamGenerateContent?alt=sse&key=${apiKey}`;
 
-  console.log(`[Gemini Native] Starting stream with model: ${model}`);
+  console.log(`[Gemini Native] Starting stream with model: ${model}${fileUri ? ' (with PDF file)' : ''}`);
 
   const response = await fetch(url, {
     method: "POST",

@@ -175,6 +175,79 @@ export async function deleteProcess(id: number, userId: number) {
   await db.delete(processes).where(and(eq(processes.id, id), eq(processes.userId, userId)));
 }
 
+/**
+ * Upsert process metadata (auto-save)
+ * If process already exists for user, update lastActivityAt
+ * Otherwise, create new process record
+ */
+export async function upsertProcessMetadata(
+  metadata: {
+    processNumber: string;
+    plaintiff?: string | null;
+    defendant?: string | null;
+    court?: string | null;
+    subject?: string | null;
+  },
+  userId: number
+): Promise<{ processId: number; isNew: boolean }> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const { processes } = await import("../drizzle/schema");
+  const { and, sql } = await import("drizzle-orm");
+  const { normalizeProcessNumber } = await import("./services/ProcessMetadataExtractor");
+
+  // Normalizar número do processo para comparação
+  const normalized = normalizeProcessNumber(metadata.processNumber);
+
+  // Verificar se já existe
+  const existing = await db
+    .select()
+    .from(processes)
+    .where(
+      and(
+        eq(processes.userId, userId),
+        sql`REPLACE(REPLACE(REPLACE(${processes.processNumber}, '.', ''), '-', ''), ' ', '') = ${normalized}`
+      )
+    )
+    .limit(1);
+
+  if (existing.length > 0) {
+    // Processo já existe - atualizar timestamp
+    await db
+      .update(processes)
+      .set({
+        lastActivityAt: new Date(),
+        updatedAt: new Date(),
+        ...(metadata.plaintiff && { plaintiff: metadata.plaintiff }),
+        ...(metadata.defendant && { defendant: metadata.defendant }),
+        ...(metadata.court && { court: metadata.court }),
+        ...(metadata.subject && { subject: metadata.subject }),
+      })
+      .where(eq(processes.id, existing[0]!.id));
+
+    logger.info(`[ProcessMetadata] Updated existing process: ${metadata.processNumber}`);
+
+    return { processId: existing[0]!.id, isNew: false };
+  } else {
+    // Novo processo - inserir
+    const result = await db.insert(processes).values({
+      userId,
+      processNumber: metadata.processNumber,
+      plaintiff: metadata.plaintiff || null,
+      defendant: metadata.defendant || null,
+      court: metadata.court || null,
+      subject: metadata.subject || null,
+      lastActivityAt: new Date(),
+    });
+
+    const processId = Number(result[0].insertId);
+    logger.info(`[ProcessMetadata] Created new process: ${metadata.processNumber}`);
+
+    return { processId, isNew: true };
+  }
+}
+
+
 // Minutas
 export async function getProcessDrafts(processId: number, userId: number) {
   const db = await getDb();

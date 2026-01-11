@@ -260,6 +260,82 @@ export const conversationRouter = router({
             return { success: true };
         }),
 
+    // Upload de arquivo com extração automática de metadados
+    uploadFileWithMetadata: protectedProcedure
+        .input(
+            z.object({
+                conversationId: z.number(),
+                googleFileUri: z.string(),
+                googleFileName: z.string(),
+                extractedText: z.string(), // Texto extraído do PDF (primeiras páginas)
+            })
+        )
+        .mutation(async ({ ctx, input }) => {
+            const conversation = await getConversationById(input.conversationId);
+            if (!conversation || conversation.userId !== ctx.user.id) {
+                throw new Error("Conversa não encontrada");
+            }
+
+            // Salvar URI do arquivo
+            await updateConversationGoogleFile(
+                input.conversationId,
+                input.googleFileUri,
+                input.googleFileName
+            );
+
+            // Tentar extrair metadados do processo
+            let processMetadata = null;
+            let processId = null;
+            let isDuplicateProcess = false;
+
+            if (input.extractedText.length > 100) {
+                try {
+                    const { extractProcessMetadata } = await import("../services/ProcessMetadataExtractor");
+                    const { upsertProcessMetadata } = await import("../db");
+                    const settings = await getUserSettings(ctx.user.id);
+
+                    // Extrair metadados com LLM
+                    const metadata = await extractProcessMetadata(
+                        input.extractedText,
+                        settings?.llmApiKey || undefined
+                    );
+
+                    if (metadata.processNumber) {
+                        // Auto-save metadados (só se processNumber for válido)
+                        const result = await upsertProcessMetadata(
+                            {
+                                processNumber: metadata.processNumber,
+                                plaintiff: metadata.plaintiff,
+                                defendant: metadata.defendant,
+                                court: metadata.court,
+                                subject: metadata.subject,
+                            },
+                            ctx.user.id
+                        );
+                        processId = result.processId;
+                        processMetadata = metadata;
+                        isDuplicateProcess = !result.isNew;
+
+                        // Vincular processo à conversa
+                        await updateConversationProcess(input.conversationId, processId);
+
+                        console.log(`[Upload] Processo ${result.isNew ? 'criado' : 'atualizado'}: ${metadata.processNumber}`);
+                    }
+                } catch (error) {
+                    console.error("[Upload] Erro ao extrair metadados:", error);
+                    // Não falhar o upload se extração falhar
+                }
+            }
+
+            return {
+                success: true,
+                processMetadata,
+                processId,
+                isDuplicateProcess,
+            };
+        }),
+
+
     // Limpar arquivo Google da conversa (chamado ao sair)
     cleanupGoogleFile: protectedProcedure
         .input(z.object({ conversationId: z.number() }))
