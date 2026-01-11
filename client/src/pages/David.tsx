@@ -68,6 +68,23 @@ const debugLog = (source: string, message: string, data?: any) => {
 
 export default function David() {
   const [location, setLocation] = useLocation();
+
+  // ESTADO QUE SEGURA A QUERY STRING (Workaround para wouter ignorar query params)
+  const [urlSearch, setUrlSearch] = useState(window.location.search);
+
+  // Polling para detectar mudanças na URL que o wouter não pega (query string change on same path)
+  useEffect(() => {
+    const checkUrl = () => {
+      if (window.location.search !== urlSearch) {
+        setUrlSearch(window.location.search);
+        console.log("[David] Query param changed detected via poll:", window.location.search);
+      }
+    };
+
+    // Check frequente para resposta rápida ao clique
+    const interval = setInterval(checkUrl, 100);
+    return () => clearInterval(interval);
+  }, [urlSearch]);
   const { user } = useAuth();
 
   // Estado para ID da conversa da URL - precisa reagir a mudanças na query string
@@ -152,12 +169,13 @@ export default function David() {
   // Ref para garantir acesso ao ID mais recente nos callbacks (race condition fix)
   const selectedConversationIdRef = useRef<number | null>(selectedConversationId);
 
-  // Sincronizar selectedConversationId com URL quando muda
+  // Sincronizar selectedConversationId com URL quando muda (via location path ou urlSearch query param)
   useEffect(() => {
-    selectedConversationIdRef.current = selectedConversationId;
+    debugLog('David.tsx - useEffect[location]', 'Effect triggered', { location, urlSearch });
+
     const updateFromUrl = () => {
-      const params = new URLSearchParams(window.location.search);
-      const cParam = params.get("c");
+      const urlParams = new URLSearchParams(window.location.search);
+      const cParam = urlParams.get("c");
       const newId = cParam ? parseInt(cParam, 10) : null;
 
       debugLog('David.tsx - updateFromUrl', 'URL read', {
@@ -165,39 +183,24 @@ export default function David() {
         newId,
         willUpdate: newId !== lastUrlIdRef.current
       });
+      console.log("[David] Checando updates de URL. New ID:", newId);
 
-      // Comparar com ref para evitar problemas de closure
       if (newId !== lastUrlIdRef.current) {
-        console.log("[David.tsx] URL changed:", lastUrlIdRef.current, "->", newId);
-        const wasFromHome = lastUrlIdRef.current === null;
         lastUrlIdRef.current = newId;
-
         debugLog('David.tsx - setSelectedConversationId', 'Setting state', {
           from: 'updateFromUrl',
           newValue: newId
         });
+        console.log("[David] Atualizando ID da conversa para:", newId);
         setSelectedConversationId(newId);
 
-        // Limpar mensagem pendente e estados de streaming ao mudar de conversa
-        // MAS não limpar se estamos vindo da Home (onde criamos a conversa com mensagem)
-        if (!wasFromHome || newId === null) {
-          setPendingUserMessage(null);
-          debugLog('David.tsx - resetStream', 'Calling resetStream');
-          resetStream();
-        }
+        // Resetar stream se mudou de conversa
+        resetStream();
       }
     };
 
-    // Escutar popstate (navegação via botões voltar/avançar)
-    window.addEventListener('popstate', updateFromUrl);
-
-    // Atualizar imediatamente quando location ou query string mudam
     updateFromUrl();
-
-    return () => {
-      window.removeEventListener('popstate', updateFromUrl);
-    };
-  }, [location, resetStream]); // Reagir a mudanças de location do wouter
+  }, [location, urlSearch, resetStream]);
 
   // Estados para seleção múltipla
   const [isSelectionMode, setIsSelectionMode] = useState(false);
@@ -249,6 +252,8 @@ export default function David() {
 
   // Estado local para manter o arquivo visível imediatamente após upload (Optimistic UI)
   const [localAttachedFile, setLocalAttachedFile] = useState<{ name: string, uri: string } | null>(null);
+
+
 
   // Limpar arquivo local ao mudar de conversa
   useEffect(() => {
@@ -2034,7 +2039,7 @@ export default function David() {
                             </div>
                           ) : (activeFile || selectedProcessId) ? (
                             /* Badge do processo anexado */
-                            <div className="flex items-center gap-3 p-3 bg-muted/30 rounded-xl border border-border/50 group">
+                            <div className="flex items-center gap-3 p-3 bg-muted/30 rounded-xl border border-border/50 group w-fit max-w-[320px]">
                               <div className="w-12 h-12 rounded-lg bg-red-50 flex items-center justify-center text-red-600">
                                 <FileText className="h-6 w-6" />
                               </div>

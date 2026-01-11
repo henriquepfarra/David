@@ -131,6 +131,18 @@ function DashboardLayoutContent({
 }: DashboardLayoutContentProps) {
   const { user, logout } = useAuth();
   const [location, setLocation] = useLocation();
+
+  // FIX: Polling para detectar mudanças na URL (query string) para atualizar Sidebar
+  const [urlSearch, setUrlSearch] = useState(window.location.search);
+  useEffect(() => {
+    const checkUrl = () => {
+      if (window.location.search !== urlSearch) {
+        setUrlSearch(window.location.search);
+      }
+    };
+    const interval = setInterval(checkUrl, 100);
+    return () => clearInterval(interval);
+  }, [urlSearch]);
   const { state, toggleSidebar } = useSidebar();
   const isCollapsed = state === "collapsed";
   const [isResizing, setIsResizing] = useState(false);
@@ -323,7 +335,7 @@ function DashboardLayoutContent({
     return () => {
       window.removeEventListener('popstate', updateConversationId);
     };
-  }, [location]); // Reagir a mudanças de location do wouter
+  }, [location, urlSearch]); // Agora depende de urlSearch também
 
   return (
     <>
