@@ -57,10 +57,21 @@ async function startServer() {
   const server = createServer(app);
 
   // Enable CORS with credentials support
+  // Em produção, restringe origens permitidas para segurança
+  const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(',').map(o => o.trim()).filter(Boolean);
+
   app.use(cors({
-    origin: true, // Allow all origins (reflects the request origin)
+    origin: process.env.NODE_ENV === 'production' && allowedOrigins && allowedOrigins.length > 0
+      ? allowedOrigins  // Produção: apenas origens especificadas
+      : true,           // Desenvolvimento: aceita qualquer origem
     credentials: true
   }));
+
+  console.log(`🔒 CORS configured for ${process.env.NODE_ENV}: ${
+    process.env.NODE_ENV === 'production' && allowedOrigins
+      ? allowedOrigins.join(', ')
+      : 'all origins (development mode)'
+  }`);
 
   // Configure body parser with larger size limit for file uploads
   app.use(express.json({ limit: "50mb" }));
