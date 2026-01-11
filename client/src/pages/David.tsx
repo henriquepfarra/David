@@ -524,12 +524,18 @@ export default function David() {
 
   const cleanupIfEmptyMutation = trpc.david.cleanupIfEmpty.useMutation({
     onSuccess: (data) => {
+      debugLog('David.tsx - cleanupIfEmpty', 'SUCCESS', {
+        deleted: data.deleted,
+        willRefetch: data.deleted
+      });
+
       if (data.deleted) {
         console.log("Conversa vazia deletada automaticamente ao sair");
         refetchConversations();
       }
     },
     onError: (error) => {
+      debugLog('David.tsx - cleanupIfEmpty', 'ERROR', { error: error.message });
       console.error("[Cleanup] Erro ao limpar conversa vazia:", error.message);
       // Não mostrar toast pois é operação em background
     },
@@ -770,18 +776,24 @@ export default function David() {
 
   // Effect para cleanup ao trocar de conversa
   useEffect(() => {
-    // Se trocou de conversa e tinha uma anterior com processo vinculado
+    const previousId = previousConversationIdRef.current;
+
+    // Se trocou de conversa e tinha uma anterior
     if (
-      previousConversationIdRef.current !== null &&
-      previousConversationIdRef.current !== selectedConversationId
+      previousId !== null &&
+      previousId !== selectedConversationId
     ) {
-      // Faz cleanup da conversa anterior
-      cleanupGoogleFileMutation.mutate({
-        conversationId: previousConversationIdRef.current
-      });
-      cleanupIfEmptyMutation.mutate({
-        conversationId: previousConversationIdRef.current
-      });
+      debugLog('David.tsx - cleanup', 'Cleaning up previous conversation', { previousId });
+
+      // Faz cleanup da conversa anterior (com delay para evitar race conditions)
+      setTimeout(() => {
+        cleanupGoogleFileMutation.mutate({
+          conversationId: previousId
+        });
+        cleanupIfEmptyMutation.mutate({
+          conversationId: previousId
+        });
+      }, 100);
     }
     // Atualiza referência
     previousConversationIdRef.current = selectedConversationId;
