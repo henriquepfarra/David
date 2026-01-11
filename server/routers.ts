@@ -404,7 +404,16 @@ Retorne APENAS essas informações, de forma objetiva. Ignore o restante do docu
   // Configurações do usuário
   settings: router({
     get: protectedProcedure.query(async ({ ctx }) => {
-      return db.getUserSettings(ctx.user.id);
+      const settings = await db.getUserSettings(ctx.user.id);
+      if (!settings) return null;
+
+      // 🔒 SECURITY: Mascarar chaves de API para não expor no frontend
+      // O frontend só precisa saber SE existe chave configurada (para exibir warning ou não)
+      return {
+        ...settings,
+        llmApiKey: settings.llmApiKey ? '********' : undefined,
+        readerApiKey: settings.readerApiKey ? '********' : undefined,
+      };
     }),
 
     update: protectedProcedure
