@@ -1,5 +1,9 @@
 import { defineConfig } from "vitest/config";
 import path from "path";
+import { config } from "dotenv";
+
+// Carregar variáveis de ambiente do .env para testes
+config();
 
 const templateRoot = path.resolve(import.meta.dirname);
 
@@ -14,6 +18,14 @@ export default defineConfig({
   },
   test: {
     environment: "node",
-    include: ["server/**/*.test.ts", "server/**/*.spec.ts"],
+    include: [
+      "server/**/*.test.ts",
+      "server/**/*.spec.ts",
+      "client/src/**/*.test.ts",
+      "client/src/**/*.spec.ts"
+    ],
+    globals: true,
+    testTimeout: 30000, // 30s default (alguns testes LLM podem demorar)
+    hookTimeout: 10000, // 10s para setup/teardown
   },
 });
