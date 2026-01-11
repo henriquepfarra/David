@@ -530,13 +530,12 @@ Deixe vazio se não tiver preferências específicas.`}
                           <Brain className="h-4 w-4 text-primary" />
                           🧠 CÉREBRO (IA Principal)
                         </Label>
-                        {llmApiKey && (
+                        {(isLlmConfigured || llmApiKey) ? (
                           <Badge variant="outline" className="bg-green-50 dark:bg-green-900/30 border-green-300 dark:border-green-700 text-green-700 dark:text-green-300 text-[10px] gap-1">
                             <span className="w-1.5 h-1.5 rounded-full bg-green-500"></span>
                             {llmProvider.charAt(0).toUpperCase() + llmProvider.slice(1)} • {llmModel || "Padrão"}
                           </Badge>
-                        )}
-                        {!llmApiKey && (
+                        ) : (
                           <Badge variant="outline" className="bg-amber-50 dark:bg-amber-900/30 border-amber-300 dark:border-amber-700 text-amber-700 dark:text-amber-300 text-[10px] gap-1 animate-pulse">
                             <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
                             Configuração necessária
@@ -626,7 +625,7 @@ Deixe vazio se não tiver preferências específicas.`}
                             type="password"
                             value={llmApiKey}
                             onChange={(e) => handleApiKeyChange(e.target.value)}
-                            placeholder={isLlmConfigured ? "•••••••••••••• (Configurada)" : (llmProvider === 'groq' ? "gsk_..." : "sk-...")}
+                            placeholder={llmProvider === 'groq' ? "gsk_..." : "sk-..."}
                             className="pr-10"
                           />
                           <Key className="absolute right-3 top-2.5 h-4 w-4 text-muted-foreground opacity-50" />
