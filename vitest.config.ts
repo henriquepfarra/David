@@ -14,6 +14,15 @@ export default defineConfig({
   },
   test: {
     environment: "node",
-    include: ["server/**/*.test.ts", "server/**/*.spec.ts"],
+    include: [
+      "server/**/*.test.ts",
+      "server/**/*.spec.ts",
+      "client/src/**/*.test.ts",
+      "client/src/**/*.spec.ts"
+    ],
+    globals: true,
+    testTimeout: 30000, // 30s default (alguns testes LLM podem demorar)
+    hookTimeout: 10000, // 10s para setup/teardown
+    setupFiles: ["./server/__tests__/setup.ts"], // Carrega env vars ANTES dos testes
   },
 });
