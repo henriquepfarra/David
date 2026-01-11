@@ -433,10 +433,20 @@ Retorne APENAS essas informações, de forma objetiva. Ignore o restante do docu
     listModels: protectedProcedure
       .input(z.object({
         provider: z.string(),
-        apiKey: z.string(),
+        apiKey: z.string().optional(),
       }))
-      .query(async ({ input }) => {
-        const models = await listAvailableModels(input.provider, input.apiKey);
+      .query(async ({ ctx, input }) => {
+        let keyToUse = input.apiKey;
+
+        // Se não veio chave, tentar usar a salva no banco
+        if (!keyToUse) {
+          const settings = await db.getUserSettings(ctx.user.id);
+          keyToUse = settings?.llmApiKey || "";
+        }
+
+        if (!keyToUse) return [];
+
+        const models = await listAvailableModels(input.provider, keyToUse);
         return models;
       }),
   }),

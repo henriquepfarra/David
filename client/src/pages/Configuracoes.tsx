@@ -92,17 +92,24 @@ export default function Configuracoes() {
     },
   });
 
+  // Helpers para UI
+  const isLlmConfigured = !!settings?.llmApiKey;
+  const isReaderConfigured = !!settings?.readerApiKey;
+
   useEffect(() => {
     if (settings) {
-      // Carrega o valor salvo OU string vazia (não usa DEFAULT)
+      // Carrega o valor salvo OU string vazia
       const prompt = settings.customSystemPrompt || "";
       setCustomSystemPrompt(prompt);
       setOriginalPrompt(prompt);
 
-      const apiKey = settings.llmApiKey || "";
+      // 🔒 UX: Não preencher inputs com chave mascarada (********)
+      // Se vier mascarada ou vazia, iniciamos com vazio para o usuário digitar se quiser
+      // O placeholder indicará se já está configurada.
+      const apiKey = "";
       const provider = settings.llmProvider || "google";
-      const model = settings.llmModel || "";
-      const rApiKey = settings.readerApiKey || "";
+      const model = settings.llmModel || ""; // Modelo é público, ok mostrar
+      const rApiKey = "";
       const rModel = settings.readerModel || "gemini-2.0-flash";
 
       setLlmApiKey(apiKey);
@@ -111,6 +118,8 @@ export default function Configuracoes() {
       setReaderApiKey(rApiKey);
       setReaderModel(rModel);
 
+      // Definimos originais como vazio para comparar mudanças corretamente
+      // (Se usuário não digitar nada = vazio = igual original = sem mudança)
       setOriginalApiSettings({
         llmApiKey: apiKey,
         llmProvider: provider,
@@ -119,16 +128,20 @@ export default function Configuracoes() {
         readerModel: rModel,
       });
 
-      // Carregar modelos se já tiver API key (silenciosamente, sem toast)
+      // Carregar modelos se já tiver API key configurada (mesmo que mascarada)
       if (settings.llmApiKey && settings.llmProvider) {
-        loadModels(settings.llmProvider, settings.llmApiKey, true);
+        // Passamos string vazia para loadModels usar fallback do banco
+        loadModels(settings.llmProvider, "", true);
       }
     }
   }, [settings]);
 
   const loadModels = async (provider: string, apiKey: string, silent = false) => {
-    if (!apiKey || apiKey.length < 10) {
-      setModelsError("Insira uma chave de API válida");
+    // Permitir carregar se tiver chave no banco (isLlmConfigured) mesmo sem apiKey digitada
+    const hasStoredKey = !!settings?.llmApiKey;
+
+    if ((!apiKey || apiKey.length < 5) && !hasStoredKey) {
+      if (!silent) setModelsError("Insira uma chave de API válida");
       return;
     }
     setIsLoadingModels(true);
@@ -137,7 +150,7 @@ export default function Configuracoes() {
     try {
       const models = await utils.client.settings.listModels.query({
         provider,
-        apiKey,
+        apiKey: apiKey || undefined, // undefined faz backend usar stored key
       });
 
       setAvailableModels(models);
@@ -613,7 +626,7 @@ Deixe vazio se não tiver preferências específicas.`}
                             type="password"
                             value={llmApiKey}
                             onChange={(e) => handleApiKeyChange(e.target.value)}
-                            placeholder={llmProvider === 'groq' ? "gsk_..." : "sk-..."}
+                            placeholder={isLlmConfigured ? "•••••••••••••• (Configurada)" : (llmProvider === 'groq' ? "gsk_..." : "sk-...")}
                             className="pr-10"
                           />
                           <Key className="absolute right-3 top-2.5 h-4 w-4 text-muted-foreground opacity-50" />
