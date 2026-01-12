@@ -33,11 +33,14 @@ describe("StreamParser", () => {
 
         it("deve detectar citações", () => {
             const result = parseText("Conforme [[REF:SUMULA_STJ_54]], devemos...");
-            expect(result).toHaveLength(2);
+            expect(result).toHaveLength(3); // Texto antes + citação + texto depois
             expect(result[0].type).toBe("text");
+            expect(result[0].content).toBe("Conforme ");
             expect(result[1].type).toBe("citation");
             expect(result[1].metadata?.sumulaId).toBe("54");
             expect(result[1].metadata?.tribunal).toBe("STJ");
+            expect(result[2].type).toBe("text");
+            expect(result[2].content).toBe(", devemos...");
         });
 
         it("deve detectar múltiplas citações", () => {
