@@ -74,7 +74,8 @@ describe("settings.update", () => {
     // Recuperar configurações
     const settings = await caller.settings.get();
 
-    expect(settings?.llmApiKey).toBe("test-key");
+    // 🔒 SECURITY: A API mascara chaves de API por segurança (retorna '********')
+    expect(settings?.llmApiKey).toBe("********");
     expect(settings?.llmProvider).toBe("openai");
     expect(settings?.llmModel).toBe("gpt-4");
   });

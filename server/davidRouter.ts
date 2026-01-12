@@ -38,6 +38,7 @@ import {
   findConversationsByProcessNumber,
   getUserSettings,
 } from "./db";
+import { IntentService } from "./services/IntentService";
 import { invokeLLM, invokeLLMStream, transcribeAudio } from "./_core/llm";
 import { observable } from "@trpc/server/observable";
 import { extractThesisFromDraft } from "./thesisExtractor";
@@ -612,8 +613,25 @@ export const davidRouter = router({
         }
       }
 
+      // Classificar intenção para selecionar motores
+      const settings = await getUserSettings(ctx.user.id);
+      const intentResult = await IntentService.classify(
+        input.content,
+        {
+          processId: conversation.processId || undefined,
+          history: history.slice(-5).map(m => ({ role: m.role, content: m.content }))
+        },
+        settings?.llmApiKey || "fallback"
+      );
+
+      // Helper para ativar apenas motores selecionados
+      const useMotor = (motor: string, prompt: string) =>
+        intentResult.motors.includes(motor as any) ? prompt : "";
+
+      logger.info(`[DavidRouter] Intent: ${IntentService.formatDebugBadge(intentResult)}`);
+
       // MONTAGEM DINÂMICA DO CÉREBRO (Brain Assembly)
-      // Core (Universal) + Módulo (JEC) + Orquestrador
+      // Core (Universal) + Módulo (JEC) + Orquestrador + Motores Ativos
       const baseSystemPrompt = `
 ${CORE_IDENTITY}
 ${CORE_TONE}
@@ -624,10 +642,10 @@ ${CORE_TRANSPARENCY}
 ${CORE_STYLE}
 ${JEC_CONTEXT}
 ${CORE_ORCHESTRATOR}
-${CORE_MOTOR_A}
-${CORE_MOTOR_B}
-${CORE_MOTOR_C}
-${CORE_MOTOR_D}
+${useMotor("A", CORE_MOTOR_A)}
+${useMotor("B", CORE_MOTOR_B)}
+${useMotor("C", CORE_MOTOR_C)}
+${useMotor("D", CORE_MOTOR_D)}
 `;
 
       // Preferências de Estilo do Gabinete (CONCATENA, não substitui)
@@ -881,8 +899,25 @@ Retorne APENAS essas informações de forma objetiva.`,
         }
       }
 
+      // Classificar intenção para selecionar motores
+      const settings = await getUserSettings(ctx.user.id);
+      const intentResult = await IntentService.classify(
+        input.content,
+        {
+          processId: conversation.processId || undefined,
+          history: history.slice(-5).map(m => ({ role: m.role, content: m.content }))
+        },
+        settings?.llmApiKey || "fallback"
+      );
+
+      // Helper para ativar apenas motores selecionados
+      const useMotor = (motor: string, prompt: string) =>
+        intentResult.motors.includes(motor as any) ? prompt : "";
+
+      logger.info(`[DavidRouter] Intent (Stream): ${IntentService.formatDebugBadge(intentResult)}`);
+
       // MONTAGEM DINÂMICA DO CÉREBRO (Brain Assembly)
-      // Core (Universal) + Estilo + Módulo (JEC) + Orquestrador + Motores
+      // Core (Universal) + Módulo (JEC) + Orquestrador + Motores Ativos
       const baseSystemPrompt = `
 ${CORE_IDENTITY}
 ${CORE_TONE}
@@ -893,10 +928,10 @@ ${CORE_TRANSPARENCY}
 ${CORE_STYLE}
 ${JEC_CONTEXT}
 ${CORE_ORCHESTRATOR}
-${CORE_MOTOR_A}
-${CORE_MOTOR_B}
-${CORE_MOTOR_C}
-${CORE_MOTOR_D}
+${useMotor("A", CORE_MOTOR_A)}
+${useMotor("B", CORE_MOTOR_B)}
+${useMotor("C", CORE_MOTOR_C)}
+${useMotor("D", CORE_MOTOR_D)}
 `;
 
       // Preferências de Estilo do Gabinete (CONCATENA, não substitui)
@@ -1275,7 +1310,12 @@ Diretrizes de Execução:
       .mutation(async ({ ctx, input }) => {
         const id = await createLearnedThesis({
           userId: ctx.user.id,
-          ...input,
+          legalThesis: input.thesis,
+          approvedDraftId: input.approvedDraftId,
+          processId: input.processId,
+          legalFoundations: input.legalFoundations,
+          keywords: input.keywords,
+          decisionPattern: input.decisionPattern,
         });
         return { id };
       }),

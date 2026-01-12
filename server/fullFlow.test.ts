@@ -1,7 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { appRouter } from "./routers";
 import type { TrpcContext } from "./_core/context";
-import { getDb, getProcessById } from "./db";
 
 type AuthenticatedUser = NonNullable<TrpcContext["user"]>;
 
@@ -56,7 +55,8 @@ describe("Fluxo Completo de Aprendizado", () => {
         evidence: "Contrato quitado, comprovante de pagamento",
         requests: "Baixa do gravame + indenização por danos morais",
       });
-      processo = await getProcessById(newProcesso.id);
+      // Buscar processo usando o router (requer userId no contexto)
+      processo = await caller.processes.get({ id: newProcesso.id });
     }
 
     expect(processo).toBeDefined();

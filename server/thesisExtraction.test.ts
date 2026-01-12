@@ -18,7 +18,7 @@ vi.mock("./_core/env", () => ({
 
 describe("extractThesisFromDraft (Unit)", () => {
   it("deve processar corretamente resposta válida da LLM", async () => {
-    // Mock da resposta de sucesso
+    // Mock da resposta de sucesso com novo schema
     vi.spyOn(llm, "invokeLLM").mockResolvedValue({
       id: "test-id",
       created: 1234567890,
@@ -29,10 +29,15 @@ describe("extractThesisFromDraft (Unit)", () => {
           message: {
             role: "assistant",
             content: JSON.stringify({
-              thesis: "Tese jurídica simulada para teste unitário",
+              legalThesis: "Tese jurídica simulada para teste unitário",
               legalFoundations: "Art. 300 CPC",
               keywords: "tutela, urgência, teste",
-              decisionPattern: "Padrão técnico e objetivo"
+              writingStyleSample: "Padrão técnico e objetivo de redação",
+              writingCharacteristics: {
+                formality: "formal",
+                structure: "fluxo corrido",
+                tone: "técnico-objetivo"
+              }
             }),
           },
           finish_reason: "stop",
@@ -43,8 +48,12 @@ describe("extractThesisFromDraft (Unit)", () => {
     const result = await extractThesisFromDraft("texto da minuta", "decisao");
 
     expect(result).toBeDefined();
-    expect(result.thesis).toBe("Tese jurídica simulada para teste unitário");
+    expect(result.legalThesis).toBe("Tese jurídica simulada para teste unitário");
+    expect(result.thesis).toBe("Tese jurídica simulada para teste unitário"); // Alias legado
     expect(result.legalFoundations).toBe("Art. 300 CPC");
+    expect(result.keywords).toBe("tutela, urgência, teste");
+    expect(result.writingStyleSample).toBe("Padrão técnico e objetivo de redação");
+    expect(result.writingCharacteristics).toBeDefined();
     expect(llm.invokeLLM).toHaveBeenCalledTimes(1);
   });
 

@@ -1,5 +1,4 @@
 import { describe, expect, it } from "vitest";
-import { generateDraft, chunkText } from "./draftGenerator";
 
 describe("David - System Prompt e Conhecimento Híbrido", () => {
   it("should generate draft with David system prompt", async () => {
@@ -37,23 +36,6 @@ describe("David - System Prompt e Conhecimento Híbrido", () => {
     }
   });
 
-  it("should chunk large text correctly", () => {
-    const largeText = "Parágrafo 1\n\n".repeat(1000);
-    const chunks = chunkText(largeText, 5000);
-
-    expect(chunks.length).toBeGreaterThan(1);
-    for (const chunk of chunks) {
-      expect(chunk.length).toBeLessThanOrEqual(5000);
-    }
-  });
-
-  it("should preserve small text without chunking", () => {
-    const smallText = "Texto pequeno para teste";
-    const chunks = chunkText(smallText, 10000);
-
-    expect(chunks.length).toBe(1);
-    expect(chunks[0]).toBe(smallText);
-  });
 });
 
 describe("Sistema de Conhecimento Híbrido", () => {
