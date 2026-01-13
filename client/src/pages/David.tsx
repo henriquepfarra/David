@@ -1331,6 +1331,50 @@ export default function David() {
                 {/* Input centralizado estilo Gemini */}
                 <div className="relative">
                   <div className="flex items-end gap-2 p-3 bg-muted/50 border rounded-2xl shadow-sm hover:shadow-md transition-shadow">
+
+                    {/* 🎯 BADGE - Landing Page */}
+                    {(uploadState.isUploading || activeFile) && (
+                      <div className="absolute left-3 -top-20 right-3 z-50">
+                        <div className="bg-white rounded-xl border border-border shadow-lg p-3">
+                          {uploadState.isUploading ? (
+                            <div className="flex items-center gap-3">
+                              <div className="relative">
+                                <div className="w-10 h-10 rounded-lg bg-red-50 flex items-center justify-center text-red-600">
+                                  <FileText className="h-5 w-5" />
+                                </div>
+                                <div className="absolute -bottom-0.5 -right-0.5 bg-primary text-white rounded-full p-0.5">
+                                  <Loader2 className="h-2.5 w-2.5 animate-spin" />
+                                </div>
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-xs font-medium truncate">{uploadState.fileName}</p>
+                                <div className="flex items-center gap-2 mt-0.5">
+                                  <div className="flex-1 h-1 bg-muted rounded-full overflow-hidden">
+                                    <div className="h-full bg-primary transition-all duration-500" style={{ width: uploadState.stage === 'sending' ? '33%' : uploadState.stage === 'reading' ? '66%' : uploadState.stage === 'extracting' ? '90%' : '100%' }} />
+                                  </div>
+                                  <span className="text-[10px] text-muted-foreground shrink-0">
+                                    {uploadState.stage === 'sending' && 'Enviando...'}
+                                    {uploadState.stage === 'reading' && 'Lendo...'}
+                                    {uploadState.stage === 'extracting' && 'Extraindo...'}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                          ) : activeFile ? (
+                            <div className="flex items-center gap-3">
+                              <div className="w-10 h-10 rounded-lg bg-green-50 flex items-center justify-center text-green-600">
+                                <FileText className="h-5 w-5" />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-xs font-medium truncate">{activeFile.name}</p>
+                                <p className="text-[10px] text-green-600">✓ Anexado</p>
+                              </div>
+                            </div>
+                          ) : null}
+                        </div>
+                      </div>
+                    )}
+
                     {/* Botão de upload */}
                     <Button
                       variant="ghost"
