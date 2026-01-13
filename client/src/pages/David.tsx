@@ -537,10 +537,12 @@ export default function David() {
       }
 
       // Atualizar activeFile para mostrar badge
-      setActiveFile({
+      const fileData = {
         name: uploadState.fileName || 'Arquivo.pdf',
         uri: data.fileUri
-      });
+      };
+      console.log('🐛 [DEBUG] Setting activeFile:', fileData);
+      setActiveFile(fileData);
 
       // Mostra sucesso
       toast.success('📄 PDF anexado! Faça sua primeira pergunta.');
@@ -1114,7 +1116,66 @@ export default function David() {
       <div className="flex h-full bg-background">
         {/* Sidebar - Histórico de Conversas */}
         {/* Área Principal - Chat (Agora em tela cheia) */}
-        <div className="flex-1 flex flex-col relative h-full overflow-hidden"> {/* Added relative for positioning if needed */}
+        <div className="flex-1 flex flex-col h-full overflow-hidden bg-background">
+
+          {/* 🎯 BADGE DE UPLOAD - Overlay Independente (Fix Temporário) */}
+          {(uploadState.isUploading || activeFile) && (
+            <div className="fixed top-20 left-1/2 transform -translate-x-1/2 z-50 w-full max-w-md px-4">
+              <div className="bg-white rounded-xl border border-border shadow-lg p-3">
+                {uploadState.isUploading ? (
+                  /* Progress durante upload */
+                  <div className="flex items-center gap-3">
+                    <div className="relative">
+                      <div className="w-12 h-12 rounded-lg bg-red-50 flex items-center justify-center text-red-600">
+                        <FileText className="h-6 w-6" />
+                      </div>
+                      <div className="absolute -bottom-1 -right-1 bg-primary text-white rounded-full p-0.5">
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                      </div>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium truncate" title={uploadState.fileName || ''}>
+                        {uploadState.fileName}
+                      </p>
+                      <div className="flex items-center gap-2 mt-1">
+                        <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-primary transition-all duration-500 rounded-full"
+                            style={{
+                              width: uploadState.stage === 'sending' ? '33%'
+                                : uploadState.stage === 'reading' ? '66%'
+                                  : uploadState.stage === 'extracting' ? '90%'
+                                    : '100%'
+                            }}
+                          />
+                        </div>
+                        <span className="text-xs text-muted-foreground shrink-0">
+                          {uploadState.stage === 'sending' && 'Enviando...'}
+                          {uploadState.stage === 'reading' && 'Lendo...'}
+                          {uploadState.stage === 'extracting' && 'Extraindo texto...'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                ) : activeFile ? (
+                  /* Badge do arquivo anexado */
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-lg bg-green-50 flex items-center justify-center text-green-600">
+                      <FileText className="h-6 w-6" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium truncate" title={activeFile.name}>
+                        {activeFile.name}
+                      </p>
+                      <p className="text-xs text-green-600">✓ Anexado com sucesso</p>
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+            </div>
+          )}
+
+          {/* Chat principal */}
 
 
           {/* Header minimalista - badge agora fica na área do input */}
@@ -1943,6 +2004,12 @@ export default function David() {
                   <div className={`border p-4 relative shadow-sm bg-white rounded-[2rem] transition-all duration-200 z-30 ${isPromptsModalOpen ? 'opacity-60 pointer-events-none' : 'focus-within:ring-1 focus-within:ring-primary/50'}`}>
 
                     {/* Badge do Processo/Arquivo (Estilo Gemini) - ACIMA DO INPUT */}
+                    {console.log('🐛 [DEBUG BADGE] Checking conditions:', {
+                      isUploading: uploadState.isUploading,
+                      activeFile: activeFile,
+                      selectedProcessId: selectedProcessId,
+                      shouldRender: !!(uploadState.isUploading || activeFile || selectedProcessId)
+                    })}
                     <AnimatePresence>
                       {(uploadState.isUploading || activeFile || selectedProcessId) && (
                         <motion.div
