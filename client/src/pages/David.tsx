@@ -1948,6 +1948,60 @@ export default function David() {
                   /* Regular input container */
                   <div className={`border p-4 relative shadow-sm bg-white rounded-[2rem] transition-all duration-200 z-30 ${isPromptsModalOpen ? 'opacity-60 pointer-events-none' : 'focus-within:ring-1 focus-within:ring-primary/50'}`}>
 
+                    {/* 🎯 BADGE ABSOLUTAMENTE POSICIONADO - Flutua acima do input */}
+                    {(uploadState.isUploading || activeFile) && (
+                      <div className="absolute -top-[90px] left-0 right-0 px-4 z-50 pointer-events-none">
+                        <div className="bg-white rounded-xl border border-border shadow-lg p-3 max-w-md mx-auto pointer-events-auto">
+                          {uploadState.isUploading ? (
+                            <div className="flex items-center gap-3">
+                              <div className="relative">
+                                <div className="w-12 h-12 rounded-lg bg-red-50 flex items-center justify-center text-red-600">
+                                  <FileText className="h-6 w-6" />
+                                </div>
+                                <div className="absolute -bottom-1 -right-1 bg-primary text-white rounded-full p-0.5">
+                                  <Loader2 className="h-3 w-3 animate-spin" />
+                                </div>
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-medium truncate">
+                                  {uploadState.fileName}
+                                </p>
+                                <div className="flex items-center gap-2 mt-1">
+                                  <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
+                                    <div
+                                      className="h-full bg-primary transition-all duration-500 rounded-full"
+                                      style={{
+                                        width: uploadState.stage === 'sending' ? '33%'
+                                          : uploadState.stage === 'reading' ? '66%'
+                                            : uploadState.stage === 'extracting' ? '90%'
+                                              : '100%'
+                                      }}
+                                    />
+                                  </div>
+                                  <span className="text-xs text-muted-foreground shrink-0">
+                                    {uploadState.stage === 'sending' && 'Enviando...'}
+                                    {uploadState.stage === 'reading' && 'Lendo...'}
+                                    {uploadState.stage === 'extracting' && 'Extraindo...'}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                          ) : activeFile ? (
+                            <div className="flex items-center gap-3">
+                              <div className="w-12 h-12 rounded-lg bg-green-50 flex items-center justify-center text-green-600">
+                                <FileText className="h-6 w-6" />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-medium truncate">
+                                  {activeFile.name}
+                                </p>
+                                <p className="text-xs text-green-600">✓ Anexado com sucesso</p>
+                              </div>
+                            </div>
+                          ) : null}
+                        </div>
+                      </div>
+                    )}
                     {/* Badge do Processo/Arquivo (Estilo Gemini) - ACIMA DO INPUT */}
                     {/* CSS fix: flex-shrink-0 + min-height para prevenir collapse */}
                     {(uploadState.isUploading || activeFile || selectedProcessId) && (
