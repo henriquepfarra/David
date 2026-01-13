@@ -3,6 +3,23 @@ import { savedPrompts, userSettings } from "../../drizzle/schema";
 import { eq } from "drizzle-orm";
 import { getProcessContext } from "./processContext";
 import { invokeLLM } from "./llm";
+import {
+  CORE_IDENTITY,
+  CORE_TONE,
+  CORE_GATEKEEPER,
+  CORE_TRACEABILITY,
+  CORE_ZERO_TOLERANCE,
+  CORE_TRANSPARENCY,
+  CORE_STYLE,
+} from "../prompts/core";
+import { JEC_CONTEXT } from "../modules/jec/context";
+import {
+  CORE_ORCHESTRATOR,
+  CORE_MOTOR_A,
+  CORE_MOTOR_B,
+  CORE_MOTOR_C,
+  CORE_MOTOR_D,
+} from "../prompts/engines";
 
 export interface ExecutePromptInput {
     userId: number;
@@ -49,13 +66,33 @@ export async function executeSavedPrompt(input: ExecutePromptInput): Promise<str
     }
 
     // 3. Montar Prompt Final
-    // Substituir variáveis se houver (futuro), por enquanto concatena
-    const finalSystemPrompt = `Você é um assistente jurídico avançado.
+    // Incluir todos os prompts do sistema (como no davidRouter) para garantir que o David
+    // respeite suas diretrizes principais ao executar prompts salvos
+    // Para análise, ativamos os motores A, B, C (não D, que é para minutas finais)
+    const baseSystemPrompt = `
+${CORE_IDENTITY}
+${CORE_TONE}
+${CORE_GATEKEEPER}
+${CORE_TRACEABILITY}
+${CORE_ZERO_TOLERANCE}
+${CORE_TRANSPARENCY}
+${CORE_STYLE}
+${JEC_CONTEXT}
+${CORE_ORCHESTRATOR}
+${CORE_MOTOR_A}
+${CORE_MOTOR_B}
+${CORE_MOTOR_C}
+`;
+
+    const finalSystemPrompt = `${baseSystemPrompt}
+
 CONTEXTO DO PROCESSO:
 ${context}
 
 Sua tarefa é executar rigorosamente o seguinte protocolo de análise:
-${matchedPrompt.content}`;
+${matchedPrompt.content}
+
+IMPORTANTE: Este é um PROTOCOLO DE ANÁLISE, não uma solicitação de minuta. Execute a análise conforme especificado acima, sem gerar documentos finais.`;
 
     // 4. Invocar LLM
     // Buscar config de API do usuário

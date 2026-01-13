@@ -128,6 +128,12 @@ export function searchSimilarDocuments(
 
   // Normalizar query e documentos
   const queryTerms = normalizeText(query);
+
+  // Se a query está vazia após normalização, retornar vazio
+  if (queryTerms.length === 0) {
+    return [];
+  }
+
   const docsWithTerms = filteredDocs.map(doc => ({
     ...doc,
     terms: normalizeText(`${doc.title} ${doc.content}`),
