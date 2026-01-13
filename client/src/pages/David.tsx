@@ -151,7 +151,6 @@ export default function David() {
   // 🔧 FIX: Resetar stream quando conversa muda (mantido, mas simplificado)
   useEffect(() => {
     if (selectedConversationId !== previousConversationIdRef.current) {
-      console.log("[David] Conversa mudou:", previousConversationIdRef.current, "→", selectedConversationId);
       resetStream();
       previousConversationIdRef.current = selectedConversationId;
     }
@@ -415,17 +414,11 @@ export default function David() {
   // Mutations
   const createConversationMutation = trpc.david.createConversation.useMutation({
     onSuccess: (data) => {
-      debugLog('David.tsx - createConversation', 'SUCCESS', { newConversationId: data.id });
-      debugLog('David.tsx - setSelectedConversationId', 'Setting state', {
-        from: 'createConversation.onSuccess',
-        newValue: data.id
-      });
-      // FIX: Loop Infinito - Não atualizar estado manualmente, deixar a URL guiar
-      // setSelectedConversationId(data.id);
+      // Navegar para nova conversa
+      setSelectedConversationId(data.id);
       refetchConversations();
     },
     onError: (error) => {
-      debugLog('David.tsx - createConversation', 'ERROR', { error: error.message });
       toast.error("Erro ao criar conversa: " + error.message);
       console.error("[CreateConv] Erro ao criar conversa:", error);
     },
@@ -494,7 +487,6 @@ export default function David() {
       }
     },
     onError: (error) => {
-      debugLog('David.tsx - cleanupIfEmpty', 'ERROR', { error: error.message });
       console.error("[Cleanup] Erro ao limpar conversa vazia:", error.message);
       // Não mostrar toast pois é operação em background
     },
