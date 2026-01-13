@@ -1332,26 +1332,26 @@ export default function David() {
                 <div className="relative">
                   <div className="flex flex-col gap-2 p-3 bg-muted/50 border rounded-2xl shadow-sm hover:shadow-md transition-shadow">
 
-                    {/* 🎯 BADGE INLINE - Aparece primeiro na barra */}
+                    {/* 🎯 BADGE INLINE - Ultra compacto */}
                     {(uploadState.isUploading || activeFile) && (
-                      <div className="flex items-center gap-2 px-2 py-1.5 bg-white rounded-lg border border-border">
+                      <div className="flex items-center gap-1.5 px-1.5 py-1 bg-white rounded-md border border-border/50 max-w-[200px]">
                         <div className="relative shrink-0">
-                          <div className="w-8 h-8 rounded-md bg-gradient-to-br from-red-50 to-red-100 flex items-center justify-center">
-                            <FileText className="h-4 w-4 text-red-600" />
+                          <div className="w-6 h-6 rounded bg-gradient-to-br from-red-50 to-red-100 flex items-center justify-center">
+                            <FileText className="h-3 w-3 text-red-600" />
                           </div>
                           {uploadState.isUploading && (
-                            <div className="absolute -bottom-0.5 -right-0.5 bg-blue-600 text-white rounded-full p-0.5">
-                              <Loader2 className="h-2 w-2 animate-spin" />
+                            <div className="absolute -bottom-0.5 -right-0.5 bg-blue-600 text-white rounded-full p-[1px]">
+                              <Loader2 className="h-1.5 w-1.5 animate-spin" />
                             </div>
                           )}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="text-xs font-medium text-foreground truncate">
+                          <p className="text-[10px] font-medium text-foreground truncate leading-tight">
                             {uploadState.isUploading ? uploadState.fileName : activeFile?.name}
                           </p>
                           {uploadState.isUploading ? (
-                            <div className="flex items-center gap-1.5 mt-0.5">
-                              <div className="flex-1 h-0.5 bg-muted rounded-full overflow-hidden">
+                            <div className="flex items-center gap-1 mt-0.5">
+                              <div className="flex-1 h-[2px] bg-muted rounded-full overflow-hidden">
                                 <div
                                   className="h-full bg-blue-600 transition-all duration-300"
                                   style={{
@@ -1362,12 +1362,12 @@ export default function David() {
                                   }}
                                 />
                               </div>
-                              <span className="text-[9px] text-muted-foreground uppercase tracking-wide">
-                                {uploadState.stage === 'sending' ? 'Enviando' : uploadState.stage === 'reading' ? 'Lendo' : uploadState.stage === 'extracting' ? 'Extraindo' : 'OK'}
+                              <span className="text-[8px] text-muted-foreground uppercase tracking-wide shrink-0">
+                                {uploadState.stage === 'sending' ? 'Env' : uploadState.stage === 'reading' ? 'Lendo' : uploadState.stage === 'extracting' ? 'Ext' : 'OK'}
                               </span>
                             </div>
                           ) : (
-                            <p className="text-[9px] text-green-600 font-medium">✓ Pronto para enviar</p>
+                            <p className="text-[8px] text-green-600 font-medium leading-tight">✓ Pronto</p>
                           )}
                         </div>
                       </div>
