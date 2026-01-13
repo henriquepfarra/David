@@ -1,4 +1,5 @@
 import { useAuth } from "@/_core/hooks/useAuth";
+import { useConversationId } from "@/hooks/useConversationId";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   DropdownMenu,
@@ -130,19 +131,13 @@ function DashboardLayoutContent({
   setSidebarWidth,
 }: DashboardLayoutContentProps) {
   const { user, logout } = useAuth();
-  const [location, setLocation] = useLocation();
 
-  // FIX: Polling para detectar mudanças na URL (query string) para atualizar Sidebar
-  const [urlSearch, setUrlSearch] = useState(window.location.search);
-  useEffect(() => {
-    const checkUrl = () => {
-      if (window.location.search !== urlSearch) {
-        setUrlSearch(window.location.search);
-      }
-    };
-    const interval = setInterval(checkUrl, 100);
-    return () => clearInterval(interval);
-  }, [urlSearch]);
+  // 🔧 FIX: Usar hook customizado para gerenciar seleção de conversa
+  const [selectedConversationId, setSelectedConversationId] = useConversationId();
+
+  // useLocation mantido para navegação para outras páginas
+  const [, setLocation] = useLocation();
+
   const { state, toggleSidebar } = useSidebar();
   const isCollapsed = state === "collapsed";
   const [isResizing, setIsResizing] = useState(false);
@@ -151,12 +146,12 @@ function DashboardLayoutContent({
   const [searchQuery, setSearchQuery] = useState("");
 
   // Fetch conversations for sidebar
-  const { data: conversations, refetch: refetchConversations } = trpc.david.listConversations.useQuery();
+  const { data: conversations, refetch: refetchConversations} = trpc.david.listConversations.useQuery();
   const createConversationMutation = trpc.david.createConversation.useMutation({
     onSuccess: (data) => {
       debugLog('DashboardLayout - createConversation', 'SUCCESS', { newConversationId: data.id });
-      debugLog('DashboardLayout - setLocation', 'Setting location', { newLocation: `/david?c=${data.id}` });
-      setLocation(`/david?c=${data.id}`);
+      // 🔧 FIX: Usar hook ao invés de setLocation direto
+      setSelectedConversationId(data.id);
       refetchConversations();
     },
   });
@@ -289,53 +284,8 @@ function DashboardLayoutContent({
     setLocation("/david");
   };
 
-  // Estado para ID da conversa atual - precisa reagir a mudanças na query string
-  // O location do wouter não inclui query string, então usamos um estado + event listeners
-  const [currentConversationId, setCurrentConversationId] = useState<number | null>(() => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const cParam = urlParams.get("c");
-    return cParam ? parseInt(cParam, 10) : null;
-  });
-
-  // Ref para rastrear o último ID da URL (evita problemas de closure)
-  const lastUrlIdRef = useRef<number | null>(currentConversationId);
-
-  // Atualizar currentConversationId quando URL muda (via popstate ou clique na sidebar)
-  useEffect(() => {
-    debugLog('DashboardLayout - useEffect[location]', 'Effect triggered', { location });
-
-    const updateConversationId = () => {
-      const urlParams = new URLSearchParams(window.location.search);
-      const cParam = urlParams.get("c");
-      const newId = cParam ? parseInt(cParam, 10) : null;
-
-      debugLog('DashboardLayout - updateConversationId', 'URL read', {
-        lastUrlId: lastUrlIdRef.current,
-        newId,
-        willUpdate: newId !== lastUrlIdRef.current
-      });
-
-      // Comparar com ref para evitar problemas de closure
-      if (newId !== lastUrlIdRef.current) {
-        lastUrlIdRef.current = newId;
-        debugLog('DashboardLayout - setCurrentConversationId', 'Setting state', {
-          from: 'updateConversationId',
-          newValue: newId
-        });
-        setCurrentConversationId(newId);
-      }
-    };
-
-    // Escutar popstate (navegação via botões voltar/avançar)
-    window.addEventListener('popstate', updateConversationId);
-
-    // Atualizar imediatamente quando location muda
-    updateConversationId();
-
-    return () => {
-      window.removeEventListener('popstate', updateConversationId);
-    };
-  }, [location, urlSearch]); // Agora depende de urlSearch também
+  // 🔧 FIX: Estado de conversa agora vem do hook useConversationId
+  // (removido código duplicado de currentConversationId, lastUrlIdRef e useEffect)
 
   return (
     <>
@@ -478,15 +428,15 @@ function DashboardLayoutContent({
                         <div
                           key={conv.id}
                           className={`group/item max-w-full flex items-center gap-1 px-2 py-2 rounded-lg text-sm hover:bg-accent transition-colors cursor-pointer ${isSelectionMode && selectedIds.has(conv.id) ? "bg-accent" :
-                            currentConversationId === conv.id ? "bg-accent" : ""
+                            selectedConversationId === conv.id ? "bg-accent" : ""
                             }`}
                           onClick={() => {
                             if (isSelectionMode) {
                               toggleSelection(conv.id);
                             } else {
                               debugLog('DashboardLayout - conversationClick', 'User clicked conversation', { conversationId: conv.id });
-                              debugLog('DashboardLayout - setLocation', 'Setting location', { newLocation: `/david?c=${conv.id}` });
-                              setLocation(`/david?c=${conv.id}`);
+                              // 🔧 FIX: Usar hook ao invés de setLocation direto
+                              setSelectedConversationId(conv.id);
                             }
                           }}
                         >

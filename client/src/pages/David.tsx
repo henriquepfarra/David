@@ -59,6 +59,7 @@ import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { APP_LOGO } from "@/const";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { useChatStream } from "@/hooks/useChatStream";
+import { useConversationId } from "@/hooks/useConversationId";
 
 // 🐛 DEBUG: Helper para logs com timestamp
 const debugLog = (source: string, message: string, data?: unknown) => {
@@ -67,39 +68,19 @@ const debugLog = (source: string, message: string, data?: unknown) => {
 };
 
 export default function David() {
-  const [location, setLocation] = useLocation();
-
-  // ESTADO QUE SEGURA A QUERY STRING (Workaround para wouter ignorar query params)
-  const [urlSearch, setUrlSearch] = useState(window.location.search);
-
-  // Polling para detectar mudanças na URL que o wouter não pega (query string change on same path)
-  useEffect(() => {
-    const checkUrl = () => {
-      if (window.location.search !== urlSearch) {
-        setUrlSearch(window.location.search);
-        console.log("[David] Query param changed detected via poll:", window.location.search);
-      }
-    };
-
-    // Check frequente para resposta rápida ao clique
-    const interval = setInterval(checkUrl, 100);
-    return () => clearInterval(interval);
-  }, [urlSearch]);
   const { user } = useAuth();
 
-  // Estado para ID da conversa da URL - precisa reagir a mudanças na query string
-  // O location do wouter não inclui query string, então usamos estado + event listeners
-  const [selectedConversationId, setSelectedConversationId] = useState<number | null>(() => {
-    const params = new URLSearchParams(window.location.search);
-    const cParam = params.get("c");
-    return cParam ? parseInt(cParam, 10) : null;
-  });
+  // 🔧 FIX: Single Source of Truth - URL como única fonte de verdade
+  // Hook customizado que elimina loops de estado (para navegação entre conversas)
+  const [selectedConversationId, setSelectedConversationId] = useConversationId();
+
+  // useLocation mantido para navegação para outras páginas (settings, processos, etc)
+  const [, setLocation] = useLocation();
 
   const [selectedProcessId, setSelectedProcessId] = useState<number | undefined>();
   const [messageInput, setMessageInput] = useState("");
   const [pendingUserMessage, setPendingUserMessage] = useState<string | null>(null); // Mensagem otimista do usuário
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const previousConversationIdRef = useRef<number | null>(null);
 
   // Hook de streaming refatorado
   const {
@@ -164,43 +145,17 @@ export default function David() {
     };
   }, [streamingMessage, thinkingMessage]);
 
-  // Ref para rastrear o último ID da URL (evita problemas de closure)
-  const lastUrlIdRef = useRef<number | null>(selectedConversationId);
-  // Ref para garantir acesso ao ID mais recente nos callbacks (race condition fix)
-  const selectedConversationIdRef = useRef<number | null>(selectedConversationId);
+  // 🔧 FIX: Mantém apenas previousConversationIdRef para detectar mudança de conversa
+  const previousConversationIdRef = useRef<number | null>(null);
 
-  // Sincronizar selectedConversationId com URL quando muda (via location path ou urlSearch query param)
+  // 🔧 FIX: Resetar stream quando conversa muda (mantido, mas simplificado)
   useEffect(() => {
-    debugLog('David.tsx - useEffect[location]', 'Effect triggered', { location, urlSearch });
-
-    const updateFromUrl = () => {
-      const urlParams = new URLSearchParams(window.location.search);
-      const cParam = urlParams.get("c");
-      const newId = cParam ? parseInt(cParam, 10) : null;
-
-      debugLog('David.tsx - updateFromUrl', 'URL read', {
-        lastUrlId: lastUrlIdRef.current,
-        newId,
-        willUpdate: newId !== lastUrlIdRef.current
-      });
-      console.log("[David] Checando updates de URL. New ID:", newId);
-
-      if (newId !== lastUrlIdRef.current) {
-        lastUrlIdRef.current = newId;
-        debugLog('David.tsx - setSelectedConversationId', 'Setting state', {
-          from: 'updateFromUrl',
-          newValue: newId
-        });
-        console.log("[David] Atualizando ID da conversa para:", newId);
-        setSelectedConversationId(newId);
-
-        // Resetar stream se mudou de conversa
-        resetStream();
-      }
-    };
-
-    updateFromUrl();
-  }, [location, urlSearch, resetStream]);
+    if (selectedConversationId !== previousConversationIdRef.current) {
+      console.log("[David] Conversa mudou:", previousConversationIdRef.current, "→", selectedConversationId);
+      resetStream();
+      previousConversationIdRef.current = selectedConversationId;
+    }
+  }, [selectedConversationId, resetStream]);
 
   // Estados para seleção múltipla
   const [isSelectionMode, setIsSelectionMode] = useState(false);
@@ -574,10 +529,9 @@ export default function David() {
       });
 
       // Conversa já deve existir (criada no onDrop)
-      const currentConvId = selectedConversationIdRef.current || selectedConversationId;
-      if (currentConvId) {
+      if (selectedConversationId) {
         updateGoogleFileMutation.mutate({
-          conversationId: currentConvId,
+          conversationId: selectedConversationId,
           googleFileUri: data.fileUri,
           googleFileName: data.displayName,
         });
@@ -687,9 +641,8 @@ export default function David() {
           title: file.name.replace('.pdf', '') || "Nova Conversa",
         });
         conversationId = newConv.id;
-        // FIX: Loop Infinito - Atualizar URL em vez do estado
-        setLocation(`/david?c=${newConv.id}`);
-        selectedConversationIdRef.current = newConv.id; // Atualiza ref imediatamente
+        // 🔧 FIX: Usar novo hook que gerencia URL automaticamente
+        setSelectedConversationId(newConv.id);
       } catch (error) {
         toast.error("Erro ao criar conversa: " + (error as Error).message);
         return;
@@ -992,19 +945,11 @@ export default function David() {
 
   const handleNewConversation = () => {
     debugLog('David.tsx - handleNewConversation', 'Called');
-    // Navegar para /david sem ID de conversa - a sidebar também lerá isso
-    debugLog('David.tsx - setLocation', 'Setting location', { newLocation: '/david' });
+    // 🔧 FIX: Usar hook para limpar seleção (navega automaticamente para /david)
     console.log("[David] Iniciando novo chat...");
-    setLocation("/david");
-
-    debugLog('David.tsx - setSelectedConversationId', 'Setting state', {
-      from: 'handleNewConversation',
-      newValue: null
-    });
+    setSelectedConversationId(null);
 
     // Reset explícito de todos os estados
-    // FIX: Loop Infinito - Não resetar ID manualmente, a mudança de URL fará isso
-    // setSelectedConversationId(null);
     setSelectedProcessId(undefined);
     setLocalAttachedFile(null); // Resetar arquivo local
     setMessageInput("");
@@ -1041,15 +986,9 @@ export default function David() {
       }, {
         onSuccess: async (newConv) => {
           debugLog('David.tsx - handleSendMessage.onSuccess', 'Conversation created', { newConvId: newConv.id });
-          // Navegar via URL para sincronizar com sidebar
-          debugLog('David.tsx - setLocation', 'Setting location', { newLocation: `/david?c=${newConv.id}` });
-          setLocation(`/david?c=${newConv.id}`);
-          debugLog('David.tsx - setSelectedConversationId', 'Setting state', {
-            from: 'handleSendMessage.onSuccess',
-            newValue: newConv.id
-          });
-          // FIX: Loop Infinito - Não atualizar estado manualmente
-          // setSelectedConversationId(newConv.id);
+          // 🔧 FIX: Usar novo hook que gerencia URL automaticamente
+          setSelectedConversationId(newConv.id);
+
           // Pequeno delay para garantir que o estado atualize
           setTimeout(() => {
             streamMessage(newConv.id, userMessage);
