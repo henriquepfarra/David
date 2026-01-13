@@ -1,5 +1,5 @@
 import { useMemo, useCallback } from 'react';
-import { useLocation } from 'wouter';
+import { useLocation, useSearch } from 'wouter';
 
 /**
  * Hook para gerenciar o ID da conversa selecionada.
@@ -27,15 +27,13 @@ import { useLocation } from 'wouter';
  * @returns [conversationId, setConversationId]
  */
 export function useConversationId(): [number | null, (id: number | null) => void] {
-  const [location, setLocation] = useLocation();
+  const [, setLocation] = useLocation();
+  const searchString = useSearch(); // ✅ Hook correto do wouter para query string!
 
   // LEITURA: Deriva da URL (sem estado intermediário)
-  // useMemo garante que só recalcula quando location muda
+  // useMemo garante que só recalcula quando searchString muda
   const conversationId = useMemo(() => {
-    // Extrair query params do wouter location, não do window.location!
-    // Isso garante sincronização: wouter atualiza location → useMemo recalcula
-    const searchPart = location.includes('?') ? location.split('?')[1] : '';
-    const params = new URLSearchParams(searchPart);
+    const params = new URLSearchParams(searchString);
     const c = params.get('c');
 
     // Validação: deve ser número inteiro positivo
@@ -47,7 +45,7 @@ export function useConversationId(): [number | null, (id: number | null) => void
     }
 
     return null;
-  }, [location]); // Reage apenas a mudanças no location do wouter
+  }, [searchString]); // Reage a mudanças na query string
 
   // ESCRITA: Modifica a URL (wouter detecta e faz re-render)
   // useCallback previne recriação da função a cada render
