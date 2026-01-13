@@ -471,193 +471,90 @@ export const davidRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const conversation = await getConversationById(input.conversationId);
-      if (!conversation || conversation.userId !== ctx.user.id) {
-        throw new Error("Conversa não encontrada");
-      }
+      // Importar services
+      const { getConversationService } = await import("./services/ConversationService");
+      const { getMessageService } = await import("./services/MessageService");
+      const { getPromptBuilder } = await import("./services/PromptBuilder");
 
-      // Salvar mensagem do usuário
-      await createMessage({
+      const conversationService = getConversationService();
+      const messageService = getMessageService();
+      const promptBuilder = getPromptBuilder();
+
+      // 1. Validar acesso à conversa
+      const conversation = await conversationService.validateAccess({
         conversationId: input.conversationId,
-        role: "user",
+        userId: ctx.user.id,
+      });
+
+      // 2. Salvar mensagem do usuário
+      await messageService.saveUserMessage({
+        conversationId: input.conversationId,
         content: input.content,
       });
 
-      // --- MOTOR GENÉRICO DE PROMPTS (Fase 3) ---
-      // Se for um comando (ex: /analise_completa), tentar executar prompt salvo
-      if (input.content.startsWith("/")) {
-        if (conversation.processId) {
-          const process = await getProcessForContext(conversation.processId);
-          if (process) {
-            logger.debug(`[DavidRouter] Detectado comando: ${input.content}. Verificando prompts salvos...`);
-            const commandResult = await executeSavedPrompt({
-              userId: ctx.user.id,
-              promptCommand: input.content,
-              processId: conversation.processId,
-              processNumber: process.processNumber
-            });
+      // 3. Tentar executar comando (se houver)
+      const commandResult = await conversationService.tryExecuteCommand({
+        content: input.content,
+        conversationId: input.conversationId,
+        userId: ctx.user.id,
+        processId: conversation.processId,
+      });
 
-            if (commandResult) {
-              logger.debug(`[DavidRouter] Prompt executado com sucesso: ${input.content}`);
-              // Salvar resposta do assistente
-              await createMessage({
-                conversationId: input.conversationId,
-                role: "assistant", // A IA respondeu, mesmo que via prompt fixo
-                content: commandResult,
-              });
-              return { content: commandResult };
-            }
-          }
-        }
-      }
-      // ------------------------------------------
-
-      // Buscar histórico de mensagens
-      const history = await getConversationMessages(input.conversationId);
-
-      // Gerar título automaticamente se for a primeira mensagem
-      const isFirstMessage = history.length === 1; // Apenas a mensagem do usuário que acabou de ser salva
-
-      if (isFirstMessage) {
-        // Buscar informações do processo se houver
-        let processInfo;
-        if (conversation.processId) {
-          const process = await getProcessForContext(conversation.processId);
-          if (process) {
-            processInfo = {
-              processNumber: process.processNumber || undefined,
-              subject: process.subject || undefined,
-              plaintiff: process.plaintiff || undefined,
-              defendant: process.defendant || undefined,
-            };
-          }
-        }
-
-        // Gerar título em background (não bloqueia resposta)
-        generateConversationTitle(input.content, processInfo)
-          .then(async (title) => {
-            await updateConversationTitle(input.conversationId, title);
-            logger.info(`[DAVID] Título gerado automaticamente: "${title}"`);
-          })
-          .catch((error) => {
-            console.error('[DAVID] Erro ao gerar título:', error);
-          });
+      if (commandResult) {
+        // Salvar resposta do comando
+        await messageService.saveAssistantMessage({
+          conversationId: input.conversationId,
+          content: commandResult,
+        });
+        return { content: commandResult };
       }
 
-      // Buscar documentos relevantes na Base de Conhecimento (RAG)
-      const ragService = getRagService();
-      const knowledgeBaseContext = await ragService.buildKnowledgeBaseContext(ctx.user.id, input.content);
-
-      // Montar contexto do processo se houver
-      let processContext = "";
-      let similarCasesContext = "";
-      let processDocsContext = "";
-
-      if (conversation.processId) {
-        const process = await getProcessForContext(conversation.processId);
-        if (process) {
-          processContext = `\n\n## PROCESSO SELECIONADO\n\n**Número:** ${process.processNumber}\n**Autor:** ${process.plaintiff}\n**Réu:** ${process.defendant}\n**Vara:** ${process.court}\n**Assunto:** ${process.subject}\n**Fatos:** ${process.facts}\n**Pedidos:** ${process.requests}\n**Status:** ${process.status}\n`;
-
-          // Buscar documentos do processo
-          try {
-            logger.debug(`[ProcessDocs] Buscando documentos para processId=${conversation.processId}, userId=${ctx.user.id}`);
-            const processDocs = await getProcessDocuments(conversation.processId, ctx.user.id);
-            logger.debug(`[ProcessDocs] Encontrados ${processDocs.length} documentos`);
-            if (processDocs.length > 0) {
-              processDocsContext = `\n\n### DOCUMENTOS DO PROCESSO\n\n`;
-              processDocs.forEach((doc: any) => {
-                const contentPreview = doc.content.length > 2000
-                  ? doc.content.substring(0, 2000) + "..."
-                  : doc.content;
-                processDocsContext += `**${doc.title}** (${doc.documentType})\n${contentPreview}\n\n`;
-              });
-              processDocsContext += `**INSTRUÇÃO:** Use o conteúdo dos documentos acima como referência para suas respostas. Eles contêm informações importantes do processo.\n`;
-            }
-          } catch (error) {
-            console.error("[ProcessDocs] Erro ao buscar documentos:", error);
-          }
-          logger.debug(`[ProcessDocs] processDocsContext length: ${processDocsContext.length}`);
-
-          // Buscar casos similares baseados no assunto
-          if (process.subject) {
-            // ✨ BUSCA SEMÂNTICA COM EMBEDDINGS (v2.0)
-            const { getRagService } = await import("./services/RagService");
-            const ragService = getRagService();
-
-            // Buscar teses jurídicas (Motor C - Argumentação)
-            const legalTheses = await ragService.searchLegalTheses(
-              process.subject,
-              ctx.user.id,
-              { limit: 3, threshold: 0.6 }
-            );
-
-            if (legalTheses.length > 0) {
-              similarCasesContext = `\n\n## MEMÓRIA: CASOS SIMILARES JÁ DECIDIDOS POR VOCÊ\n\n`;
-              similarCasesContext += `Encontrei ${legalTheses.length} decisões suas anteriores sobre temas relacionados. Use-as como referência:\n\n`;
-
-              legalTheses.forEach((thesis, index) => {
-                similarCasesContext += `### Precedente ${index + 1} (Similaridade: ${(thesis.similarity * 100).toFixed(0)}%)\n`;
-                similarCasesContext += `**Tese Firmada:** ${thesis.legalThesis}\n`;
-                if (thesis.legalFoundations) {
-                  similarCasesContext += `**Fundamentos:** ${thesis.legalFoundations}\n`;
-                }
-                if (thesis.keywords) {
-                  similarCasesContext += `**Palavras-chave:** ${thesis.keywords}\n`;
-                }
-                similarCasesContext += `\n`;
-              });
-
-              similarCasesContext += `\n**INSTRUÇÃO:** Ao gerar minutas, considere essas decisões anteriores para manter consistência e aplicar teses já firmadas. Se houver divergência, mencione ao usuário.\n`;
-            }
-          }
-        }
-      }
-
-      // Classificar intenção para selecionar motores
-      const settings = await getUserSettings(ctx.user.id);
-      const intentResult = await IntentService.classify(
-        input.content,
-        {
-          processId: conversation.processId || undefined,
-          history: history.slice(-5).map(m => ({ role: m.role, content: m.content }))
-        },
-        settings?.llmApiKey || "fallback"
+      // 4. Buscar histórico de mensagens
+      const history = await messageService.getConversationHistory(
+        input.conversationId
       );
 
-      // Helper para ativar apenas motores selecionados
-      const useMotor = (motor: string, prompt: string) =>
-        intentResult.motors.includes(motor as any) ? prompt : "";
+      // 5. Ações da primeira mensagem (título em background)
+      const isFirstMessage = history.length === 1;
+      if (isFirstMessage) {
+        await conversationService.handleFirstMessageActions({
+          conversationId: input.conversationId,
+          content: input.content,
+          processId: conversation.processId,
+        });
+      }
+
+      // 6. Construir contextos (RAG, processo, documentos, casos similares)
+      const contexts = await promptBuilder.buildContexts({
+        userId: ctx.user.id,
+        query: input.content,
+        processId: conversation.processId,
+      });
+
+      // 7. Construir system prompt e classificar intenção
+      const { systemPrompt, intentResult } = await promptBuilder.buildSystemPrompt(
+        input.content,
+        conversation.processId,
+        history.slice(-5).map(m => ({ role: m.role, content: m.content })),
+        ctx.user.id,
+        input.systemPromptOverride
+      );
 
       logger.info(`[DavidRouter] Intent: ${IntentService.formatDebugBadge(intentResult)}`);
 
-      // MONTAGEM DINÂMICA DO CÉREBRO (Brain Assembly)
-      // Core (Universal) + Módulo (JEC) + Orquestrador + Motores Ativos
-      const baseSystemPrompt = `
-${CORE_IDENTITY}
-${CORE_TONE}
-${CORE_GATEKEEPER}
-${CORE_TRACEABILITY}
-${CORE_ZERO_TOLERANCE}
-${CORE_TRANSPARENCY}
-${CORE_STYLE}
-${JEC_CONTEXT}
-${CORE_ORCHESTRATOR}
-${useMotor("A", CORE_MOTOR_A)}
-${useMotor("B", CORE_MOTOR_B)}
-${useMotor("C", CORE_MOTOR_C)}
-${useMotor("D", CORE_MOTOR_D)}
-`;
-
-      // Preferências de Estilo do Gabinete (CONCATENA, não substitui)
-      const stylePreferences = input.systemPromptOverride
-        ? `\n[PREFERÊNCIAS DE ESTILO DO GABINETE]\n${input.systemPromptOverride}`
-        : "";
-      const systemPrompt = baseSystemPrompt + stylePreferences;
+      // 8. Montar mensagens para a LLM
       const llmMessages: Array<{ role: "system" | "user" | "assistant"; content: string }> = [
-        { role: "system", content: systemPrompt + knowledgeBaseContext + processContext + processDocsContext + similarCasesContext },
+        {
+          role: "system",
+          content: systemPrompt +
+            contexts.knowledgeBaseContext +
+            contexts.processContext +
+            contexts.processDocsContext +
+            contexts.similarCasesContext
+        },
       ];
 
-      // Adicionar histórico (últimas 10 mensagens para não estourar contexto)
+      // Adicionar histórico (últimas 10 mensagens)
       const recentHistory = history.slice(-10);
       for (const msg of recentHistory) {
         if (msg.role === "user" || msg.role === "assistant") {
@@ -668,19 +565,19 @@ ${useMotor("D", CORE_MOTOR_D)}
         }
       }
 
-      // Chamar LLM
+      // 9. Invocar LLM
       const response = await invokeLLM({
         messages: llmMessages,
       });
 
-      const assistantMessage = typeof response.choices[0]?.message?.content === 'string'
-        ? response.choices[0].message.content
-        : "Desculpe, não consegui gerar uma resposta.";
+      const assistantMessage =
+        typeof response.choices[0]?.message?.content === "string"
+          ? response.choices[0].message.content
+          : "Desculpe, não consegui gerar uma resposta.";
 
-      // Salvar resposta do DAVID
-      await createMessage({
+      // 10. Salvar resposta do assistente
+      await messageService.saveAssistantMessage({
         conversationId: input.conversationId,
-        role: "assistant",
         content: assistantMessage,
       });
 
@@ -699,67 +596,63 @@ ${useMotor("D", CORE_MOTOR_D)}
       })
     )
     .subscription(async function* ({ ctx, input }) {
-      const conversation = await getConversationById(input.conversationId);
-      if (!conversation || conversation.userId !== ctx.user.id) {
-        throw new Error("Conversa não encontrada");
-      }
+      // Importar services
+      const { getConversationService } = await import("./services/ConversationService");
+      const { getMessageService } = await import("./services/MessageService");
+      const { getPromptBuilder } = await import("./services/PromptBuilder");
 
-      // Salvar mensagem do usuário
-      await createMessage({
+      const conversationService = getConversationService();
+      const messageService = getMessageService();
+      const promptBuilder = getPromptBuilder();
+
+      // 1. Validar acesso à conversa
+      const conversation = await conversationService.validateAccess({
         conversationId: input.conversationId,
-        role: "user",
+        userId: ctx.user.id,
+      });
+
+      // 2. Salvar mensagem do usuário
+      await messageService.saveUserMessage({
+        conversationId: input.conversationId,
         content: input.content,
       });
 
-      // --- MOTOR GENÉRICO DE PROMPTS (Fase 3) ---
-      if (input.content.startsWith("/")) {
-        if (conversation.processId) {
-          const process = await getProcessForContext(conversation.processId);
-          if (process) {
-            logger.debug(`[DavidRouter] Detectado comando (Stream): ${input.content}`);
-            const commandResult = await executeSavedPrompt({
-              userId: ctx.user.id,
-              promptCommand: input.content,
-              processId: conversation.processId,
-              processNumber: process.processNumber
-            });
+      // 3. Tentar executar comando (se houver)
+      const commandResult = await conversationService.tryExecuteCommand({
+        content: input.content,
+        conversationId: input.conversationId,
+        userId: ctx.user.id,
+        processId: conversation.processId,
+      });
 
-            if (commandResult) {
-              // Salvar resposta
-              await createMessage({
-                conversationId: input.conversationId,
-                role: "assistant",
-                content: commandResult,
-              });
+      if (commandResult) {
+        // Salvar resposta do comando
+        await messageService.saveAssistantMessage({
+          conversationId: input.conversationId,
+          content: commandResult,
+        });
 
-              // Emular stream (envia tudo de uma vez por enquanto)
-              yield { type: "chunk", content: commandResult };
-              yield { type: "done", content: commandResult };
-              return;
-            }
-          }
-        }
+        // Emular stream (envia tudo de uma vez por enquanto)
+        yield { type: "chunk", content: commandResult };
+        yield { type: "done", content: commandResult };
+        return;
       }
-      // ------------------------------------------
 
-      // Buscar histórico de mensagens
-      const history = await getConversationMessages(input.conversationId);
+      // 4. Buscar histórico de mensagens
+      const history = await messageService.getConversationHistory(
+        input.conversationId
+      );
 
-      // Gerar título automaticamente se for a primeira mensagem
-      const isFirstMessage = history.length === 1; // Apenas a mensagem do usuário que acabou de ser salva
-
+      // 5. Ações da primeira mensagem (título + metadata extraction)
+      const isFirstMessage = history.length === 1;
       if (isFirstMessage) {
         // ⚡ LAZY LOADING: Extrair metadados de processo se houver PDF anexado
         if (conversation.googleFileUri && !conversation.processId) {
           console.log("[LazyMetadata] Primeira mensagem com PDF - extraindo metadados...");
 
           try {
-            // Obter conteúdo do PDF que será processado pelo LLM de qualquer forma
             const { extractProcessMetadata } = await import("./services/ProcessMetadataExtractor");
             const settings = await getUserSettings(ctx.user.id);
-
-            // TODO: Pegar o texto extraído da análise do LLM em vez de reprocessar
-            // Por enquanto, usamos o googleFileUri diretamente
 
             // Extrair metadados do PDF
             const { readPdfWithVision } = await import("./_core/fileApi");
@@ -796,6 +689,9 @@ Retorne APENAS essas informações de forma objetiva.`,
               // Atualizar título da conversa
               await updateConversationTitle(input.conversationId, metadata.processNumber);
 
+              // Atualizar referência local para uso posterior
+              conversation.processId = result.processId;
+
               console.log(`[LazyMetadata] ✅ ${result.isNew ? 'Novo processo criado' : 'Processo atualizado'}: ${metadata.processNumber}`);
             }
           } catch (error) {
@@ -804,143 +700,42 @@ Retorne APENAS essas informações de forma objetiva.`,
           }
         }
 
-        // Buscar informações do processo se houver
-        let processInfo;
-        if (conversation.processId) {
-          const process = await getProcessForContext(conversation.processId);
-          if (process) {
-            processInfo = {
-              processNumber: process.processNumber || undefined,
-              subject: process.subject || undefined,
-              plaintiff: process.plaintiff || undefined,
-              defendant: process.defendant || undefined,
-            };
-          }
-        }
-
-        // Gerar título em background (não bloqueia resposta)
-        generateConversationTitle(input.content, processInfo)
-          .then(async (title) => {
-            await updateConversationTitle(input.conversationId, title);
-            logger.info(`[DAVID] Título gerado automaticamente: "${title}"`);
-          })
-          .catch((error) => {
-            console.error('[DAVID] Erro ao gerar título:', error);
-          });
+        // Gerar título em background
+        await conversationService.handleFirstMessageActions({
+          conversationId: input.conversationId,
+          content: input.content,
+          processId: conversation.processId,
+        });
       }
 
-      // Buscar documentos relevantes na Base de Conhecimento (RAG)
-      const ragService = getRagService();
-      const knowledgeBaseContext = await ragService.buildKnowledgeBaseContext(ctx.user.id, input.content);
+      // 6. Construir contextos (RAG, processo, documentos, casos similares)
+      const contexts = await promptBuilder.buildContexts({
+        userId: ctx.user.id,
+        query: input.content,
+        processId: conversation.processId,
+      });
 
-      // Montar contexto do processo se houver
-      let processContext = "";
-      let similarCasesContext = "";
-      let processDocsContext = "";
-
-      if (conversation.processId) {
-        const process = await getProcessForContext(conversation.processId);
-        if (process) {
-          processContext = `\n\n## PROCESSO SELECIONADO\n\n**Número:** ${process.processNumber}\n**Autor:** ${process.plaintiff}\n**Réu:** ${process.defendant}\n**Vara:** ${process.court}\n**Assunto:** ${process.subject}\n**Fatos:** ${process.facts}\n**Pedidos:** ${process.requests}\n**Status:** ${process.status}\n`;
-
-          // Buscar documentos do processo
-          try {
-            logger.debug(`[ProcessDocs] Buscando documentos para processId=${conversation.processId}, userId=${ctx.user.id}`);
-            const processDocs = await getProcessDocuments(conversation.processId, ctx.user.id);
-            logger.debug(`[ProcessDocs] Encontrados ${processDocs.length} documentos`);
-            if (processDocs.length > 0) {
-              processDocsContext = `\n\n### DOCUMENTOS DO PROCESSO\n\n`;
-              processDocs.forEach((doc: any) => {
-                const contentPreview = doc.content.length > 2000
-                  ? doc.content.substring(0, 2000) + "..."
-                  : doc.content;
-                processDocsContext += `**${doc.title}** (${doc.documentType})\n${contentPreview}\n\n`;
-              });
-              processDocsContext += `**INSTRUÇÃO:** Use o conteúdo dos documentos acima como referência para suas respostas. Eles contêm informações importantes do processo.\n`;
-            }
-          } catch (error) {
-            console.error("[ProcessDocs] Erro ao buscar documentos:", error);
-          }
-          logger.debug(`[ProcessDocs] processDocsContext length: ${processDocsContext.length}`);
-
-
-          // Buscar casos similares baseados no assunto
-          if (process.subject) {
-            // ✨ BUSCA SEMÂNTICA COM EMBEDDINGS (v2.0)
-            const { getRagService } = await import("./services/RagService");
-            const ragService = getRagService();
-
-            // Buscar teses jurídicas (Motor C - Argumentação)
-            const legalTheses = await ragService.searchLegalTheses(
-              process.subject,
-              ctx.user.id,
-              { limit: 3, threshold: 0.6 }
-            );
-
-            if (legalTheses.length > 0) {
-              similarCasesContext = `\n\n## MEMÓRIA: CASOS SIMILARES JÁ DECIDIDOS POR VOCÊ\n\n`;
-              similarCasesContext += `Encontrei ${legalTheses.length} decisões suas anteriores sobre temas relacionados. Use-as como referência:\n\n`;
-
-              legalTheses.forEach((thesis, index) => {
-                similarCasesContext += `### Precedente ${index + 1} (Similaridade: ${(thesis.similarity * 100).toFixed(0)}%)\n`;
-                similarCasesContext += `**Tese Firmada:** ${thesis.legalThesis}\n`;
-                if (thesis.legalFoundations) {
-                  similarCasesContext += `**Fundamentos:** ${thesis.legalFoundations}\n`;
-                }
-                if (thesis.keywords) {
-                  similarCasesContext += `**Palavras-chave:** ${thesis.keywords}\n`;
-                }
-                similarCasesContext += `\n`;
-              });
-
-              similarCasesContext += `\n**INSTRUÇÃO:** Ao gerar minutas, considere essas decisões anteriores para manter consistência e aplicar teses já firmadas. Se houver divergência, mencione ao usuário.\n`;
-            }
-          }
-        }
-      }
-
-      // Classificar intenção para selecionar motores
-      const settings = await getUserSettings(ctx.user.id);
-      const intentResult = await IntentService.classify(
+      // 7. Construir system prompt e classificar intenção
+      const { systemPrompt, intentResult } = await promptBuilder.buildSystemPrompt(
         input.content,
-        {
-          processId: conversation.processId || undefined,
-          history: history.slice(-5).map(m => ({ role: m.role, content: m.content }))
-        },
-        settings?.llmApiKey || "fallback"
+        conversation.processId,
+        history.slice(-5).map(m => ({ role: m.role, content: m.content })),
+        ctx.user.id,
+        input.systemPromptOverride
       );
-
-      // Helper para ativar apenas motores selecionados
-      const useMotor = (motor: string, prompt: string) =>
-        intentResult.motors.includes(motor as any) ? prompt : "";
 
       logger.info(`[DavidRouter] Intent (Stream): ${IntentService.formatDebugBadge(intentResult)}`);
 
-      // MONTAGEM DINÂMICA DO CÉREBRO (Brain Assembly)
-      // Core (Universal) + Módulo (JEC) + Orquestrador + Motores Ativos
-      const baseSystemPrompt = `
-${CORE_IDENTITY}
-${CORE_TONE}
-${CORE_GATEKEEPER}
-${CORE_TRACEABILITY}
-${CORE_ZERO_TOLERANCE}
-${CORE_TRANSPARENCY}
-${CORE_STYLE}
-${JEC_CONTEXT}
-${CORE_ORCHESTRATOR}
-${useMotor("A", CORE_MOTOR_A)}
-${useMotor("B", CORE_MOTOR_B)}
-${useMotor("C", CORE_MOTOR_C)}
-${useMotor("D", CORE_MOTOR_D)}
-`;
-
-      // Preferências de Estilo do Gabinete (CONCATENA, não substitui)
-      const stylePreferences = input.systemPromptOverride
-        ? `\n[PREFERÊNCIAS DE ESTILO DO GABINETE]\n${input.systemPromptOverride}`
-        : "";
-      const systemPrompt = baseSystemPrompt + stylePreferences;
+      // 8. Montar mensagens para a LLM
       const llmMessages: Array<{ role: "system" | "user" | "assistant"; content: string }> = [
-        { role: "system", content: systemPrompt + knowledgeBaseContext + processContext + processDocsContext + similarCasesContext },
+        {
+          role: "system",
+          content: systemPrompt +
+            contexts.knowledgeBaseContext +
+            contexts.processContext +
+            contexts.processDocsContext +
+            contexts.similarCasesContext
+        },
       ];
 
       // Adicionar histórico (últimas 10 mensagens)
@@ -954,7 +749,7 @@ ${useMotor("D", CORE_MOTOR_D)}
         }
       }
 
-      // Stream da resposta
+      // 9. Stream da resposta
       let fullResponse = "";
       try {
         for await (const chunk of invokeLLMStream({ messages: llmMessages })) {
@@ -962,10 +757,9 @@ ${useMotor("D", CORE_MOTOR_D)}
           yield { type: "chunk" as const, content: chunk };
         }
 
-        // Salvar resposta completa do DAVID
-        await createMessage({
+        // 10. Salvar resposta completa do DAVID
+        await messageService.saveAssistantMessage({
           conversationId: input.conversationId,
-          role: "assistant",
           content: fullResponse,
         });
 

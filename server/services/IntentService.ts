@@ -89,6 +89,16 @@ const SPECIFIC_PATTERNS: Array<{ pattern: RegExp; filter: string }> = [
     { pattern: /\btema repetitivo\b/i, filter: "REPETITIVOS" },
 ];
 
+// Padrões para ANÁLISE (deve ser ANTES de DRAFT para ter prioridade)
+const ANALYSIS_PATTERNS = [
+    /^analise\b/i, // "analise o pedido..."
+    /^análise\b/i, // "análise o pedido..."
+    /\banalise (o|a|os|as)\b/i, // "analise o pedido", "analise a tutela"
+    /\banálise (o|a|os|as)\b/i, // "análise o pedido", "análise a tutela"
+    /\b(analise|análise) (criticamente|detalhadamente|o processo|a tutela|o pedido|a viabilidade)\b/i,
+    /\b(faça|realize|efetue) (uma )?(analise|análise)\b/i,
+];
+
 const DRAFT_PATTERNS = [
     /\b(faça|elabore|redija|minute|prepare|construa|monte)\b.*\b(sentença|decisão|despacho|contestação|petição|minuta|voto|acórdão)\b/i,
     /\bminute\b/i,
@@ -151,7 +161,21 @@ function tryHeuristic(message: string): IntentResult | null {
         }
     }
 
-    // DRAFT: minutas (alta prioridade)
+    // ANALYSIS: análise de processo/pedido (PRIORIDADE ALTA - antes de DRAFT)
+    for (const pattern of ANALYSIS_PATTERNS) {
+        if (pattern.test(trimmed)) {
+            return {
+                intent: "CASE_ANALYSIS",
+                path: "ABSTRACT",
+                motors: ["A", "B", "C", "D"], // Todos os motores para análise completa
+                ragScope: "ALL", // Busca ampla para análise
+                confidence: 0.9,
+                method: "heuristic",
+            };
+        }
+    }
+
+    // DRAFT: minutas (depois de análise para não confundir)
     for (const pattern of DRAFT_PATTERNS) {
         if (pattern.test(trimmed)) {
             return {
@@ -224,9 +248,14 @@ Classifique a mensagem do usuário em UMA das categorias:
 - JURISPRUDENCE: Busca entendimento de STJ/STF ("O que o STJ diz?")
 - SPECIFIC: Busca fonte específica como FONAJE, súmula vinculante ("Tem enunciado?")
 - USER_PATTERN: Perguntas sobre como o próprio juiz decide ("Como eu decido?")
-- DRAFT: Pedido para elaborar documento ("Faça uma sentença")
+- CASE_ANALYSIS: Pedido para ANALISAR processo/pedido/documento ("Analise o pedido de tutela", "Analise a viabilidade")
+- DRAFT: Pedido para ELABORAR/REDIGIR documento FINAL ("Faça uma sentença", "Minute a decisão")
 - REFINEMENT: Pedido para ajustar texto anterior ("Melhore isso")
 - CASUAL: Conversa informal, cortesia ("Obrigado")
+
+IMPORTANTE: 
+- "Analise o pedido" = CASE_ANALYSIS (análise crítica, não gera documento)
+- "Faça/elabore/minute a decisão" = DRAFT (gera documento final)
 
 Responda APENAS com o JSON:
 {"intent": "CATEGORIA", "confidence": 0.0-1.0}`;
@@ -391,6 +420,9 @@ function getAbstractConfig(intent: Intent): {
 
         case "USER_PATTERN":
             return { motors: ["B"], ragScope: "USER" };
+
+        case "CASE_ANALYSIS":
+            return { motors: ["A", "B", "C", "D"], ragScope: "ALL" }; // Análise completa com todos os motores
 
         case "DRAFT":
             return { motors: ["B", "C"], ragScope: "ALL" };
