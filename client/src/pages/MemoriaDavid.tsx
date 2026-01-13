@@ -31,6 +31,23 @@ import { toast } from "sonner";
 import { useLocation } from "wouter";
 import DashboardLayout from "@/components/DashboardLayout";
 
+interface Thesis {
+  id: number;
+  thesis: string;
+  legalFoundations?: string | null;
+  keywords?: string | null;
+  decisionPattern?: string | null;
+  isObsolete?: number;
+}
+
+interface Draft {
+  id: number;
+  originalDraft: string;
+  editedDraft?: string | null;
+  draftType: string;
+  createdAt: string;
+}
+
 export default function MemoriaDavid() {
   const [, setLocation] = useLocation();
   const [activeTab, setActiveTab] = useState("teses");
@@ -41,9 +58,9 @@ export default function MemoriaDavid() {
   const [selectedDrafts, setSelectedDrafts] = useState<Set<number>>(new Set());
   
   // Dialogs
-  const [viewingThesis, setViewingThesis] = useState<any>(null);
-  const [viewingDraft, setViewingDraft] = useState<any>(null);
-  const [editingThesis, setEditingThesis] = useState<any>(null);
+  const [viewingThesis, setViewingThesis] = useState<Thesis | null>(null);
+  const [viewingDraft, setViewingDraft] = useState<Draft | null>(null);
+  const [editingThesis, setEditingThesis] = useState<Thesis | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<"theses" | "drafts" | null>(null);
   
   const [editForm, setEditForm] = useState({
@@ -153,7 +170,7 @@ export default function MemoriaDavid() {
   };
 
   // Edição
-  const handleEditThesis = (thesis: any) => {
+  const handleEditThesis = (thesis: Thesis) => {
     setEditingThesis(thesis);
     setEditForm({
       thesis: thesis.thesis || "",
@@ -190,7 +207,7 @@ export default function MemoriaDavid() {
       acc[keyword].push(thesis);
     });
     return acc;
-  }, {} as Record<string, any[]>);
+  }, {} as Record<string, Thesis[]>);
 
   const themes = Object.entries(themeGroups)
     .map(([theme, theses]) => ({ theme, count: theses.length }))

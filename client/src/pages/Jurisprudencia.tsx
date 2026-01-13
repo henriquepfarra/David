@@ -75,9 +75,12 @@ export default function Jurisprudencia() {
   };
 
   const handleDelete = (id: number) => {
-    if (confirm("Tem certeza que deseja excluir esta jurisprudência?")) {
-      deleteMutation.mutate({ id });
-    }
+    toast("Tem certeza que deseja excluir?", {
+      action: {
+        label: "Excluir",
+        onClick: () => deleteMutation.mutate({ id }),
+      },
+    });
   };
 
   const handleToggleFavorite = (id: number, currentFavorite: number) => {

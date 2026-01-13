@@ -30,6 +30,15 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
+interface SavedPrompt {
+  id: number;
+  title: string;
+  content: string;
+  category?: string | null;
+  description?: string | null;
+  executionMode?: string | null;
+}
+
 export default function DavidPrompts() {
   const [, setLocation] = useLocation();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -114,7 +123,7 @@ export default function DavidPrompts() {
     }
   };
 
-  const handleEdit = (prompt: any) => {
+  const handleEdit = (prompt: SavedPrompt) => {
     setEditingPrompt(prompt.id);
     setFormData({
       title: prompt.title,

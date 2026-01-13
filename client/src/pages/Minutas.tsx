@@ -14,8 +14,16 @@ import {
 } from "@/components/ui/dialog";
 import { useState } from "react";
 
+interface Draft {
+  id: number;
+  title: string;
+  content: string;
+  draftType: string;
+  createdAt: string;
+}
+
 export default function Minutas() {
-  const [selectedDraft, setSelectedDraft] = useState<any>(null);
+  const [selectedDraft, setSelectedDraft] = useState<Draft | null>(null);
   const [viewOpen, setViewOpen] = useState(false);
 
   const utils = trpc.useUtils();
@@ -37,7 +45,7 @@ export default function Minutas() {
     }
   };
 
-  const handleView = (draft: any) => {
+  const handleView = (draft: Draft) => {
     setSelectedDraft(draft);
     setViewOpen(true);
   };

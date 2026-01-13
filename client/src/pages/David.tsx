@@ -61,7 +61,7 @@ import { useAuth } from "@/_core/hooks/useAuth";
 import { useChatStream } from "@/hooks/useChatStream";
 
 // 🐛 DEBUG: Helper para logs com timestamp
-const debugLog = (source: string, message: string, data?: any) => {
+const debugLog = (source: string, message: string, data?: unknown) => {
   const timestamp = new Date().toISOString().split('T')[1];
   console.log(`[${timestamp}] 🔍 [${source}]`, message, data || '');
 };
@@ -451,10 +451,10 @@ export default function David() {
 
     if (currentCollectionId === null) {
       // Raiz: mostrar apenas prompts SEM coleção
-      return savedPrompts.filter((p: any) => p.collectionId === null || p.collectionId === undefined);
+      return savedPrompts.filter((p) => p.collectionId === null || p.collectionId === undefined);
     } else {
       // Dentro de uma coleção: mostrar apenas prompts DESSA coleção
-      return savedPrompts.filter((p: any) => p.collectionId === currentCollectionId);
+      return savedPrompts.filter((p) => p.collectionId === currentCollectionId);
     }
   }, [savedPrompts, currentCollectionId]);
 
@@ -467,7 +467,8 @@ export default function David() {
         from: 'createConversation.onSuccess',
         newValue: data.id
       });
-      setSelectedConversationId(data.id);
+      // FIX: Loop Infinito - Não atualizar estado manualmente, deixar a URL guiar
+      // setSelectedConversationId(data.id);
       refetchConversations();
     },
     onError: (error) => {
@@ -686,10 +687,11 @@ export default function David() {
           title: file.name.replace('.pdf', '') || "Nova Conversa",
         });
         conversationId = newConv.id;
-        setSelectedConversationId(newConv.id);
+        // FIX: Loop Infinito - Atualizar URL em vez do estado
+        setLocation(`/david?c=${newConv.id}`);
         selectedConversationIdRef.current = newConv.id; // Atualiza ref imediatamente
-      } catch (error: any) {
-        toast.error("Erro ao criar conversa: " + error.message);
+      } catch (error) {
+        toast.error("Erro ao criar conversa: " + (error as Error).message);
         return;
       }
     }
@@ -739,14 +741,14 @@ export default function David() {
         fileType: extension
       });
 
-    } catch (error: any) {
+    } catch (error) {
       setUploadState({
         isUploading: false,
         stage: null,
         fileName: null,
-        error: error.message,
+        error: (error as Error).message,
       });
-      toast.error("Erro no upload: " + error.message);
+      toast.error("Erro no upload: " + (error as Error).message);
     }
   };
 
@@ -1001,7 +1003,8 @@ export default function David() {
     });
 
     // Reset explícito de todos os estados
-    setSelectedConversationId(null);
+    // FIX: Loop Infinito - Não resetar ID manualmente, a mudança de URL fará isso
+    // setSelectedConversationId(null);
     setSelectedProcessId(undefined);
     setLocalAttachedFile(null); // Resetar arquivo local
     setMessageInput("");
@@ -1045,7 +1048,8 @@ export default function David() {
             from: 'handleSendMessage.onSuccess',
             newValue: newConv.id
           });
-          setSelectedConversationId(newConv.id);
+          // FIX: Loop Infinito - Não atualizar estado manualmente
+          // setSelectedConversationId(newConv.id);
           // Pequeno delay para garantir que o estado atualize
           setTimeout(() => {
             streamMessage(newConv.id, userMessage);
@@ -1765,7 +1769,7 @@ export default function David() {
                             <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300">
                               {filteredPrompts && filteredPrompts.length > 0 ? (
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3 p-4">
-                                  {filteredPrompts.map((prompt: any) => (
+                                  {filteredPrompts.map((prompt) => (
                                     <div
                                       key={prompt.id}
                                       className={`p-4 rounded-xl border shadow-sm transition-all cursor-pointer group relative ${isSelectMode
@@ -1775,7 +1779,7 @@ export default function David() {
                                       onClick={() => {
                                         if (isSelectMode) {
                                           if (selectedPromptIds.includes(prompt.id)) {
-                                            setSelectedPromptIds(selectedPromptIds.filter(id => id !== prompt.id));
+                                            setSelectedPromptIds(selectedPromptIds.filter((id) => id !== prompt.id));
                                           } else {
                                             setSelectedPromptIds([...selectedPromptIds, prompt.id]);
                                           }
@@ -2230,7 +2234,7 @@ export default function David() {
             <div className="space-y-4">
               <div>
                 <Label htmlFor="draftType">Tipo de Minuta</Label>
-                <Select value={draftType} onValueChange={(value: any) => setDraftType(value)}>
+                <Select value={draftType} onValueChange={(value) => setDraftType(value as "sentenca" | "decisao" | "despacho" | "acordao" | "outro")}>
                   <SelectTrigger id="draftType">
                     <SelectValue />
                   </SelectTrigger>
@@ -2344,7 +2348,7 @@ export default function David() {
             <div className="space-y-4">
               {processes && processes.length > 0 ? (
                 <div className="grid gap-2 max-h-[400px] overflow-y-auto">
-                  {processes.map((process: any) => (
+                  {processes.map((process) => (
                     <Card
                       key={process.id}
                       className={`p-4 cursor-pointer transition-colors ${selectedProcessId === process.id
@@ -2420,7 +2424,7 @@ export default function David() {
             </DialogHeader>
 
             {selectedProcessId && processes && (() => {
-              const currentProcess = processes.find((p: any) => p.id === selectedProcessId);
+              const currentProcess = processes.find((p) => p.id === selectedProcessId);
               if (!currentProcess) return <p>Processo não encontrado</p>;
 
               return (
@@ -2647,7 +2651,7 @@ export default function David() {
                   </Button>
                 </div>
               ) : (
-                savedPrompts.map((prompt: any) => (
+                savedPrompts.map((prompt) => (
                   <div
                     key={prompt.id}
                     className="border rounded-lg p-4 hover:bg-accent cursor-pointer transition-colors"

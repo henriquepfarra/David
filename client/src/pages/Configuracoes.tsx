@@ -27,13 +27,20 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
+interface KnowledgeDoc {
+  id: number;
+  title: string;
+  content: string;
+  source: string;
+}
+
 export default function Configuracoes() {
   const [customSystemPrompt, setCustomSystemPrompt] = useState("");
-  const [editingDoc, setEditingDoc] = useState<any>(null);
+  const [editingDoc, setEditingDoc] = useState<KnowledgeDoc | null>(null);
   const [editedContent, setEditedContent] = useState("");
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [docToDelete, setDocToDelete] = useState<any>(null);
+  const [docToDelete, setDocToDelete] = useState<KnowledgeDoc | null>(null);
 
   // API Keys states
   const [llmApiKey, setLlmApiKey] = useState("");
@@ -63,7 +70,7 @@ export default function Configuracoes() {
     onSuccess: () => {
       utils.settings.get.invalidate();
     },
-    onError: (error: any) => {
+    onError: (error) => {
       toast.error("Erro ao salvar: " + error.message);
     },
   });
@@ -75,7 +82,7 @@ export default function Configuracoes() {
       setIsEditDialogOpen(false);
       setEditingDoc(null);
     },
-    onError: (error: any) => {
+    onError: (error) => {
       toast.error("Erro ao atualizar documento: " + error.message);
     },
   });
@@ -87,7 +94,7 @@ export default function Configuracoes() {
       setIsDeleteDialogOpen(false);
       setDocToDelete(null);
     },
-    onError: (error: any) => {
+    onError: (error) => {
       toast.error("Erro ao deletar documento: " + error.message);
     },
   });
@@ -160,7 +167,7 @@ export default function Configuracoes() {
       } else if (!silent) {
         toast.success(`${models.length} modelos carregados`);
       }
-    } catch (error: any) {
+    } catch (error) {
       setModelsError("Falha ao carregar modelos. Usando lista padrão.");
       console.error("Erro ao carregar modelos:", error);
     } finally {
@@ -279,7 +286,7 @@ export default function Configuracoes() {
     );
   };
 
-  const handleEditDoc = (doc: any) => {
+  const handleEditDoc = (doc: KnowledgeDoc) => {
     setEditingDoc(doc);
     setEditedContent(doc.content);
     setIsEditDialogOpen(true);
@@ -293,7 +300,7 @@ export default function Configuracoes() {
     });
   };
 
-  const handleDeleteDoc = (doc: any) => {
+  const handleDeleteDoc = (doc: KnowledgeDoc) => {
     setDocToDelete(doc);
     setIsDeleteDialogOpen(true);
   };
