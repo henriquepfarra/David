@@ -1420,13 +1420,13 @@ export default function David() {
 
                         {/* Botão enviar */}
                         <Button
-                          disabled={!messageInput.trim() || isSending}
+                          disabled={!messageInput.trim() || isStreaming || createConversationMutation.isPending}
                           onClick={handleSendMessage}
                           size="icon"
                           className="h-10 w-10 rounded-full shrink-0 bg-blue-900 hover:bg-blue-800 text-white"
                           title="Enviar mensagem"
                         >
-                          {isSending ? (
+                          {createConversationMutation.isPending ? (
                             <Loader2 className="h-5 w-5 animate-spin" />
                           ) : (
                             <Send className="h-5 w-5" />
