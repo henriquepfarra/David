@@ -32,7 +32,10 @@ export function useConversationId(): [number | null, (id: number | null) => void
   // LEITURA: Deriva da URL (sem estado intermediário)
   // useMemo garante que só recalcula quando location muda
   const conversationId = useMemo(() => {
-    const params = new URLSearchParams(window.location.search);
+    // Extrair query params do wouter location, não do window.location!
+    // Isso garante sincronização: wouter atualiza location → useMemo recalcula
+    const searchPart = location.includes('?') ? location.split('?')[1] : '';
+    const params = new URLSearchParams(searchPart);
     const c = params.get('c');
 
     // Validação: deve ser número inteiro positivo
