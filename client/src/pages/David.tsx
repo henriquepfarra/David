@@ -208,11 +208,15 @@ export default function David() {
   // Estado local para manter o arquivo visível imediatamente após upload (Optimistic UI)
   const [localAttachedFile, setLocalAttachedFile] = useState<{ name: string, uri: string } | null>(null);
 
+  // Estado do arquivo ativo anexado (necessário para badge de upload)
+  const [activeFile, setActiveFile] = useState<{ name: string; uri: string } | null>(null);
+
 
 
   // Limpar arquivo local ao mudar de conversa
   useEffect(() => {
     setLocalAttachedFile(null);
+    setActiveFile(null); // Limpar activeFile também
   }, [selectedConversationId]);
 
   useEffect(() => {
@@ -364,12 +368,6 @@ export default function David() {
 
   // Log de render para detectar loops
   console.log("[David] Render. Status:", conversationStatus, "ID:", selectedConversationId, "Fetching:", isFetching);
-
-  // Computar arquivo ativo para exibir (local ou remoto)
-  const activeFile = localAttachedFile || (conversationData?.conversation?.googleFileUri ? {
-    name: conversationData.conversation.googleFileName || 'Documento',
-    uri: conversationData.conversation.googleFileUri
-  } : null);
 
   // Sincronizar selectedProcessId com a conversa carregada
   useEffect(() => {
@@ -535,9 +533,17 @@ export default function David() {
           googleFileUri: data.fileUri,
           googleFileName: data.displayName,
         });
+        debugLog('David.tsx - uploadQuick', 'SUCCESS', { fileUri: data.fileUri, convId: selectedConversationId });
       }
 
-      toast.success("📄 PDF anexado! Faça sua primeira pergunta.");
+      // Atualizar activeFile para mostrar badge
+      setActiveFile({
+        name: uploadState.fileName || 'Arquivo.pdf',
+        uri: data.fileUri
+      });
+
+      // Mostra sucesso
+      toast.success('📄 PDF anexado! Faça sua primeira pergunta.');
 
       // Manter isUploading=true por 1s para mostrar animação de concluído
       setTimeout(() => {
