@@ -67,11 +67,10 @@ async function startServer() {
     credentials: true
   }));
 
-  console.log(`🔒 CORS configured for ${process.env.NODE_ENV}: ${
-    process.env.NODE_ENV === 'production' && allowedOrigins
-      ? allowedOrigins.join(', ')
-      : 'all origins (development mode)'
-  }`);
+  console.log(`🔒 CORS configured for ${process.env.NODE_ENV}: ${process.env.NODE_ENV === 'production' && allowedOrigins
+    ? allowedOrigins.join(', ')
+    : 'all origins (development mode)'
+    }`);
 
   // Configure body parser with larger size limit for file uploads
   app.use(express.json({ limit: "50mb" }));
@@ -103,7 +102,7 @@ async function startServer() {
       }
 
 
-      const { conversationId, content, systemPromptOverride } = req.body;
+      const { conversationId, content, systemPromptOverride, googleFileUri: bodyFileUri } = req.body;
 
       // Buscar configurações de LLM do usuário
       const settings = await getUserSettings(user.id);
@@ -326,11 +325,10 @@ async function startServer() {
       console.log(`[Stream] Starting LLM stream with model: ${llmConfig.model || 'default'}, provider: ${llmConfig.provider || 'default'}`);
 
       try {
-        // streamFn is now statically imported
-        // Passar o googleFileUri da conversa para o LLM processar o PDF
-        const fileUri = conversation.googleFileUri || undefined;
+        // PRIORITIZAR o URI do body (enviado pelo frontend) sobre o do banco (pode ter race condition)
+        const fileUri = bodyFileUri || conversation.googleFileUri || undefined;
         if (fileUri) {
-          console.log(`[Stream] Incluindo arquivo PDF no contexto: ${fileUri}`);
+          console.log(`[Stream] Incluindo arquivo PDF no contexto: ${fileUri}${bodyFileUri ? ' (via body)' : ' (via banco)'}`);
         }
 
         for await (const yieldData of streamFn({

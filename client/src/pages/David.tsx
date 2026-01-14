@@ -838,8 +838,8 @@ export default function David() {
           resetStream();
           setPendingUserMessage(null);
 
-          // ✅ Limpar attachedFiles após envio bem-sucedido
-          setAttachedFiles([]);
+          // ❌ REMOVIDO: setAttachedFiles([]) limpava badge antes de renderizar no CHAT
+          // Badge deve persistir para mostrar arquivos anexados à conversa
 
           // Gerar título automático após primeira resposta (se título é genérico)
           const currentTitle = conversationData?.conversation?.title?.trim();
