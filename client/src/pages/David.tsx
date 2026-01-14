@@ -1012,6 +1012,20 @@ export default function David() {
           // 🔧 FIX: Usar novo hook que gerencia URL automaticamente
           setSelectedConversationId(newConv.id);
 
+          // ✅ CRÍTICO: Vincular attachedFiles à nova conversa (se existirem)
+          if (attachedFiles.length > 0) {
+            const firstFile = attachedFiles[0];
+            updateGoogleFileMutation.mutate({
+              conversationId: newConv.id,
+              googleFileUri: firstFile.uri,
+              googleFileName: firstFile.name,
+            });
+            debugLog('David.tsx - createConversation', 'Vinculando arquivo à nova conversa', {
+              fileUri: firstFile.uri,
+              convId: newConv.id
+            });
+          }
+
           // Pequeno delay para garantir que o estado atualize
           setTimeout(() => {
             streamMessage(newConv.id, userMessage);
