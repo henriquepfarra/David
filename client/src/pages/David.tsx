@@ -221,9 +221,19 @@ export default function David() {
   // Limpar arquivo local ao mudar de conversa
   useEffect(() => {
     setLocalAttachedFile(null);
-    setActiveFile(null); // Limpar activeFile também
-    setAttachedFiles([]); // ✅ Limpar arquivos ao trocar conversa
-    // attachedFiles deve ser carregado do backend para cada conversa
+    setActiveFile(null);
+
+    // ✅ SOLUÇÃO: Preservar attachedFiles ao criar NOVA conversa (null → id)
+    // Apenas limpar ao TROCAR entre conversas (id1 → id2)
+    const wasCreatingNewConversation = previousConversationIdRef.current === null && selectedConversationId !== null;
+
+    if (!wasCreatingNewConversation) {
+      // Se está trocando entre conversas existentes, limpa attachedFiles
+      setAttachedFiles([]);
+    }
+    // Caso contrário (criando nova conversa), PRESERVA attachedFiles!
+
+    // TODO: Futuramente, carregar attachedFiles do backend para cada conversa
   }, [selectedConversationId]);
 
   useEffect(() => {
@@ -813,7 +823,11 @@ export default function David() {
     // Isso evita o "piscar" porque a mensagem anterior já está renderizada do banco
     resetStream();
 
+    // ✅ CRÍTICO: Pegar googleFileUri do primeiro arquivo anexado (se existir)
+    const googleFileUri = attachedFiles.length > 0 ? attachedFiles[0].uri : undefined;
+
     await performStream(conversationId, content, {
+      googleFileUri, // ✅ Passar arquivo ao backend
       onDone: async () => {
         try {
           // Buscar novas mensagens do banco (inclui a que acabou de ser salva)
@@ -823,6 +837,9 @@ export default function David() {
           // Isso elimina o gap visual entre isStreaming=false e mensagens do banco
           resetStream();
           setPendingUserMessage(null);
+
+          // ✅ Limpar attachedFiles após envio bem-sucedido
+          setAttachedFiles([]);
 
           // Gerar título automático após primeira resposta (se título é genérico)
           const currentTitle = conversationData?.conversation?.title?.trim();
