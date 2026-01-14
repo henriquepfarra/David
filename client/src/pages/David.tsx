@@ -562,11 +562,7 @@ export default function David() {
         return [...prev, { name: data.displayName, uri: data.fileUri }];
       });
 
-      // Mostra sucesso com posição top-right (menos invasivo)
-      toast.success('📄 PDF anexado! Faça sua primeira pergunta.', {
-        position: 'top-right',
-        duration: 4000,
-      });
+      // ✅ Toast removido - badge visual é suficiente
 
       // Manter isUploading=true por 1s para mostrar animação de concluído
       setTimeout(() => {
@@ -2065,7 +2061,7 @@ export default function David() {
                     )}
                     {/* Badge do Processo/Arquivo (Estilo Gemini) - ACIMA DO INPUT */}
                     {/* CSS fix: flex-shrink-0 + min-height para prevenir collapse */}
-                    {(uploadState.isUploading || activeFile || selectedProcessId) && (
+                    {(uploadState.isUploading || activeFile || attachedFiles.length > 0 || selectedProcessId) && (
                       <div className="flex-shrink-0 min-h-[80px] mb-3">
                         {uploadState.isUploading ? (
                           /* Progress durante upload */
@@ -2102,30 +2098,80 @@ export default function David() {
                               </div>
                             </div>
                           </div>
-                        ) : (activeFile || selectedProcessId) ? (
-                          /* Badge do processo anexado */
-                          <div className="flex items-center gap-3 p-3 bg-muted/30 rounded-xl border border-border/50 group w-fit max-w-[320px]">
-                            <div className="w-12 h-12 rounded-lg bg-red-50 flex items-center justify-center text-red-600">
-                              <FileText className="h-6 w-6" />
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <p className="text-sm font-medium truncate max-w-[200px]" title={activeFile?.name || processes?.find(p => p.id === selectedProcessId)?.processNumber}>
-                                {activeFile?.name || processes?.find(p => p.id === selectedProcessId)?.processNumber || 'Processo anexado'}
-                              </p>
-                              <p className="text-xs text-muted-foreground">PDF</p>
-                            </div>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive"
-                              onClick={() => {
-                                setSelectedProcessId(undefined);
-                                setLocalAttachedFile(null); // Limpar local também
-                                // TODO: Limpar googleFileUri no server via mutation se necessário
-                              }}
-                            >
-                              <X className="h-4 w-4" />
-                            </Button>
+                        ) : (activeFile || attachedFiles.length > 0 || selectedProcessId) ? (
+                          /* Badge do arquivo/processo anexado - usa attachedFiles se disponível */
+                          <div className="flex flex-wrap gap-2">
+                            {/* Mostrar attachedFiles com prioridade */}
+                            {attachedFiles.map((file) => (
+                              <div key={file.uri} className="flex items-center gap-3 p-3 bg-muted/30 rounded-xl border border-border/50 group w-fit max-w-[320px]">
+                                <div className="w-12 h-12 rounded-lg bg-red-50 flex items-center justify-center text-red-600">
+                                  <FileText className="h-6 w-6" />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm font-medium truncate max-w-[200px]" title={file.name}>
+                                    {file.name}
+                                  </p>
+                                  <p className="text-xs text-muted-foreground">PDF</p>
+                                </div>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive"
+                                  onClick={() => {
+                                    setAttachedFiles(prev => prev.filter(f => f.uri !== file.uri));
+                                  }}
+                                >
+                                  <X className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            ))}
+                            {/* Fallback para activeFile se attachedFiles vazio */}
+                            {attachedFiles.length === 0 && activeFile && (
+                              <div className="flex items-center gap-3 p-3 bg-muted/30 rounded-xl border border-border/50 group w-fit max-w-[320px]">
+                                <div className="w-12 h-12 rounded-lg bg-red-50 flex items-center justify-center text-red-600">
+                                  <FileText className="h-6 w-6" />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm font-medium truncate max-w-[200px]" title={activeFile.name}>
+                                    {activeFile.name}
+                                  </p>
+                                  <p className="text-xs text-muted-foreground">PDF</p>
+                                </div>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive"
+                                  onClick={() => {
+                                    setActiveFile(null);
+                                    setLocalAttachedFile(null);
+                                  }}
+                                >
+                                  <X className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            )}
+                            {/* Mostrar processo selecionado se não houver arquivos */}
+                            {attachedFiles.length === 0 && !activeFile && selectedProcessId && (
+                              <div className="flex items-center gap-3 p-3 bg-muted/30 rounded-xl border border-border/50 group w-fit max-w-[320px]">
+                                <div className="w-12 h-12 rounded-lg bg-blue-50 flex items-center justify-center text-blue-600">
+                                  <Folder className="h-6 w-6" />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm font-medium truncate max-w-[200px]" title={processes?.find(p => p.id === selectedProcessId)?.processNumber}>
+                                    {processes?.find(p => p.id === selectedProcessId)?.processNumber || 'Processo anexado'}
+                                  </p>
+                                  <p className="text-xs text-muted-foreground">Processo</p>
+                                </div>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive"
+                                  onClick={() => setSelectedProcessId(undefined)}
+                                >
+                                  <X className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            )}
                           </div>
                         ) : null}
                       </div>
