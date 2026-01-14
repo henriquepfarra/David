@@ -17,7 +17,7 @@ import {
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input"; // Adicionado Input
 import { Badge } from "@/components/ui/badge"; // Adicionado Badge
-import { Loader2, Send, Plus, Trash2, FileText, Settings, BookMarked, X, Check, Edit, XCircle, ArrowLeft, ArrowDown, ArrowRight, Pencil, Upload, MessageSquare, ChevronRight, ChevronDown, Pin, PinOff, Gavel, Brain, Mic, Wand2, MoreVertical, Eye, CheckSquare, Search, Folder, FolderOpen, Bot } from "lucide-react";
+import { Loader2, Send, Plus, Trash2, FileText, Settings, BookMarked, X, Check, Edit, XCircle, ArrowLeft, ArrowDown, ArrowRight, Pencil, Upload, MessageSquare, ChevronRight, ChevronDown, Pin, PinOff, Gavel, Brain, Mic, Wand2, MoreVertical, Eye, CheckSquare, Search, Folder, FolderOpen, Bot, Paperclip } from "lucide-react";
 
 
 
@@ -210,12 +210,20 @@ export default function David() {
   // Estado do arquivo ativo anexado (necessário para badge de upload)
   const [activeFile, setActiveFile] = useState<{ name: string; uri: string } | null>(null);
 
+  // Estado de arquivos anexados à conversa (persiste após criar conversa)
+  const [attachedFiles, setAttachedFiles] = useState<Array<{ name: string; uri: string }>>([]);
+
+  // Estado do modal de arquivos
+  const [isFilesModalOpen, setIsFilesModalOpen] = useState(false);
+
 
 
   // Limpar arquivo local ao mudar de conversa
   useEffect(() => {
     setLocalAttachedFile(null);
     setActiveFile(null); // Limpar activeFile também
+    // NÃO limpar attachedFiles - deve persistir entre conversas
+    // attachedFiles é específico de cada conversa e será carregado do backend
   }, [selectedConversationId]);
 
   useEffect(() => {
@@ -518,7 +526,8 @@ export default function David() {
         uri: data.fileUri
       });
 
-      // Conversa já deve existir (criada no onDrop)
+      // Vincular arquivo à conversa SE já existir
+      // (Se não existe, será vinculado quando usuário enviar primeira mensagem)
       if (selectedConversationId) {
         updateGoogleFileMutation.mutate({
           conversationId: selectedConversationId,
@@ -536,8 +545,18 @@ export default function David() {
       console.log('🐛 [DEBUG] Setting activeFile:', fileData);
       setActiveFile(fileData);
 
-      // Mostra sucesso
-      toast.success('📄 PDF anexado! Faça sua primeira pergunta.');
+      // Adicionar arquivo à lista de anexados (persiste após criar conversa)
+      setAttachedFiles(prev => {
+        // Evitar duplicados
+        if (prev.some(f => f.uri === data.fileUri)) return prev;
+        return [...prev, { name: data.displayName, uri: data.fileUri }];
+      });
+
+      // Mostra sucesso com posição top-right (menos invasivo)
+      toast.success('📄 PDF anexado! Faça sua primeira pergunta.', {
+        position: 'top-right',
+        duration: 4000,
+      });
 
       // Manter isUploading=true por 1s para mostrar animação de concluído
       setTimeout(() => {
@@ -633,21 +652,8 @@ export default function David() {
 
     const file = acceptedFiles[0];
 
-    // Criar conversa se não existir
-    let conversationId = selectedConversationId;
-    if (!conversationId) {
-      try {
-        const newConv = await createConversationMutation.mutateAsync({
-          title: file.name.replace('.pdf', '') || "Nova Conversa",
-        });
-        conversationId = newConv.id;
-        // 🔧 FIX: Usar novo hook que gerencia URL automaticamente
-        setSelectedConversationId(newConv.id);
-      } catch (error) {
-        toast.error("Erro ao criar conversa: " + (error as Error).message);
-        return;
-      }
-    }
+    // ✅ Upload PDF deve APENAS anexar arquivo, NÃO criar conversa
+    // A conversa será criada quando usuário enviar primeira mensagem
 
     // Validação de tamanho (máximo 50MB)
     const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB em bytes
@@ -687,7 +693,7 @@ export default function David() {
       );
       const extension = file.name.split('.').pop()?.toLowerCase() || 'pdf';
 
-      // Upload rápido
+      // Upload rápido (apenas armazena no Google File API, SEM criar conversa)
       await uploadPdfQuickMutation.mutateAsync({
         filename: file.name,
         fileData: base64,
@@ -1365,6 +1371,34 @@ export default function David() {
                       </div>
                     )}
 
+                    {/* Badge de arquivos anexados - ACIMA do input (estilo Gemini) */}
+                    {attachedFiles.length > 0 && (
+                      <div className="px-3 py-2 border-b border-gray-200">
+                        <div className="flex flex-wrap gap-2">
+                          {attachedFiles.map((file) => (
+                            <div
+                              key={file.uri}
+                              className="flex items-center gap-2 bg-gray-50 hover:bg-gray-100 rounded-lg px-3 py-1.5 text-sm border border-gray-200 transition-colors"
+                            >
+                              <FileText className="w-4 h-4 text-red-500 shrink-0" />
+                              <span className="truncate max-w-[250px] font-medium text-gray-700">
+                                {file.name}
+                              </span>
+                              <button
+                                onClick={() => {
+                                  setAttachedFiles(prev => prev.filter(f => f.uri !== file.uri));
+                                  toast.success('Arquivo removido');
+                                }}
+                                className="ml-1 hover:bg-gray-200 rounded p-0.5 transition-colors"
+                              >
+                                <X className="w-3.5 h-3.5 text-gray-500" />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
                     {/* Container do input (flex horizontal) */}
                     <div className="flex items-end gap-2">
                       {/* Botão de upload */}
@@ -1450,6 +1484,15 @@ export default function David() {
                   >
                     <BookMarked className="h-4 w-4" />
                     Meus prompts
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="rounded-full gap-2 text-sm"
+                    onClick={() => setIsFilesModalOpen(true)}
+                  >
+                    <Paperclip className="h-4 w-4" />
+                    Arquivos ({attachedFiles.length})
                   </Button>
                   <Button
                     variant="outline"
@@ -2820,6 +2863,51 @@ export default function David() {
           </DialogContent>
         </Dialog>
       </div>
+
+      {/* Modal de Arquivos Anexados */}
+      <Dialog open={isFilesModalOpen} onOpenChange={setIsFilesModalOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Arquivos</DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            {/* Seção: Criação */}
+            <div>
+              <h3 className="text-sm font-semibold mb-2 text-gray-700">Criação</h3>
+              <p className="text-sm text-gray-500">Você ainda não criou nada</p>
+            </div>
+
+            {/* Seção: Adicionado */}
+            <div>
+              <h3 className="text-sm font-semibold mb-2 text-gray-700">Adicionado</h3>
+              {attachedFiles.length === 0 ? (
+                <p className="text-sm text-gray-500">Nenhum arquivo anexado</p>
+              ) : (
+                <div className="space-y-2">
+                  {attachedFiles.map((file) => (
+                    <div
+                      key={file.uri}
+                      className="flex items-center gap-3 p-3 hover:bg-gray-50 rounded-lg border border-gray-200 transition-colors"
+                    >
+                      <div className="p-2 bg-red-50 rounded">
+                        <FileText className="w-5 h-5 text-red-500" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-gray-900 truncate">
+                          {file.name}
+                        </p>
+                        <p className="text-xs text-gray-500">PDF</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
     </DashboardLayout >
   );
 }
