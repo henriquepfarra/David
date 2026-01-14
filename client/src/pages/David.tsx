@@ -558,13 +558,7 @@ export default function David() {
         debugLog('David.tsx - uploadQuick', 'SUCCESS', { fileUri: data.fileUri, convId: selectedConversationId });
       }
 
-      // Atualizar activeFile para mostrar badge
-      const fileData = {
-        name: uploadState.fileName || 'Arquivo.pdf',
-        uri: data.fileUri
-      };
-      console.log('🐛 [DEBUG] Setting activeFile:', fileData);
-      setActiveFile(fileData);
+      // ✅ Removido setActiveFile - attachedFiles é a única fonte de verdade
 
       // Adicionar arquivo à lista de anexados (persiste após criar conversa)
       setAttachedFiles(prev => {
@@ -1368,8 +1362,47 @@ export default function David() {
                 <div className="relative">
                   <div className="flex flex-col gap-2 p-3 bg-muted/50 border rounded-2xl shadow-sm hover:shadow-md transition-shadow">
 
+                    {/* Progresso de upload (HOME) */}
+                    {uploadState.isUploading && (
+                      <div className="px-3 py-2 border-b border-gray-200">
+                        <div className="flex items-center gap-3 p-3 bg-muted/30 rounded-xl border border-border/50">
+                          <div className="relative">
+                            <div className="w-12 h-12 rounded-lg bg-red-50 flex items-center justify-center text-red-600">
+                              <FileText className="h-6 w-6" />
+                            </div>
+                            <div className="absolute -bottom-1 -right-1 bg-primary text-white rounded-full p-0.5">
+                              <Loader2 className="h-3 w-3 animate-spin" />
+                            </div>
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium truncate max-w-[200px]" title={uploadState.fileName || ''}>{uploadState.fileName}</p>
+                            <div className="flex items-center gap-2 mt-1">
+                              <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
+                                <div
+                                  className="h-full bg-primary transition-all duration-500 rounded-full"
+                                  style={{
+                                    width: uploadState.stage === 'sending' ? '25%'
+                                      : uploadState.stage === 'reading' ? '50%'
+                                        : uploadState.stage === 'extracting' ? '75%'
+                                          : uploadState.stage === 'done' ? '100%'
+                                            : '0%'
+                                  }}
+                                />
+                              </div>
+                              <span className="text-xs text-muted-foreground shrink-0">
+                                {uploadState.stage === 'sending' && 'Enviando...'}
+                                {uploadState.stage === 'reading' && 'Processando...'}
+                                {uploadState.stage === 'extracting' && 'Extraindo...'}
+                                {uploadState.stage === 'done' && 'Concluído!'}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
                     {/* Badge de arquivos anexados - ACIMA do input (estilo Gemini) */}
-                    {attachedFiles.length > 0 && (
+                    {!uploadState.isUploading && attachedFiles.length > 0 && (
                       <div className="px-3 py-2 border-b border-gray-200">
                         <div className="flex flex-wrap gap-2">
                           {attachedFiles.map((file) => (
@@ -1384,7 +1417,6 @@ export default function David() {
                               <button
                                 onClick={() => {
                                   setAttachedFiles(prev => prev.filter(f => f.uri !== file.uri));
-                                  toast.success('Arquivo removido');
                                 }}
                                 className="ml-1 hover:bg-gray-200 rounded p-0.5 transition-colors"
                               >
