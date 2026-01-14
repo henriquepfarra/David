@@ -216,7 +216,9 @@ export default function David() {
   // Estado do modal de arquivos
   const [isFilesModalOpen, setIsFilesModalOpen] = useState(false);
 
-
+  // ✅ Ref separada APENAS para rastrear se attachedFiles deve persistir
+  // Não compartilha com o resetStream para evitar race conditions
+  const attachedFilesPreviousIdRef = useRef<number | null>(null);
 
   // Limpar arquivo local ao mudar de conversa
   useEffect(() => {
@@ -224,14 +226,23 @@ export default function David() {
     setActiveFile(null);
 
     // ✅ SOLUÇÃO: Preservar attachedFiles ao criar NOVA conversa (null → id)
-    // Apenas limpar ao TROCAR entre conversas (id1 → id2)
-    const wasCreatingNewConversation = previousConversationIdRef.current === null && selectedConversationId !== null;
+    // Usa ref SEPARADA que não é modificada por outros effects
+    const previousId = attachedFilesPreviousIdRef.current;
+    const wasCreatingNewConversation = previousId === null && selectedConversationId !== null;
+
+    console.log('[AttachedFiles] Effect triggered:', { previousId, selectedConversationId, wasCreatingNewConversation, attachedFiles: attachedFiles.length });
 
     if (!wasCreatingNewConversation) {
-      // Se está trocando entre conversas existentes, limpa attachedFiles
+      // Se está trocando entre conversas existentes OU indo para HOME, limpa attachedFiles
+      console.log('[AttachedFiles] Limpando attachedFiles (troca de conversa)');
       setAttachedFiles([]);
+    } else {
+      // Criando nova conversa - PRESERVA attachedFiles!
+      console.log('[AttachedFiles] Preservando attachedFiles (nova conversa)');
     }
-    // Caso contrário (criando nova conversa), PRESERVA attachedFiles!
+
+    // Atualiza ref APÓS a lógica de preservação
+    attachedFilesPreviousIdRef.current = selectedConversationId;
 
     // TODO: Futuramente, carregar attachedFiles do backend para cada conversa
   }, [selectedConversationId]);
