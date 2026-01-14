@@ -222,8 +222,8 @@ export default function David() {
   useEffect(() => {
     setLocalAttachedFile(null);
     setActiveFile(null); // Limpar activeFile também
-    // NÃO limpar attachedFiles - deve persistir entre conversas
-    // attachedFiles é específico de cada conversa e será carregado do backend
+    setAttachedFiles([]); // ✅ Limpar arquivos ao trocar conversa
+    // attachedFiles deve ser carregado do backend para cada conversa
   }, [selectedConversationId]);
 
   useEffect(() => {
@@ -1329,47 +1329,6 @@ export default function David() {
                 {/* Input centralizado estilo Gemini */}
                 <div className="relative">
                   <div className="flex flex-col gap-2 p-3 bg-muted/50 border rounded-2xl shadow-sm hover:shadow-md transition-shadow">
-
-                    {/* 🎯 BADGE INLINE - Compacto com truncate */}
-                    {(uploadState.isUploading || activeFile) && (
-                      <div className="flex items-center gap-2 px-2.5 py-2 bg-white rounded-lg border border-border max-w-[280px]">
-                        <div className="relative shrink-0">
-                          <div className="w-8 h-8 rounded-md bg-gradient-to-br from-red-50 to-red-100 flex items-center justify-center">
-                            <FileText className="h-4 w-4 text-red-600" />
-                          </div>
-                          {uploadState.isUploading && (
-                            <div className="absolute -bottom-0.5 -right-0.5 bg-blue-600 text-white rounded-full p-0.5">
-                              <Loader2 className="h-2 w-2 animate-spin" />
-                            </div>
-                          )}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-xs font-medium text-foreground truncate">
-                            {uploadState.isUploading ? uploadState.fileName : activeFile?.name}
-                          </p>
-                          {uploadState.isUploading ? (
-                            <div className="flex items-center gap-1.5 mt-0.5">
-                              <div className="flex-1 h-1 bg-muted rounded-full overflow-hidden">
-                                <div
-                                  className="h-full bg-blue-600 transition-all duration-300"
-                                  style={{
-                                    width: uploadState.stage === 'sending' ? '25%'
-                                      : uploadState.stage === 'reading' ? '50%'
-                                        : uploadState.stage === 'extracting' ? '75%'
-                                          : '100%'
-                                  }}
-                                />
-                              </div>
-                              <span className="text-[9px] text-muted-foreground uppercase tracking-wide shrink-0">
-                                {uploadState.stage === 'sending' ? 'Env' : uploadState.stage === 'reading' ? 'Lendo' : uploadState.stage === 'extracting' ? 'Ext' : 'OK'}
-                              </span>
-                            </div>
-                          ) : (
-                            <p className="text-[9px] text-green-600 font-medium">✓ Pronto</p>
-                          )}
-                        </div>
-                      </div>
-                    )}
 
                     {/* Badge de arquivos anexados - ACIMA do input (estilo Gemini) */}
                     {attachedFiles.length > 0 && (
