@@ -22,6 +22,7 @@ export interface StreamState {
 }
 
 export interface StreamCallbacks {
+    googleFileUri?: string; // ✅ URI do arquivo Google para contexto
     onDone?: () => void;
     onError?: (error: string) => void;
     onTitleGenerate?: (conversationId: number) => void;
@@ -116,7 +117,11 @@ export function useChatStream(): UseChatStreamReturn {
                     "Content-Type": "application/json",
                 },
                 credentials: "include", // Importante: enviar cookies de sessão
-                body: JSON.stringify({ conversationId, content }),
+                body: JSON.stringify({
+                    conversationId,
+                    content,
+                    ...(callbacks?.googleFileUri && { googleFileUri: callbacks.googleFileUri }) // ✅ Enviar arquivo se fornecido
+                }),
                 signal: abortControllerRef.current.signal,
             });
 
