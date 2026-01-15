@@ -26,18 +26,18 @@ export interface AttachedFile {
 interface UsePdfUploadOptions {
     /** ID da conversa atual (null = home) */
     selectedConversationId: number | null;
-    /** Callback para atualizar arquivos anexados */
+    /** Setter para arquivos anexados (integração direta com David.tsx) */
+    setAttachedFiles?: React.Dispatch<React.SetStateAction<AttachedFile[]>>;
+    /** Callback quando arquivo é anexado (alternativo ao setter) */
     onFileAttached?: (file: AttachedFile) => void;
-    /** Callback quando processo é registrado */
-    onProcessRegistered?: (processId: number, processNumber: string) => void;
 }
 
 const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
 
 export function usePdfUpload({
     selectedConversationId,
+    setAttachedFiles,
     onFileAttached,
-    onProcessRegistered,
 }: UsePdfUploadOptions) {
 
     // Estado do upload
@@ -71,7 +71,16 @@ export function usePdfUpload({
                 });
             }
 
-            // Notificar componente pai
+            // Atualizar attachedFiles (se setter foi passado)
+            if (setAttachedFiles) {
+                setAttachedFiles(prev => {
+                    // Evitar duplicados
+                    if (prev.some(f => f.uri === data.fileUri)) return prev;
+                    return [...prev, { name: data.displayName, uri: data.fileUri }];
+                });
+            }
+
+            // Callback alternativo
             onFileAttached?.({ name: data.displayName, uri: data.fileUri });
 
             // Manter isUploading=true por 1s para mostrar animação

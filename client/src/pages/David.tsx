@@ -60,6 +60,7 @@ import { APP_LOGO } from "@/const";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { useChatStream } from "@/hooks/useChatStream";
 import { useConversationId } from "@/hooks/useConversationId";
+import { usePdfUpload } from "@/hooks/usePdfUpload";
 import { ChatInput } from "@/components/ChatInput";
 import { AttachedFilesBadge, UploadProgress } from "@/components/chat";
 
@@ -207,6 +208,18 @@ export default function David() {
 
   // Estado de arquivos anexados à conversa (persiste após criar conversa)
   const [attachedFiles, setAttachedFiles] = useState<Array<{ name: string; uri: string }>>([]);
+
+  // 🔧 INTEGRADO: usePdfUpload hook substitui lógica de upload inline
+  const {
+    uploadState,
+    getRootProps,
+    getInputProps,
+    isDragActive,
+    open,
+  } = usePdfUpload({
+    selectedConversationId,
+    setAttachedFiles,
+  });
 
   // Estado do modal de arquivos
   const [isFilesModalOpen, setIsFilesModalOpen] = useState(false);
@@ -498,189 +511,11 @@ export default function David() {
     },
   });
 
-  // Estado de progresso do upload
-  const [uploadState, setUploadState] = useState<{
-    isUploading: boolean;
-    stage: 'sending' | 'reading' | 'extracting' | 'done' | null;
-    fileName: string | null;
-    error: string | null;
-  }>({ isUploading: false, stage: null, fileName: null, error: null });
+  // 🔧 REMOVIDO: uploadState, uploadPdfQuickMutation, onDrop, useDropzone
+  // Agora vêm do usePdfUpload hook (linha 211)
 
-  // Mutation para upload rápido (NOVO)
-  const uploadPdfQuickMutation = trpc.processes.uploadPdfQuick.useMutation({
-    onMutate: () => {
-      // Estágio 2: Processando no servidor
-      setUploadState(prev => ({ ...prev, stage: 'reading' }));
-    },
-    onSuccess: (data) => {
-      // Estágio 3: Finalizando
-      setUploadState(prev => ({ ...prev, stage: 'done' }));
-
-      // Vincular arquivo à conversa SE já existir
-      // (Se não existe, será vinculado quando usuário enviar primeira mensagem)
-      if (selectedConversationId) {
-        updateGoogleFileMutation.mutate({
-          conversationId: selectedConversationId,
-          googleFileUri: data.fileUri,
-          googleFileName: data.displayName,
-        });
-      }
-
-      // ✅ CONSOLIDADO: attachedFiles é a única fonte de verdade
-
-      // Adicionar arquivo à lista de anexados (persiste após criar conversa)
-      setAttachedFiles(prev => {
-        // Evitar duplicados
-        if (prev.some(f => f.uri === data.fileUri)) return prev;
-        return [...prev, { name: data.displayName, uri: data.fileUri }];
-      });
-
-      // ✅ Toast removido - badge visual é suficiente
-
-      // Manter isUploading=true por 1s para mostrar animação de concluído
-      setTimeout(() => {
-        setUploadState({ isUploading: false, stage: null, fileName: null, error: null });
-      }, 1000);
-    },
-    onError: (error) => {
-      console.error("[UploadQuick] Erro:", error);
-      setUploadState(prev => ({ ...prev, isUploading: false, error: error.message }));
-      toast.error("Erro no upload: " + error.message);
-    }
-  });
-
-  const registerFromUploadMutation = trpc.processes.registerFromUpload.useMutation({
-    onSuccess: async (data) => {
-      // Atualiza estado de upload
-      setUploadState(prev => ({ ...prev, stage: 'done' }));
-
-      // Verificar se o processo já existe em outra conversa
-      try {
-        const duplicateCheck = await utils.david.checkDuplicateProcess.fetch({
-          processNumber: data.processNumber,
-          excludeConversationId: selectedConversationId ?? undefined,
-        });
-
-        if (duplicateCheck.isDuplicate && duplicateCheck.existingConversations.length > 0) {
-          // Mostra diálogo de duplicata
-          setDuplicateProcessDialog({
-            isOpen: true,
-            processNumber: data.processNumber,
-            existingConversations: duplicateCheck.existingConversations,
-          });
-          // Não vincula automaticamente - espera decisão do usuário
-          setSelectedProcessId(data.processId);
-          setTimeout(() => {
-            setUploadState({ isUploading: false, stage: null, fileName: null, error: null });
-          }, 1000);
-          return;
-        }
-      } catch (e) {
-        console.error("[Duplicate Check] Erro:", e);
-      }
-
-      // Se não há duplicata, procede normalmente
-      if (selectedConversationId && data.processId) {
-        updateProcessMutation.mutate({
-          conversationId: selectedConversationId,
-          processId: data.processId,
-        });
-
-        // Atualizar título da conversa com o número do processo
-        renameConversationMutation.mutate({
-          conversationId: selectedConversationId,
-          title: data.processNumber,
-        });
-      }
-      setSelectedProcessId(data.processId);
-
-      // Mostra sucesso
-      toast.success(`📂 Processo ${data.processNumber} identificado!`);
-
-      // Limpa estado após 2 segundos
-      setTimeout(() => {
-        setUploadState({ isUploading: false, stage: null, fileName: null, error: null });
-      }, 2000);
-    },
-    onError: (error) => {
-      setUploadState(prev => ({ ...prev, isUploading: false, error: error.message }));
-      toast.error("Erro ao processar arquivo: " + error.message);
-    }
-  });
-
-  const onDrop = async (acceptedFiles: File[]) => {
-    if (acceptedFiles.length === 0) return;
-
-    const file = acceptedFiles[0];
-
-    // ✅ Upload PDF deve APENAS anexar arquivo, NÃO criar conversa
-    // A conversa será criada quando usuário enviar primeira mensagem
-
-    // Validação de tamanho (máximo 50MB)
-    const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB em bytes
-    if (file.size > MAX_FILE_SIZE) {
-      toast.error(`Arquivo muito grande! Tamanho máximo: 50MB. Tamanho do arquivo: ${(file.size / 1024 / 1024).toFixed(2)}MB`);
-      return;
-    }
-
-    // Validação de tipo de arquivo
-    const allowedTypes = ['application/pdf'];
-    if (!allowedTypes.includes(file.type)) {
-      toast.error(`Tipo de arquivo não permitido: ${file.type}. Apenas PDF é aceito.`);
-      return;
-    }
-
-    // Validação de extensão (dupla verificação)
-    const extension = file.name.split('.').pop()?.toLowerCase();
-    if (extension !== 'pdf') {
-      toast.error(`Extensão não permitida: .${extension}. Apenas .pdf é aceito.`);
-      return;
-    }
-
-    // Inicia estado de loading
-    setUploadState({
-      isUploading: true,
-      stage: 'sending',
-      fileName: file.name,
-      error: null,
-    });
-
-    try {
-      // Converter para base64
-      const buffer = await file.arrayBuffer();
-      const base64 = btoa(
-        new Uint8Array(buffer)
-          .reduce((data, byte) => data + String.fromCharCode(byte), '')
-      );
-      const extension = file.name.split('.').pop()?.toLowerCase() || 'pdf';
-
-      // Upload rápido (apenas armazena no Google File API, SEM criar conversa)
-      await uploadPdfQuickMutation.mutateAsync({
-        filename: file.name,
-        fileData: base64,
-        fileType: extension
-      });
-
-    } catch (error) {
-      setUploadState({
-        isUploading: false,
-        stage: null,
-        fileName: null,
-        error: (error as Error).message,
-      });
-      toast.error("Erro no upload: " + (error as Error).message);
-    }
-  };
-
-  const { getRootProps, getInputProps, isDragActive, open } = useDropzone({
-    onDrop,
-    accept: {
-      'application/pdf': ['.pdf']
-    },
-    maxFiles: 1,
-    noClick: true, // Importante: desabilita o click no elemento raiz (div do chat), permitindo apenas no botão explícito ou drag
-    noKeyboard: true
-  });
+  // NOTA: registerFromUploadMutation ainda existe mas não é usado pelo fluxo atual
+  // (uploadPdfQuick não extrai mais o processo automaticamente)
 
   const approveDraftMutation = trpc.david.approvedDrafts.create.useMutation({
     onSuccess: () => {
