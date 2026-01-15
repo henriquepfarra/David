@@ -60,6 +60,8 @@ import { APP_LOGO } from "@/const";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { useChatStream } from "@/hooks/useChatStream";
 import { useConversationId } from "@/hooks/useConversationId";
+import { ChatInput } from "@/components/ChatInput";
+import { AttachedFilesBadge, UploadProgress } from "@/components/chat";
 
 // Debug logs removidos para limpar console
 
@@ -1991,139 +1993,31 @@ export default function David() {
                   /* Regular input container */
                   <div className={`border p-4 relative shadow-sm bg-white rounded-[2rem] transition-all duration-200 z-30 ${isPromptsModalOpen ? 'opacity-60 pointer-events-none' : 'focus-within:ring-1 focus-within:ring-primary/50'}`}>
 
-                    {/* 🎯 BADGE ABSOLUTAMENTE POSICIONADO - Flutua acima do input */}
+
+                    {/* 🎯 BADGE FLUTUANTE - Usando componente UploadProgress */}
                     {uploadState.isUploading && (
                       <div className="absolute -top-[90px] left-0 right-0 px-4 z-50 pointer-events-none">
                         <div className="bg-white rounded-xl border border-border shadow-lg p-3 max-w-md mx-auto pointer-events-auto">
-                          {uploadState.isUploading ? (
-                            <div className="flex items-center gap-3">
-                              <div className="relative">
-                                <div className="w-12 h-12 rounded-lg bg-red-50 flex items-center justify-center text-red-600">
-                                  <FileText className="h-6 w-6" />
-                                </div>
-                                <div className="absolute -bottom-1 -right-1 bg-primary text-white rounded-full p-0.5">
-                                  <Loader2 className="h-3 w-3 animate-spin" />
-                                </div>
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <p className="text-sm font-medium truncate">
-                                  {uploadState.fileName}
-                                </p>
-                                <div className="flex items-center gap-2 mt-1">
-                                  <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
-                                    <div
-                                      className="h-full bg-primary transition-all duration-500 rounded-full"
-                                      style={{
-                                        width: uploadState.stage === 'sending' ? '33%'
-                                          : uploadState.stage === 'reading' ? '66%'
-                                            : uploadState.stage === 'extracting' ? '90%'
-                                              : '100%'
-                                      }}
-                                    />
-                                  </div>
-                                  <span className="text-xs text-muted-foreground shrink-0">
-                                    {uploadState.stage === 'sending' && 'Enviando...'}
-                                    {uploadState.stage === 'reading' && 'Lendo...'}
-                                    {uploadState.stage === 'extracting' && 'Extraindo...'}
-                                  </span>
-                                </div>
-                              </div>
-                            </div>
-                          ) : null}
+                          <UploadProgress uploadState={uploadState} />
                         </div>
                       </div>
                     )}
-                    {/* Badge do Processo/Arquivo (Estilo Gemini) - ACIMA DO INPUT */}
-                    {/* CSS fix: flex-shrink-0 + min-height para prevenir collapse */}
+                    {/* Badge do Processo/Arquivo - Usando componentes extraídos */}
                     {(uploadState.isUploading || attachedFiles.length > 0 || selectedProcessId) && (
                       <div className="flex-shrink-0 min-h-[80px] mb-3">
                         {uploadState.isUploading ? (
-                          /* Progress durante upload */
-                          <div className="flex items-center gap-3 p-3 bg-muted/30 rounded-xl border border-border/50">
-                            <div className="relative">
-                              <div className="w-12 h-12 rounded-lg bg-red-50 flex items-center justify-center text-red-600">
-                                <FileText className="h-6 w-6" />
-                              </div>
-                              <div className="absolute -bottom-1 -right-1 bg-primary text-white rounded-full p-0.5">
-                                <Loader2 className="h-3 w-3 animate-spin" />
-                              </div>
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <p className="text-sm font-medium truncate max-w-[200px]" title={uploadState.fileName || ''}>{uploadState.fileName}</p>
-                              <div className="flex items-center gap-2 mt-1">
-                                <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
-                                  <div
-                                    className="h-full bg-primary transition-all duration-500 rounded-full"
-                                    style={{
-                                      width: uploadState.stage === 'sending' ? '25%'
-                                        : uploadState.stage === 'reading' ? '50%'
-                                          : uploadState.stage === 'extracting' ? '75%'
-                                            : uploadState.stage === 'done' ? '100%'
-                                              : '0%'
-                                    }}
-                                  />
-                                </div>
-                                <span className="text-xs text-muted-foreground shrink-0">
-                                  {uploadState.stage === 'sending' && 'Enviando...'}
-                                  {uploadState.stage === 'reading' && 'Processando...'}
-                                  {uploadState.stage === 'extracting' && 'Extraindo...'}
-                                  {uploadState.stage === 'done' && 'Concluído!'}
-                                </span>
-                              </div>
-                            </div>
-                          </div>
-                        ) : (attachedFiles.length > 0 || selectedProcessId) ? (
-                          /* Badge do arquivo/processo anexado */
-                          <div className="flex flex-wrap gap-2">
-                            {/* Mostrar attachedFiles com prioridade */}
-                            {attachedFiles.map((file) => (
-                              <div key={file.uri} className="flex items-center gap-3 p-3 bg-muted/30 rounded-xl border border-border/50 group w-fit max-w-[320px]">
-                                <div className="w-12 h-12 rounded-lg bg-red-50 flex items-center justify-center text-red-600">
-                                  <FileText className="h-6 w-6" />
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                  <p className="text-sm font-medium truncate max-w-[200px]" title={file.name}>
-                                    {file.name}
-                                  </p>
-                                  <p className="text-xs text-muted-foreground">PDF</p>
-                                </div>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive"
-                                  onClick={() => {
-                                    setAttachedFiles(prev => prev.filter(f => f.uri !== file.uri));
-                                  }}
-                                >
-                                  <X className="h-4 w-4" />
-                                </Button>
-                              </div>
-                            ))}
-                            {/* Fase 0.5: removido fallback activeFile */}
-                            {/* Mostrar processo selecionado se nao houver arquivos */}
-                            {attachedFiles.length === 0 && selectedProcessId && (
-                              <div className="flex items-center gap-3 p-3 bg-muted/30 rounded-xl border border-border/50 group w-fit max-w-[320px]">
-                                <div className="w-12 h-12 rounded-lg bg-blue-50 flex items-center justify-center text-blue-600">
-                                  <Folder className="h-6 w-6" />
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                  <p className="text-sm font-medium truncate max-w-[200px]" title={processes?.find(p => p.id === selectedProcessId)?.processNumber}>
-                                    {processes?.find(p => p.id === selectedProcessId)?.processNumber || 'Processo anexado'}
-                                  </p>
-                                  <p className="text-xs text-muted-foreground">Processo</p>
-                                </div>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive"
-                                  onClick={() => setSelectedProcessId(undefined)}
-                                >
-                                  <X className="h-4 w-4" />
-                                </Button>
-                              </div>
-                            )}
-                          </div>
-                        ) : null}
+                          <UploadProgress uploadState={uploadState} />
+                        ) : (
+                          <AttachedFilesBadge
+                            files={attachedFiles}
+                            process={selectedProcessId ? {
+                              id: selectedProcessId,
+                              processNumber: processes?.find(p => p.id === selectedProcessId)?.processNumber || 'Processo anexado'
+                            } : null}
+                            onRemoveFile={(uri) => setAttachedFiles(prev => prev.filter(f => f.uri !== uri))}
+                            onRemoveProcess={() => setSelectedProcessId(undefined)}
+                          />
+                        )}
                       </div>
                     )}
 
