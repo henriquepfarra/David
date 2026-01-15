@@ -914,10 +914,10 @@ export default function David() {
   }, [conversationData?.messages, streamingMessage, pendingUserMessage]);
 
   const handleNewConversation = () => {
-    // Resetar todos os estados ao criar nova conversa
+    // Resetar estados ao criar nova conversa
+    // NOTA: attachedFiles é limpo pelo useEffect de selectedConversationId
     setSelectedConversationId(null);
     setSelectedProcessId(undefined);
-    setAttachedFiles([]); // Limpar arquivos anexados
     setMessageInput("");
     setPendingUserMessage(null);
     resetStream();
