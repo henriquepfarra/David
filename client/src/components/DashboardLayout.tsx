@@ -9,11 +9,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-// 🐛 DEBUG: Helper para logs com timestamp
-const debugLog = (source: string, message: string, data?: any) => {
-  const timestamp = new Date().toISOString().split('T')[1];
-  console.log(`[${timestamp}] 🔍 [${source}]`, message, data || '');
-};
+
 import {
   Sidebar,
   SidebarContent,
@@ -146,10 +142,10 @@ function DashboardLayoutContent({
   const [searchQuery, setSearchQuery] = useState("");
 
   // Fetch conversations for sidebar
-  const { data: conversations, refetch: refetchConversations} = trpc.david.listConversations.useQuery();
+  const { data: conversations, refetch: refetchConversations } = trpc.david.listConversations.useQuery();
   const createConversationMutation = trpc.david.createConversation.useMutation({
     onSuccess: (data) => {
-      debugLog('DashboardLayout - createConversation', 'SUCCESS', { newConversationId: data.id });
+
       // 🔧 FIX: Usar hook ao invés de setLocation direto
       setSelectedConversationId(data.id);
       refetchConversations();
@@ -278,9 +274,7 @@ function DashboardLayoutContent({
   }, [isResizing]); // setSidebarWidth é estável (função setter do useState)
 
   const handleNewChat = () => {
-    debugLog('DashboardLayout - handleNewChat', 'Called');
     // Navega para a Home - a conversa será criada quando o usuário enviar uma mensagem
-    debugLog('DashboardLayout - setLocation', 'Setting location', { newLocation: '/david' });
     setLocation("/david");
   };
 
@@ -434,7 +428,7 @@ function DashboardLayoutContent({
                             if (isSelectionMode) {
                               toggleSelection(conv.id);
                             } else {
-                              debugLog('DashboardLayout - conversationClick', 'User clicked conversation', { conversationId: conv.id });
+
                               // 🔧 FIX: Usar hook ao invés de setLocation direto
                               setSelectedConversationId(conv.id);
                             }
