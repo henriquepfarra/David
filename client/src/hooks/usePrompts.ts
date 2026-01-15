@@ -332,5 +332,6 @@ export function usePrompts(options: UsePromptsOptions = {}) {
         deletePromptMutation,
         createPromptMutation,
         updatePromptMutation,
+        createCollectionMutation,
     };
 }

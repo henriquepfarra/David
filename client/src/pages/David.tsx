@@ -61,6 +61,7 @@ import { useAuth } from "@/_core/hooks/useAuth";
 import { useChatStream } from "@/hooks/useChatStream";
 import { useConversationId } from "@/hooks/useConversationId";
 import { usePdfUpload } from "@/hooks/usePdfUpload";
+import { usePrompts } from "@/hooks/usePrompts";
 import { ChatInput } from "@/components/ChatInput";
 import { AttachedFilesBadge, UploadProgress } from "@/components/chat";
 
@@ -221,6 +222,74 @@ export default function David() {
     setAttachedFiles,
   });
 
+  // 🔧 INTEGRADO: usePrompts hook substitui lógica de prompts inline
+  const {
+    // Estados do modal
+    isPromptsModalOpen,
+    isCreatePromptOpen,
+    viewingPrompt,
+    setViewingPrompt,
+    // Estados do form
+    editingPromptId,
+    newPromptTitle,
+    setNewPromptTitle,
+    newPromptContent,
+    setNewPromptContent,
+    newPromptCategory,
+    setNewPromptCategory,
+    customCategory,
+    setCustomCategory,
+    // Estados de coleção
+    isCreatingCollection,
+    setIsCreatingCollection,
+    newCollectionName,
+    setNewCollectionName,
+    currentCollectionId,
+    setCurrentCollectionId,
+    currentCollection,
+    // Estados de seleção
+    isSelectMode,
+    setIsSelectMode,
+    selectedPromptIds,
+    setSelectedPromptIds,
+    // Estados de confirmação
+    deleteConfirmDialog,
+    setDeleteConfirmDialog,
+    // Dados
+    savedPrompts,
+    filteredPrompts,
+    promptCollections,
+    hasNextPage,
+    isFetchingNextPage,
+    // Ações do modal
+    toggleModal: togglePromptsModal,
+    // Ações de CRUD
+    openCreatePrompt,
+    closeCreatePrompt: closeCreatePromptAction,
+    savePrompt,
+    // Ações de seleção
+    selectAllPrompts,
+    // Ações de coleção
+    createCollection: createCollectionAction,
+    // Paginação
+    fetchNextPage,
+    refetchPrompts,
+    refetchCollections,
+    // Mutations
+    deletePromptMutation,
+    createPromptMutation,
+    updatePromptMutation,
+    createCollectionMutation,
+  } = usePrompts({
+    searchQuery: debouncedSearch,
+    selectedCategory,
+  });
+
+  // Aliases para compatibilidade com JSX existente
+  const setIsPromptsModalOpen = (value: boolean) => value ? undefined : undefined; // Toggle via togglePromptsModal
+  const setIsCreatePromptOpen = (value: boolean) => value ? openCreatePrompt() : closeCreatePromptAction();
+  const setEditingPromptId = (id: number | null) => { /* Gerenciado pelo hook */ };
+
   // Estado do modal de arquivos
   const [isFilesModalOpen, setIsFilesModalOpen] = useState(false);
 
@@ -258,111 +327,12 @@ export default function David() {
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
-  // Carregar prompts salvos (Infinite Scroll)
-  const {
-    data: savedPromptsData,
-    refetch: refetchPrompts,
-    fetchNextPage,
-    hasNextPage,
-    isFetchingNextPage,
-    isLoading: isLoadingPrompts
-  } = trpc.david.savedPrompts.listPaginated.useInfiniteQuery(
-    {
-      limit: 20,
-      search: searchQuery,
-      category: selectedCategory === "uncategorized" ? null : (selectedCategory || undefined),
-    },
-    {
-      getNextPageParam: (lastPage) => lastPage.nextCursor,
-    }
-  );
 
-  // Flatten pages
-  const savedPrompts = useMemo(() => {
-    return savedPromptsData?.pages.flatMap((page) => page.items) || [];
-  }, [savedPromptsData]);
+  // 🔧 REMOVIDO: Query listPaginated e estados de prompts
+  // Agora vêm do usePrompts hook (linha 226)
 
-  // Estados para modal de prompts
-  const [isPromptsModalOpen, setIsPromptsModalOpen] = useState(false);
-  const [isCreatePromptOpen, setIsCreatePromptOpen] = useState(false);
-  const [editingPromptId, setEditingPromptId] = useState<number | null>(null); // null = creating, number = editing
-  const [viewingPrompt, setViewingPrompt] = useState<{ id: number; title: string; content: string; category?: string | null; tags?: string[] } | null>(null);
-  const [newPromptTitle, setNewPromptTitle] = useState("");
-  const [newPromptContent, setNewPromptContent] = useState("");
-  const [newPromptCategory, setNewPromptCategory] = useState<string>("none");
-  const [customCategory, setCustomCategory] = useState("");
-  const [isCreatingCollection, setIsCreatingCollection] = useState(false);
-  const [newCollectionName, setNewCollectionName] = useState("");
-
-  // Estados para seleção múltipla
-  const [isSelectMode, setIsSelectMode] = useState(false);
-  const [selectedPromptIds, setSelectedPromptIds] = useState<number[]>([]);
-
-  // Estado para dialog de confirmação de exclusão
-  const [deleteConfirmDialog, setDeleteConfirmDialog] = useState<{ isOpen: boolean; promptId?: number; promptIds?: number[] }>({ isOpen: false });
-
-  // Mutation para criar prompt
-  const createPromptMutation = trpc.david.savedPrompts.create.useMutation({
-    onSuccess: () => {
-      refetchPrompts();
-      refetchCollections();
-      setIsCreatePromptOpen(false);
-      setNewPromptTitle("");
-      setNewPromptContent("");
-      setNewPromptCategory("none");
-      setCustomCategory("");
-      refetchCollections(); // Atualiza coleções caso prompt criado com nova coleção
-      toast.success("Prompt criado com sucesso!");
-    },
-    onError: () => {
-      toast.error("Erro ao criar prompt");
-    },
-  });
-
-  // Mutation para criar coleção
-  const createCollectionMutation = trpc.david.promptCollections.create.useMutation({
-    onSuccess: (data) => {
-      refetchCollections();
-      setCurrentCollectionId(data.id); // Navega para a nova coleção
-      setNewCollectionName("");
-      setIsCreatingCollection(false);
-      toast.success("Coleção criada!");
-    },
-    onError: () => {
-      toast.error("Erro ao criar coleção");
-    },
-  });
-
-  // Mutation para excluir prompt
-  const deletePromptMutation = trpc.david.savedPrompts.delete.useMutation({
-    onSuccess: () => {
-      refetchPrompts();
-      setViewingPrompt(null);
-      toast.success("Prompt excluído com sucesso!");
-    },
-    onError: () => {
-      toast.error("Erro ao excluir prompt");
-    },
-  });
-
-  // Mutation para atualizar prompt
-  const updatePromptMutation = trpc.david.savedPrompts.update.useMutation({
-    onSuccess: () => {
-      refetchPrompts();
-      refetchCollections();
-      setIsCreatePromptOpen(false);
-      setNewPromptTitle("");
-      setNewPromptContent("");
-      setNewPromptCategory("none");
-      setCustomCategory("");
-      setEditingPromptId(null);
-      toast.success("Prompt atualizado!");
-    },
-    onError: () => {
-      toast.error("Erro ao atualizar prompt");
-    },
-  });
-
+  // 🔧 REMOVIDO: Mutations de prompts (create, update, delete, createCollection)
+  // Agora vêm do usePrompts hook (linha 226)
 
 
   // Mutation para upload de documentos
@@ -414,27 +384,8 @@ export default function David() {
       refetchMessages();
     }
   }, [selectedConversationId, refetchMessages]);
-
-  // Coleções de prompts
-  const { data: promptCollections, refetch: refetchCollections } = trpc.david.promptCollections.list.useQuery();
-
-  // Estado de navegação de coleções
-  const [currentCollectionId, setCurrentCollectionId] = useState<number | null>(null);
-  const currentCollection = promptCollections?.find(c => c.id === currentCollectionId);
-
-  // Filtrar prompts: raiz (null) = sem coleção, ou prompts da coleção selecionada
-  const filteredPrompts = useMemo(() => {
-    if (!savedPrompts) return [];
-
-    if (currentCollectionId === null) {
-      // Raiz: mostrar apenas prompts SEM coleção
-      return savedPrompts.filter((p) => p.collectionId === null || p.collectionId === undefined);
-    } else {
-      // Dentro de uma coleção: mostrar apenas prompts DESSA coleção
-      return savedPrompts.filter((p) => p.collectionId === currentCollectionId);
-    }
-  }, [savedPrompts, currentCollectionId]);
-
+  // 🔧 REMOVIDO: Query promptCollections e estados de navegação
+  // Agora vêm do usePrompts hook (linha 226)
 
   // Mutations
   const createConversationMutation = trpc.david.createConversation.useMutation({
