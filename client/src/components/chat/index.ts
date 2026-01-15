@@ -1,7 +1,14 @@
 /**
- * Exporta todos os componentes de chat
+ * Componentes de Chat
+ * 
+ * Exports centralizados para os componentes de chat.
  */
 
-export { ThinkingAccordion } from "./ThinkingAccordion";
-export { CitationBadge, CitationBadgeInline } from "./CitationBadge";
-export { MessageBubble, MessageBubbleStreaming } from "./MessageBubble";
+export { ChatInput } from '../ChatInput';
+export type { ChatInputProps, ChatInputRef } from '../ChatInput';
+
+export { AttachedFilesBadge } from './AttachedFilesBadge';
+export type { AttachedFile, AttachedProcess } from './AttachedFilesBadge';
+
+export { UploadProgress } from './UploadProgress';
+export type { UploadState } from './UploadProgress';
