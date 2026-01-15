@@ -226,11 +226,14 @@ export default function David() {
   const {
     // Estados do modal
     isPromptsModalOpen,
+    setIsPromptsModalOpen,
     isCreatePromptOpen,
+    setIsCreatePromptOpen,
     viewingPrompt,
     setViewingPrompt,
     // Estados do form
     editingPromptId,
+    setEditingPromptId,
     newPromptTitle,
     setNewPromptTitle,
     newPromptContent,
@@ -284,11 +287,6 @@ export default function David() {
     searchQuery: debouncedSearch,
     selectedCategory,
   });
-
-  // Aliases para compatibilidade com JSX existente
-  const setIsPromptsModalOpen = (value: boolean) => value ? undefined : undefined; // Toggle via togglePromptsModal
-  const setIsCreatePromptOpen = (value: boolean) => value ? openCreatePrompt() : closeCreatePromptAction();
-  const setEditingPromptId = (id: number | null) => { /* Gerenciado pelo hook */ };
 
   // Estado do modal de arquivos
   const [isFilesModalOpen, setIsFilesModalOpen] = useState(false);

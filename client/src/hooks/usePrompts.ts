@@ -259,12 +259,15 @@ export function usePrompts(options: UsePromptsOptions = {}) {
     return {
         // Estados do modal
         isPromptsModalOpen,
+        setIsPromptsModalOpen,
         isCreatePromptOpen,
+        setIsCreatePromptOpen,
         viewingPrompt,
         setViewingPrompt,
 
         // Estados do form
         editingPromptId,
+        setEditingPromptId,
         newPromptTitle,
         setNewPromptTitle,
         newPromptContent,
