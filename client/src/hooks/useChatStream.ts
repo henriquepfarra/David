@@ -169,8 +169,9 @@ export function useChatStream(): UseChatStreamReturn {
                                 clearInterval(statusIntervalRef.current);
                                 statusIntervalRef.current = null;
                             }
-                            // NÃO setar isStreaming=false aqui! O callback onDone fará isso
-                            // DEPOIS do refetch completar, evitando gap visual
+                            // IMPORTANTE: NÃO setar isStreaming=false AQUI!
+                            // O callback onDone faz refetch ANTES de resetar, evitando "piscar"
+                            // O callback chamará resetStream() que seta isStreaming=false
                             callbacks?.onDone?.();
 
                             // Gerar título se necessário

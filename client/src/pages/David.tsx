@@ -61,11 +61,7 @@ import { useAuth } from "@/_core/hooks/useAuth";
 import { useChatStream } from "@/hooks/useChatStream";
 import { useConversationId } from "@/hooks/useConversationId";
 
-// 🐛 DEBUG: Helper para logs com timestamp
-const debugLog = (source: string, message: string, data?: unknown) => {
-  const timestamp = new Date().toISOString().split('T')[1];
-  console.log(`[${timestamp}] 🔍 [${source}]`, message, data || '');
-};
+// Debug logs removidos para limpar console
 
 export default function David() {
   const { user } = useAuth();
@@ -230,15 +226,15 @@ export default function David() {
     const previousId = attachedFilesPreviousIdRef.current;
     const wasCreatingNewConversation = previousId === null && selectedConversationId !== null;
 
-    console.log('[AttachedFiles] Effect triggered:', { previousId, selectedConversationId, wasCreatingNewConversation, attachedFiles: attachedFiles.length });
+
 
     if (!wasCreatingNewConversation) {
       // Se está trocando entre conversas existentes OU indo para HOME, limpa attachedFiles
-      console.log('[AttachedFiles] Limpando attachedFiles (troca de conversa)');
+
       setAttachedFiles([]);
     } else {
       // Criando nova conversa - PRESERVA attachedFiles!
-      console.log('[AttachedFiles] Preservando attachedFiles (nova conversa)');
+
     }
 
     // Atualiza ref APÓS a lógica de preservação
@@ -389,13 +385,9 @@ export default function David() {
     }
   }, [conversationError]);
 
-  // Debug de navegação
-  useEffect(() => {
-    console.log("[David] Location mudou:", location, "SelectedID:", selectedConversationId);
-  }, [location, selectedConversationId]);
+  // Debug de navegação removido
 
-  // Log de render para detectar loops
-  console.log("[David] Render. Status:", conversationStatus, "ID:", selectedConversationId, "Fetching:", isFetching);
+  // Log de render removido - era fonte de spam no console
 
   // Sincronizar selectedProcessId com a conversa carregada
   useEffect(() => {
@@ -408,13 +400,7 @@ export default function David() {
 
   // Forçar refetch quando conversa muda (garante que dados sejam carregados)
   useEffect(() => {
-    debugLog('David.tsx - useEffect[refetch]', 'Effect triggered', {
-      selectedConversationId,
-      willRefetch: !!selectedConversationId
-    });
-
     if (selectedConversationId) {
-      debugLog('David.tsx - refetchMessages', 'Calling refetch', { conversationId: selectedConversationId });
       refetchMessages();
     }
   }, [selectedConversationId, refetchMessages]);
@@ -483,7 +469,7 @@ export default function David() {
   // Mutation para atualizar arquivo Google na conversa
   const updateGoogleFileMutation = trpc.david.updateGoogleFile.useMutation({
     onSuccess: () => {
-      console.log("[UpdateGoogle] Arquivo vinculado à conversa");
+      // Arquivo vinculado silenciosamente
     },
     onError: (error) => {
       console.error("[UpdateGoogle] Erro:", error.message);
@@ -493,7 +479,7 @@ export default function David() {
   // Mutation para limpar arquivo Google ao sair da conversa
   const cleanupGoogleFileMutation = trpc.david.cleanupGoogleFile.useMutation({
     onSuccess: () => {
-      console.log("[Cleanup] Arquivo Google limpo com sucesso");
+      // Arquivo limpo silenciosamente
     },
     onError: (error) => {
       console.error("[Cleanup] Erro ao limpar arquivo:", error.message);
@@ -505,13 +491,7 @@ export default function David() {
 
   const cleanupIfEmptyMutation = trpc.david.cleanupIfEmpty.useMutation({
     onSuccess: (data) => {
-      debugLog('David.tsx - cleanupIfEmpty', 'SUCCESS', {
-        deleted: data.deleted,
-        willRefetch: data.deleted
-      });
-
       if (data.deleted) {
-        console.log("Conversa vazia deletada automaticamente ao sair");
         refetchConversations();
       }
     },
@@ -536,8 +516,6 @@ export default function David() {
       setUploadState(prev => ({ ...prev, stage: 'reading' }));
     },
     onSuccess: (data) => {
-      console.log("[UploadQuick] Upload completo:", data);
-
       // Estágio 3: Finalizando
       setUploadState(prev => ({ ...prev, stage: 'done' }));
 
@@ -555,7 +533,6 @@ export default function David() {
           googleFileUri: data.fileUri,
           googleFileName: data.displayName,
         });
-        debugLog('David.tsx - uploadQuick', 'SUCCESS', { fileUri: data.fileUri, convId: selectedConversationId });
       }
 
       // ✅ Removido setActiveFile - attachedFiles é a única fonte de verdade
@@ -583,12 +560,6 @@ export default function David() {
 
   const registerFromUploadMutation = trpc.processes.registerFromUpload.useMutation({
     onSuccess: async (data) => {
-      debugLog('David.tsx - registerFromUpload', 'SUCCESS', {
-        processId: data.processId,
-        processNumber: data.processNumber,
-        selectedConversationId
-      });
-
       // Atualiza estado de upload
       setUploadState(prev => ({ ...prev, stage: 'done' }));
 
@@ -597,11 +568,6 @@ export default function David() {
         const duplicateCheck = await utils.david.checkDuplicateProcess.fetch({
           processNumber: data.processNumber,
           excludeConversationId: selectedConversationId ?? undefined,
-        });
-
-        debugLog('David.tsx - duplicateCheck', 'Result', {
-          isDuplicate: duplicateCheck.isDuplicate,
-          existingCount: duplicateCheck.existingConversations.length
         });
 
         if (duplicateCheck.isDuplicate && duplicateCheck.existingConversations.length > 0) {
@@ -619,17 +585,11 @@ export default function David() {
           return;
         }
       } catch (e) {
-        debugLog('David.tsx - duplicateCheck', 'ERROR', e);
         console.error("[Duplicate Check] Erro:", e);
       }
 
       // Se não há duplicata, procede normalmente
       if (selectedConversationId && data.processId) {
-        debugLog('David.tsx - updateProcessMutation', 'Calling', {
-          conversationId: selectedConversationId,
-          processId: data.processId
-        });
-
         updateProcessMutation.mutate({
           conversationId: selectedConversationId,
           processId: data.processId,
@@ -652,7 +612,6 @@ export default function David() {
       }, 2000);
     },
     onError: (error) => {
-      debugLog('David.tsx - registerFromUpload', 'ERROR', { error: error.message });
       setUploadState(prev => ({ ...prev, isUploading: false, error: error.message }));
       toast.error("Erro ao processar arquivo: " + error.message);
     }
@@ -760,8 +719,6 @@ export default function David() {
       previousId !== null &&
       previousId !== selectedConversationId
     ) {
-      debugLog('David.tsx - cleanup', 'Cleaning up previous conversation', { previousId });
-
       // Faz cleanup da conversa anterior (com delay para evitar race conditions)
       setTimeout(() => {
         cleanupGoogleFileMutation.mutate({
@@ -968,9 +925,7 @@ export default function David() {
   }, [conversationData?.messages, streamingMessage, pendingUserMessage]);
 
   const handleNewConversation = () => {
-    debugLog('David.tsx - handleNewConversation', 'Called');
     // 🔧 FIX: Usar hook para limpar seleção (navega automaticamente para /david)
-    console.log("[David] Iniciando novo chat...");
     setSelectedConversationId(null);
 
     // Reset explícito de todos os estados
@@ -995,21 +950,14 @@ export default function David() {
       }
     }, 100);
 
-    debugLog('David.tsx - handleSendMessage', 'Called', {
-      hasConversation: !!selectedConversationId,
-      selectedConversationId
-    });
-
     // Se não tiver conversa selecionada, cria uma nova primeiro
     if (!selectedConversationId) {
-      debugLog('David.tsx - handleSendMessage', 'Creating new conversation');
       // Otimisticamente mostra loading ou algo, mas aqui vamos esperar a criação
       createConversationMutation.mutate({
         processId: selectedProcessId,
         title: "Nova Conversa" // O backend ou usuário pode renomear depois
       }, {
         onSuccess: async (newConv) => {
-          debugLog('David.tsx - handleSendMessage.onSuccess', 'Conversation created', { newConvId: newConv.id });
           // 🔧 FIX: Usar novo hook que gerencia URL automaticamente
           setSelectedConversationId(newConv.id);
 
@@ -1020,10 +968,6 @@ export default function David() {
               conversationId: newConv.id,
               googleFileUri: firstFile.uri,
               googleFileName: firstFile.name,
-            });
-            debugLog('David.tsx - createConversation', 'Vinculando arquivo à nova conversa', {
-              fileUri: firstFile.uri,
-              convId: newConv.id
             });
           }
 
