@@ -200,11 +200,8 @@ export default function David() {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null); // null = Todas, "uncategorized" = Geral (sem pasta), string = Nome da pasta
 
-  // Estado local para manter o arquivo visível imediatamente após upload (Optimistic UI)
-  const [localAttachedFile, setLocalAttachedFile] = useState<{ name: string, uri: string } | null>(null);
-
-  // Estado do arquivo ativo anexado (necessário para badge de upload)
-  const [activeFile, setActiveFile] = useState<{ name: string; uri: string } | null>(null);
+  // ✅ CONSOLIDADO: attachedFiles é a única fonte de verdade para arquivos anexados
+  // Estados removidos na Fase 0.5: localAttachedFile, activeFile
 
   // Estado de arquivos anexados à conversa (persiste após criar conversa)
   const [attachedFiles, setAttachedFiles] = useState<Array<{ name: string; uri: string }>>([]);
@@ -216,10 +213,8 @@ export default function David() {
   // Não compartilha com o resetStream para evitar race conditions
   const attachedFilesPreviousIdRef = useRef<number | null>(null);
 
-  // Limpar arquivo local ao mudar de conversa
+  // Limpar arquivos ao mudar de conversa
   useEffect(() => {
-    setLocalAttachedFile(null);
-    setActiveFile(null);
 
     // ✅ SOLUÇÃO: Preservar attachedFiles ao criar NOVA conversa (null → id)
     // Usa ref SEPARADA que não é modificada por outros effects
@@ -519,12 +514,6 @@ export default function David() {
       // Estágio 3: Finalizando
       setUploadState(prev => ({ ...prev, stage: 'done' }));
 
-      // Atualizar estado local para badge aparecer imediatamente
-      setLocalAttachedFile({
-        name: data.displayName,
-        uri: data.fileUri
-      });
-
       // Vincular arquivo à conversa SE já existir
       // (Se não existe, será vinculado quando usuário enviar primeira mensagem)
       if (selectedConversationId) {
@@ -535,7 +524,7 @@ export default function David() {
         });
       }
 
-      // ✅ Removido setActiveFile - attachedFiles é a única fonte de verdade
+      // ✅ CONSOLIDADO: attachedFiles é a única fonte de verdade
 
       // Adicionar arquivo à lista de anexados (persiste após criar conversa)
       setAttachedFiles(prev => {
@@ -925,12 +914,10 @@ export default function David() {
   }, [conversationData?.messages, streamingMessage, pendingUserMessage]);
 
   const handleNewConversation = () => {
-    // 🔧 FIX: Usar hook para limpar seleção (navega automaticamente para /david)
+    // Resetar todos os estados ao criar nova conversa
     setSelectedConversationId(null);
-
-    // Reset explícito de todos os estados
     setSelectedProcessId(undefined);
-    setLocalAttachedFile(null); // Resetar arquivo local
+    setAttachedFiles([]); // Limpar arquivos anexados
     setMessageInput("");
     setPendingUserMessage(null);
     resetStream();
@@ -2005,7 +1992,7 @@ export default function David() {
                   <div className={`border p-4 relative shadow-sm bg-white rounded-[2rem] transition-all duration-200 z-30 ${isPromptsModalOpen ? 'opacity-60 pointer-events-none' : 'focus-within:ring-1 focus-within:ring-primary/50'}`}>
 
                     {/* 🎯 BADGE ABSOLUTAMENTE POSICIONADO - Flutua acima do input */}
-                    {(uploadState.isUploading || activeFile) && (
+                    {uploadState.isUploading && (
                       <div className="absolute -top-[90px] left-0 right-0 px-4 z-50 pointer-events-none">
                         <div className="bg-white rounded-xl border border-border shadow-lg p-3 max-w-md mx-auto pointer-events-auto">
                           {uploadState.isUploading ? (
@@ -2048,7 +2035,7 @@ export default function David() {
                     )}
                     {/* Badge do Processo/Arquivo (Estilo Gemini) - ACIMA DO INPUT */}
                     {/* CSS fix: flex-shrink-0 + min-height para prevenir collapse */}
-                    {(uploadState.isUploading || activeFile || attachedFiles.length > 0 || selectedProcessId) && (
+                    {(uploadState.isUploading || attachedFiles.length > 0 || selectedProcessId) && (
                       <div className="flex-shrink-0 min-h-[80px] mb-3">
                         {uploadState.isUploading ? (
                           /* Progress durante upload */
@@ -2085,8 +2072,8 @@ export default function David() {
                               </div>
                             </div>
                           </div>
-                        ) : (activeFile || attachedFiles.length > 0 || selectedProcessId) ? (
-                          /* Badge do arquivo/processo anexado - usa attachedFiles se disponível */
+                        ) : (attachedFiles.length > 0 || selectedProcessId) ? (
+                          /* Badge do arquivo/processo anexado */
                           <div className="flex flex-wrap gap-2">
                             {/* Mostrar attachedFiles com prioridade */}
                             {attachedFiles.map((file) => (
@@ -2112,33 +2099,9 @@ export default function David() {
                                 </Button>
                               </div>
                             ))}
-                            {/* Fallback para activeFile se attachedFiles vazio */}
-                            {attachedFiles.length === 0 && activeFile && (
-                              <div className="flex items-center gap-3 p-3 bg-muted/30 rounded-xl border border-border/50 group w-fit max-w-[320px]">
-                                <div className="w-12 h-12 rounded-lg bg-red-50 flex items-center justify-center text-red-600">
-                                  <FileText className="h-6 w-6" />
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                  <p className="text-sm font-medium truncate max-w-[200px]" title={activeFile.name}>
-                                    {activeFile.name}
-                                  </p>
-                                  <p className="text-xs text-muted-foreground">PDF</p>
-                                </div>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive"
-                                  onClick={() => {
-                                    setActiveFile(null);
-                                    setLocalAttachedFile(null);
-                                  }}
-                                >
-                                  <X className="h-4 w-4" />
-                                </Button>
-                              </div>
-                            )}
-                            {/* Mostrar processo selecionado se não houver arquivos */}
-                            {attachedFiles.length === 0 && !activeFile && selectedProcessId && (
+                            {/* Fase 0.5: removido fallback activeFile */}
+                            {/* Mostrar processo selecionado se nao houver arquivos */}
+                            {attachedFiles.length === 0 && selectedProcessId && (
                               <div className="flex items-center gap-3 p-3 bg-muted/30 rounded-xl border border-border/50 group w-fit max-w-[320px]">
                                 <div className="w-12 h-12 rounded-lg bg-blue-50 flex items-center justify-center text-blue-600">
                                   <Folder className="h-6 w-6" />
