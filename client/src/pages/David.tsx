@@ -49,6 +49,14 @@ import { usePrompts } from "@/hooks/usePrompts";
 import { ChatInput } from "@/components/ChatInput";
 import { AttachedFilesBadge, UploadProgress } from "@/components/chat";
 import { PromptsModal } from "@/components/prompts";
+import {
+  DeletePromptDialog,
+  EditDraftDialog,
+  RenameConversationDialog,
+  DeleteConversationDialog,
+  FilesModal,
+  type DraftType,
+} from "@/components/dialogs";
 
 // Debug logs removidos para limpar console
 
@@ -1616,155 +1624,60 @@ export default function David() {
           </div>
         </div>
 
+
         {/* Dialog de Confirmação de Exclusão */}
-        <Dialog open={deleteConfirmDialog.isOpen} onOpenChange={(open) => !open && setDeleteConfirmDialog({ isOpen: false })}>
-          <DialogContent className="max-w-md">
-            <DialogHeader>
-              <DialogTitle>Confirmar Exclusão</DialogTitle>
-              <DialogDescription>
-                {deleteConfirmDialog.promptIds && deleteConfirmDialog.promptIds.length > 1
-                  ? `Tem certeza que deseja excluir ${deleteConfirmDialog.promptIds.length} prompts selecionados?`
-                  : 'Tem certeza que deseja excluir este prompt?'}
-              </DialogDescription>
-            </DialogHeader>
-            <div className="flex justify-end gap-2 mt-4">
-              <Button variant="outline" onClick={() => setDeleteConfirmDialog({ isOpen: false })}>
-                Cancelar
-              </Button>
-              <Button
-                variant="destructive"
-                onClick={() => {
-                  if (deleteConfirmDialog.promptIds && deleteConfirmDialog.promptIds.length > 0) {
-                    // Delete multiple prompts
-                    deleteConfirmDialog.promptIds.forEach(id => deletePromptMutation.mutate({ id }));
-                    setSelectedPromptIds([]);
-                    setIsSelectMode(false);
-                  } else if (deleteConfirmDialog.promptId) {
-                    // Delete single prompt
-                    deletePromptMutation.mutate({ id: deleteConfirmDialog.promptId });
-                  }
-                  setDeleteConfirmDialog({ isOpen: false });
-                }}
-              >
-                Excluir
-              </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
+        <DeletePromptDialog
+          isOpen={deleteConfirmDialog.isOpen}
+          onClose={() => setDeleteConfirmDialog({ isOpen: false })}
+          promptId={deleteConfirmDialog.promptId}
+          promptIds={deleteConfirmDialog.promptIds}
+          onConfirm={() => {
+            if (deleteConfirmDialog.promptIds && deleteConfirmDialog.promptIds.length > 0) {
+              deleteConfirmDialog.promptIds.forEach(id => deletePromptMutation.mutate({ id }));
+              setSelectedPromptIds([]);
+              setIsSelectMode(false);
+            } else if (deleteConfirmDialog.promptId) {
+              deletePromptMutation.mutate({ id: deleteConfirmDialog.promptId });
+            }
+            setDeleteConfirmDialog({ isOpen: false });
+          }}
+          isDeleting={deletePromptMutation.isPending}
+        />
 
         {/* Modal de Edição de Minuta */}
-        <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-          <DialogContent className="max-w-4xl max-h-[80vh]">
-            <DialogHeader>
-              <DialogTitle>Editar Minuta</DialogTitle>
-              <DialogDescription>
-                Revise e edite a minuta gerada pelo DAVID antes de aprovar
-              </DialogDescription>
-            </DialogHeader>
-
-            <div className="space-y-4">
-              <div>
-                <Label htmlFor="draftType">Tipo de Minuta</Label>
-                <Select value={draftType} onValueChange={(value) => setDraftType(value as "sentenca" | "decisao" | "despacho" | "acordao" | "outro")}>
-                  <SelectTrigger id="draftType">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="sentenca">Sentença</SelectItem>
-                    <SelectItem value="decisao">Decisão Interlocutória</SelectItem>
-                    <SelectItem value="despacho">Despacho</SelectItem>
-                    <SelectItem value="acordao">Acórdão</SelectItem>
-                    <SelectItem value="outro">Outro</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div>
-                <Label htmlFor="editedDraft">Conteúdo da Minuta</Label>
-                <Textarea
-                  id="editedDraft"
-                  value={editedDraft}
-                  onChange={(e) => setEditedDraft(e.target.value)}
-                  className="min-h-[400px] font-mono text-sm"
-                  placeholder="Edite a minuta aqui..."
-                />
-              </div>
-
-              <div className="flex gap-2 justify-end">
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    setIsEditDialogOpen(false);
-                    setEditingMessageId(null);
-                    setEditedDraft("");
-                  }}
-                >
-                  Cancelar
-                </Button>
-                <Button
-                  onClick={handleSaveEditedDraft}
-                  disabled={!editedDraft.trim()}
-                >
-                  <Check className="h-4 w-4 mr-2" />
-                  Salvar e Aprovar
-                </Button>
-              </div>
-            </div>
-          </DialogContent>
-        </Dialog >
+        <EditDraftDialog
+          isOpen={isEditDialogOpen}
+          onClose={() => {
+            setIsEditDialogOpen(false);
+            setEditingMessageId(null);
+            setEditedDraft("");
+          }}
+          draft={editedDraft}
+          onDraftChange={setEditedDraft}
+          draftType={draftType}
+          onDraftTypeChange={(value) => setDraftType(value as DraftType)}
+          onSave={handleSaveEditedDraft}
+        />
 
         {/* Dialog de Renomear Conversa */}
-        < Dialog open={isRenameDialogOpen} onOpenChange={setIsRenameDialogOpen} >
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>✏️ Renomear Conversa</DialogTitle>
-              <DialogDescription>
-                Escolha um novo nome para esta conversa
-              </DialogDescription>
-            </DialogHeader>
-
-            <div className="space-y-4">
-              <div>
-                <Label htmlFor="conversationTitle">Título da Conversa</Label>
-                <Textarea
-                  id="conversationTitle"
-                  value={newConversationTitle}
-                  onChange={(e) => setNewConversationTitle(e.target.value)}
-                  className="min-h-[80px]"
-                  placeholder="Digite o novo título..."
-                  maxLength={200}
-                />
-              </div>
-
-              <div className="flex gap-2 justify-end">
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    setIsRenameDialogOpen(false);
-                    setRenamingConversationId(null);
-                    setNewConversationTitle("");
-                  }}
-                >
-                  Cancelar
-                </Button>
-                <Button
-                  onClick={() => {
-                    if (renamingConversationId && newConversationTitle.trim()) {
-                      renameConversationMutation.mutate({
-                        conversationId: renamingConversationId,
-                        title: newConversationTitle.trim(),
-                      });
-                    }
-                  }}
-                  disabled={!newConversationTitle.trim()}
-                >
-                  <Check className="h-4 w-4 mr-2" />
-                  Salvar
-                </Button>
-              </div>
-            </div>
-          </DialogContent>
-        </Dialog >
+        <RenameConversationDialog
+          isOpen={isRenameDialogOpen}
+          onClose={() => {
+            setIsRenameDialogOpen(false);
+            setRenamingConversationId(null);
+            setNewConversationTitle("");
+          }}
+          currentTitle={newConversationTitle}
+          onRename={(newTitle) => {
+            if (renamingConversationId && newTitle.trim()) {
+              renameConversationMutation.mutate({
+                conversationId: renamingConversationId,
+                title: newTitle.trim(),
+              });
+            }
+          }}
+          isRenaming={renameConversationMutation.isPending}
+        />
 
         {/* Dialog de Seleção de Processo */}
         < Dialog open={isProcessSelectorOpen} onOpenChange={setIsProcessSelectorOpen} >
@@ -2128,39 +2041,19 @@ export default function David() {
         </Dialog >
 
         {/* Dialog de Confirmação de Deletar */}
-        < Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen} >
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>🗑️ Deletar Conversa</DialogTitle>
-              <DialogDescription>
-                Tem certeza que deseja deletar esta conversa? Esta ação não pode ser desfeita.
-              </DialogDescription>
-            </DialogHeader>
-
-            <div className="flex gap-2 justify-end">
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setIsDeleteDialogOpen(false);
-                  setDeletingConversationId(null);
-                }}
-              >
-                Cancelar
-              </Button>
-              <Button
-                variant="destructive"
-                onClick={() => {
-                  if (deletingConversationId) {
-                    deleteConversationMutation.mutate({ id: deletingConversationId });
-                  }
-                }}
-              >
-                <Trash2 className="h-4 w-4 mr-2" />
-                Deletar
-              </Button>
-            </div>
-          </DialogContent>
-        </Dialog >
+        <DeleteConversationDialog
+          isOpen={isDeleteDialogOpen}
+          onClose={() => {
+            setIsDeleteDialogOpen(false);
+            setDeletingConversationId(null);
+          }}
+          onConfirm={() => {
+            if (deletingConversationId) {
+              deleteConversationMutation.mutate({ id: deletingConversationId });
+            }
+          }}
+          isDeleting={deleteConversationMutation.isPending}
+        />
 
         {/* Dialog de Processo Duplicado */}
         <Dialog
@@ -2214,48 +2107,11 @@ export default function David() {
       </div>
 
       {/* Modal de Arquivos Anexados */}
-      <Dialog open={isFilesModalOpen} onOpenChange={setIsFilesModalOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Arquivos</DialogTitle>
-          </DialogHeader>
-
-          <div className="space-y-4 py-4">
-            {/* Seção: Criação */}
-            <div>
-              <h3 className="text-sm font-semibold mb-2 text-gray-700">Criação</h3>
-              <p className="text-sm text-gray-500">Você ainda não criou nada</p>
-            </div>
-
-            {/* Seção: Adicionado */}
-            <div>
-              <h3 className="text-sm font-semibold mb-2 text-gray-700">Adicionado</h3>
-              {attachedFiles.length === 0 ? (
-                <p className="text-sm text-gray-500">Nenhum arquivo anexado</p>
-              ) : (
-                <div className="space-y-2">
-                  {attachedFiles.map((file) => (
-                    <div
-                      key={file.uri}
-                      className="flex items-center gap-3 p-3 hover:bg-gray-50 rounded-lg border border-gray-200 transition-colors"
-                    >
-                      <div className="p-2 bg-red-50 rounded">
-                        <FileText className="w-5 h-5 text-red-500" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-gray-900 truncate">
-                          {file.name}
-                        </p>
-                        <p className="text-xs text-gray-500">PDF</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
+      <FilesModal
+        isOpen={isFilesModalOpen}
+        onClose={() => setIsFilesModalOpen(false)}
+        attachedFiles={attachedFiles}
+      />
 
     </DashboardLayout >
   );
