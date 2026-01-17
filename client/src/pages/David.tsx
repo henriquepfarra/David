@@ -1,12 +1,11 @@
 import { useState, useRef, useEffect, useMemo } from "react";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList, CommandSeparator } from "@/components/ui/command";
 import { trpc } from "@/lib/trpc";
 import { useDropzone } from "react-dropzone";
-import { processFile } from "@/lib/pdfProcessor";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
+import { Card } from "@/components/ui/card";
 import {
   Select,
   SelectContent,
@@ -14,10 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Card } from "@/components/ui/card";
-import { Input } from "@/components/ui/input"; // Adicionado Input
-import { Badge } from "@/components/ui/badge"; // Adicionado Badge
-import { Loader2, Send, Plus, Trash2, FileText, Settings, BookMarked, X, Check, Edit, XCircle, ArrowLeft, ArrowDown, ArrowRight, Pencil, Upload, MessageSquare, ChevronRight, ChevronDown, Pin, PinOff, Gavel, Brain, Mic, Wand2, MoreVertical, Eye, CheckSquare, Search, Folder, FolderOpen, Bot, Paperclip } from "lucide-react";
+import { Loader2, Send, Plus, Trash2, FileText, Settings, BookMarked, X, Check, Edit, ArrowRight, Upload, MessageSquare, ChevronRight, ChevronDown, Pin, PinOff, Gavel, Brain, Mic, Wand2, Bot, Paperclip } from "lucide-react";
 
 
 
@@ -26,12 +22,8 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-  DropdownMenuSub,
-  DropdownMenuSubContent,
-  DropdownMenuSubTrigger,
 } from "@/components/ui/dropdown-menu";
 
 import {
@@ -41,28 +33,22 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  ContextMenu,
-  ContextMenuContent,
-  ContextMenuItem,
-  ContextMenuTrigger,
-  ContextMenuSeparator,
-} from "@/components/ui/context-menu";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { Streamdown } from "streamdown";
 import { useLocation } from "wouter";
 import { ToolsMenu } from "@/components/ToolsMenu";
 import DashboardLayout from "@/components/DashboardLayout";
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+
 import { APP_LOGO } from "@/const";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { useChatStream } from "@/hooks/useChatStream";
 import { useConversationId } from "@/hooks/useConversationId";
 import { usePdfUpload } from "@/hooks/usePdfUpload";
+import { usePrompts } from "@/hooks/usePrompts";
 import { ChatInput } from "@/components/ChatInput";
 import { AttachedFilesBadge, UploadProgress } from "@/components/chat";
+import { PromptsModal } from "@/components/prompts";
 
 // Debug logs removidos para limpar console
 
@@ -221,6 +207,72 @@ export default function David() {
     setAttachedFiles,
   });
 
+  // 🔧 INTEGRADO: usePrompts hook substitui lógica de prompts inline
+  const {
+    // Estados do modal
+    isPromptsModalOpen,
+    setIsPromptsModalOpen,
+    isCreatePromptOpen,
+    setIsCreatePromptOpen,
+    viewingPrompt,
+    setViewingPrompt,
+    // Estados do form
+    editingPromptId,
+    setEditingPromptId,
+    newPromptTitle,
+    setNewPromptTitle,
+    newPromptContent,
+    setNewPromptContent,
+    newPromptCategory,
+    setNewPromptCategory,
+    customCategory,
+    setCustomCategory,
+    // Estados de coleção
+    isCreatingCollection,
+    setIsCreatingCollection,
+    newCollectionName,
+    setNewCollectionName,
+    currentCollectionId,
+    setCurrentCollectionId,
+    currentCollection,
+    // Estados de seleção
+    isSelectMode,
+    setIsSelectMode,
+    selectedPromptIds,
+    setSelectedPromptIds,
+    // Estados de confirmação
+    deleteConfirmDialog,
+    setDeleteConfirmDialog,
+    // Dados
+    savedPrompts,
+    filteredPrompts,
+    promptCollections,
+    hasNextPage,
+    isFetchingNextPage,
+    // Ações do modal
+    toggleModal: togglePromptsModal,
+    // Ações de CRUD
+    openCreatePrompt,
+    closeCreatePrompt: closeCreatePromptAction,
+    savePrompt,
+    // Ações de seleção
+    selectAllPrompts,
+    // Ações de coleção
+    createCollection: createCollectionAction,
+    // Paginação
+    fetchNextPage,
+    refetchPrompts,
+    refetchCollections,
+    // Mutations
+    deletePromptMutation,
+    createPromptMutation,
+    updatePromptMutation,
+    createCollectionMutation,
+  } = usePrompts({
+    searchQuery: debouncedSearch,
+    selectedCategory,
+  });
+
   // Estado do modal de arquivos
   const [isFilesModalOpen, setIsFilesModalOpen] = useState(false);
 
@@ -258,111 +310,12 @@ export default function David() {
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
-  // Carregar prompts salvos (Infinite Scroll)
-  const {
-    data: savedPromptsData,
-    refetch: refetchPrompts,
-    fetchNextPage,
-    hasNextPage,
-    isFetchingNextPage,
-    isLoading: isLoadingPrompts
-  } = trpc.david.savedPrompts.listPaginated.useInfiniteQuery(
-    {
-      limit: 20,
-      search: searchQuery,
-      category: selectedCategory === "uncategorized" ? null : (selectedCategory || undefined),
-    },
-    {
-      getNextPageParam: (lastPage) => lastPage.nextCursor,
-    }
-  );
 
-  // Flatten pages
-  const savedPrompts = useMemo(() => {
-    return savedPromptsData?.pages.flatMap((page) => page.items) || [];
-  }, [savedPromptsData]);
+  // 🔧 REMOVIDO: Query listPaginated e estados de prompts
+  // Agora vêm do usePrompts hook (linha 226)
 
-  // Estados para modal de prompts
-  const [isPromptsModalOpen, setIsPromptsModalOpen] = useState(false);
-  const [isCreatePromptOpen, setIsCreatePromptOpen] = useState(false);
-  const [editingPromptId, setEditingPromptId] = useState<number | null>(null); // null = creating, number = editing
-  const [viewingPrompt, setViewingPrompt] = useState<{ id: number; title: string; content: string; category?: string | null; tags?: string[] } | null>(null);
-  const [newPromptTitle, setNewPromptTitle] = useState("");
-  const [newPromptContent, setNewPromptContent] = useState("");
-  const [newPromptCategory, setNewPromptCategory] = useState<string>("none");
-  const [customCategory, setCustomCategory] = useState("");
-  const [isCreatingCollection, setIsCreatingCollection] = useState(false);
-  const [newCollectionName, setNewCollectionName] = useState("");
-
-  // Estados para seleção múltipla
-  const [isSelectMode, setIsSelectMode] = useState(false);
-  const [selectedPromptIds, setSelectedPromptIds] = useState<number[]>([]);
-
-  // Estado para dialog de confirmação de exclusão
-  const [deleteConfirmDialog, setDeleteConfirmDialog] = useState<{ isOpen: boolean; promptId?: number; promptIds?: number[] }>({ isOpen: false });
-
-  // Mutation para criar prompt
-  const createPromptMutation = trpc.david.savedPrompts.create.useMutation({
-    onSuccess: () => {
-      refetchPrompts();
-      refetchCollections();
-      setIsCreatePromptOpen(false);
-      setNewPromptTitle("");
-      setNewPromptContent("");
-      setNewPromptCategory("none");
-      setCustomCategory("");
-      refetchCollections(); // Atualiza coleções caso prompt criado com nova coleção
-      toast.success("Prompt criado com sucesso!");
-    },
-    onError: () => {
-      toast.error("Erro ao criar prompt");
-    },
-  });
-
-  // Mutation para criar coleção
-  const createCollectionMutation = trpc.david.promptCollections.create.useMutation({
-    onSuccess: (data) => {
-      refetchCollections();
-      setCurrentCollectionId(data.id); // Navega para a nova coleção
-      setNewCollectionName("");
-      setIsCreatingCollection(false);
-      toast.success("Coleção criada!");
-    },
-    onError: () => {
-      toast.error("Erro ao criar coleção");
-    },
-  });
-
-  // Mutation para excluir prompt
-  const deletePromptMutation = trpc.david.savedPrompts.delete.useMutation({
-    onSuccess: () => {
-      refetchPrompts();
-      setViewingPrompt(null);
-      toast.success("Prompt excluído com sucesso!");
-    },
-    onError: () => {
-      toast.error("Erro ao excluir prompt");
-    },
-  });
-
-  // Mutation para atualizar prompt
-  const updatePromptMutation = trpc.david.savedPrompts.update.useMutation({
-    onSuccess: () => {
-      refetchPrompts();
-      refetchCollections();
-      setIsCreatePromptOpen(false);
-      setNewPromptTitle("");
-      setNewPromptContent("");
-      setNewPromptCategory("none");
-      setCustomCategory("");
-      setEditingPromptId(null);
-      toast.success("Prompt atualizado!");
-    },
-    onError: () => {
-      toast.error("Erro ao atualizar prompt");
-    },
-  });
-
+  // 🔧 REMOVIDO: Mutations de prompts (create, update, delete, createCollection)
+  // Agora vêm do usePrompts hook (linha 226)
 
 
   // Mutation para upload de documentos
@@ -414,27 +367,8 @@ export default function David() {
       refetchMessages();
     }
   }, [selectedConversationId, refetchMessages]);
-
-  // Coleções de prompts
-  const { data: promptCollections, refetch: refetchCollections } = trpc.david.promptCollections.list.useQuery();
-
-  // Estado de navegação de coleções
-  const [currentCollectionId, setCurrentCollectionId] = useState<number | null>(null);
-  const currentCollection = promptCollections?.find(c => c.id === currentCollectionId);
-
-  // Filtrar prompts: raiz (null) = sem coleção, ou prompts da coleção selecionada
-  const filteredPrompts = useMemo(() => {
-    if (!savedPrompts) return [];
-
-    if (currentCollectionId === null) {
-      // Raiz: mostrar apenas prompts SEM coleção
-      return savedPrompts.filter((p) => p.collectionId === null || p.collectionId === undefined);
-    } else {
-      // Dentro de uma coleção: mostrar apenas prompts DESSA coleção
-      return savedPrompts.filter((p) => p.collectionId === currentCollectionId);
-    }
-  }, [savedPrompts, currentCollectionId]);
-
+  // 🔧 REMOVIDO: Query promptCollections e estados de navegação
+  // Agora vêm do usePrompts hook (linha 226)
 
   // Mutations
   const createConversationMutation = trpc.david.createConversation.useMutation({
@@ -1303,7 +1237,60 @@ export default function David() {
                 </div>
               </div>
             </div>
+          )}          {/* Modal de Prompts - Na HOME aparece centralizado */}
+          {!selectedConversationId && (
+            <PromptsModal
+              variant="centered"
+              isOpen={isPromptsModalOpen}
+              onClose={() => setIsPromptsModalOpen(false)}
+              onSelectPrompt={(content) => setMessageInput(content)}
+              isCreatePromptOpen={isCreatePromptOpen}
+              setIsCreatePromptOpen={setIsCreatePromptOpen}
+              viewingPrompt={viewingPrompt}
+              setViewingPrompt={setViewingPrompt}
+              editingPromptId={editingPromptId}
+              setEditingPromptId={setEditingPromptId}
+              newPromptTitle={newPromptTitle}
+              setNewPromptTitle={setNewPromptTitle}
+              newPromptContent={newPromptContent}
+              setNewPromptContent={setNewPromptContent}
+              newPromptCategory={newPromptCategory}
+              setNewPromptCategory={setNewPromptCategory}
+              customCategory={customCategory}
+              setCustomCategory={setCustomCategory}
+              isCreatingCollection={isCreatingCollection}
+              setIsCreatingCollection={setIsCreatingCollection}
+              newCollectionName={newCollectionName}
+              setNewCollectionName={setNewCollectionName}
+              currentCollectionId={currentCollectionId}
+              setCurrentCollectionId={setCurrentCollectionId}
+              currentCollection={currentCollection}
+              promptCollections={promptCollections}
+              isSelectMode={isSelectMode}
+              setIsSelectMode={setIsSelectMode}
+              selectedPromptIds={selectedPromptIds}
+              setSelectedPromptIds={setSelectedPromptIds}
+              deleteConfirmDialog={deleteConfirmDialog}
+              setDeleteConfirmDialog={setDeleteConfirmDialog}
+              filteredPrompts={filteredPrompts}
+              hasNextPage={hasNextPage}
+              isFetchingNextPage={isFetchingNextPage}
+              fetchNextPage={fetchNextPage}
+              openCreatePrompt={openCreatePrompt}
+              savePrompt={savePrompt}
+              selectAllPrompts={selectAllPrompts}
+              createPromptMutation={createPromptMutation}
+              updatePromptMutation={updatePromptMutation}
+              createCollectionMutation={createCollectionMutation}
+              searchQuery={searchQuery}
+              setSearchQuery={setSearchQuery}
+              isSearchOpen={isSearchOpen}
+              setIsSearchOpen={setIsSearchOpen}
+            />
           )}
+
+
+
 
           {/* Área de Input - esconde quando na HOME (sem conversa selecionada) */}
           <div {...getRootProps()} className={`outline-none ${!selectedConversationId ? 'hidden' : ''}`}>
@@ -1330,403 +1317,62 @@ export default function David() {
             {/* Banner de progresso removido - agora fica dentro do input */}
 
             <div className="p-4 border-t bg-background">
-              <div className="max-w-4xl mx-auto relative">
-                {/* Inline Prompts Panel - expands UPWARD from input */}
-                <AnimatePresence>
-                  {isPromptsModalOpen && (
-                    <motion.div
-                      initial={{ height: 0, opacity: 0 }}
-                      animate={{ height: "auto", opacity: 1 }}
-                      exit={{ height: 0, opacity: 0 }}
-                      transition={{ duration: 0.2 }}
-                      className="absolute bottom-full left-0 right-0 overflow-hidden z-10 mb-[-3rem]"
-                    >
-                      <div className="border border-b-0 rounded-t-2xl bg-gray-100 shadow-xl overflow-hidden pb-16">
-                        {isCreatePromptOpen ? (
-                          /* Create Prompt View - content only, footer is separate bar below */
-                          <div className="flex flex-col" style={{ height: '55vh', maxHeight: '55vh' }}>
-                            <div className="flex items-center gap-3 px-4 py-3 border-b">
-                              <button onClick={() => setIsCreatePromptOpen(false)} className="text-muted-foreground hover:text-foreground">
-                                <ArrowLeft className="h-5 w-5" />
-                              </button>
-                              <span className="font-medium">{editingPromptId ? 'Editar' : 'Criar'}</span>
-                              <button onClick={() => { setIsPromptsModalOpen(false); setIsCreatePromptOpen(false); }} className="ml-auto text-muted-foreground hover:text-foreground">
-                                <X className="h-5 w-5" />
-                              </button>
-                            </div>
-                            <div className="flex-1 p-4 space-y-3 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300">
-                              <div className="flex items-center justify-between gap-4">
-                                <input
-                                  type="text"
-                                  placeholder="Nome do Prompt"
-                                  value={newPromptTitle}
-                                  onChange={(e) => setNewPromptTitle(e.target.value)}
-                                  className="flex-1 text-lg font-semibold text-primary bg-transparent border-none outline-none placeholder:text-muted-foreground/40"
-                                />
-                                {/* Seletor de Coleção - lado direito */}
-                                <Select value={newPromptCategory} onValueChange={setNewPromptCategory}>
-                                  <SelectTrigger className="w-[160px] h-8 text-sm bg-white/60 shrink-0">
-                                    <SelectValue placeholder="Sem coleção" />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value="none">Sem coleção</SelectItem>
-                                    {promptCollections?.map((col) => (
-                                      <SelectItem key={col.id} value={String(col.id)}>{col.name}</SelectItem>
-                                    ))}
-                                    <SelectItem value="__new__">+ Criar nova...</SelectItem>
-                                  </SelectContent>
-                                </Select>
-                              </div>
-                              {newPromptCategory === "__new__" && (
-                                <Input
-                                  placeholder="Nome da nova coleção"
-                                  value={customCategory}
-                                  onChange={(e) => setCustomCategory(e.target.value)}
-                                  className="h-8 text-sm"
-                                  autoFocus
-                                />
-                              )}
-
-                              <Textarea
-                                placeholder="Escreva seu prompt aqui..."
-                                value={newPromptContent}
-                                onChange={(e) => setNewPromptContent(e.target.value)}
-                                className="min-h-[200px] resize-none border-0 shadow-none focus-visible:ring-0 text-base p-0 placeholder:text-muted-foreground/40"
-                              />
-                            </div>
-                          </div>
-                        ) : viewingPrompt ? (
-                          /* View Prompt View - content only, footer is separate bar below */
-                          <div className="flex flex-col" style={{ height: '55vh', maxHeight: '55vh' }}>
-                            <div className="flex items-center gap-3 px-4 py-3 border-b">
-                              <button onClick={() => setViewingPrompt(null)} className="text-muted-foreground hover:text-foreground">
-                                <ArrowLeft className="h-5 w-5" />
-                              </button>
-                              <span className="font-medium">Visualizar Prompt</span>
-                              <button onClick={() => { setIsPromptsModalOpen(false); setViewingPrompt(null); }} className="ml-auto text-muted-foreground hover:text-foreground">
-                                <X className="h-5 w-5" />
-                              </button>
-                            </div>
-                            <div className="flex-1 p-4 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300">
-                              <h2 className="text-xl font-bold mb-4">{viewingPrompt.title}</h2>
-                              <p className="text-muted-foreground whitespace-pre-wrap">{viewingPrompt.content}</p>
-                            </div>
-                          </div>
-                        ) : (
-                          /* Prompts List */
-                          <div className="flex flex-col" style={{ height: '55vh', maxHeight: '55vh' }}>
-                            <div className="flex items-center justify-between px-4 py-3 border-b">
-                              {isSelectMode ? (
-                                <>
-                                  <div className="flex items-center gap-2">
-                                    <Button variant="ghost" size="sm" onClick={() => { setIsSelectMode(false); setSelectedPromptIds([]); }} className="text-muted-foreground">
-                                      Cancelar
-                                    </Button>
-                                    <span className="font-medium text-sm">{selectedPromptIds.length} selecionado{selectedPromptIds.length !== 1 ? 's' : ''}</span>
-                                  </div>
-                                  <div className="flex items-center gap-2">
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
-                                      onClick={() => {
-                                        if (savedPrompts && selectedPromptIds.length === savedPrompts.length) {
-                                          setSelectedPromptIds([]);
-                                        } else if (savedPrompts) {
-                                          setSelectedPromptIds(savedPrompts.map((p: any) => p.id));
-                                        }
-                                      }}
-                                    >
-                                      {savedPrompts && selectedPromptIds.length === savedPrompts.length ? 'Deselecionar todos' : 'Selecionar todos'}
-                                    </Button>
-                                    <Button
-                                      variant="destructive"
-                                      size="sm"
-                                      disabled={selectedPromptIds.length === 0}
-                                      onClick={() => setDeleteConfirmDialog({ isOpen: true, promptIds: selectedPromptIds })}
-                                      className="gap-1"
-                                    >
-                                      <Trash2 className="h-4 w-4" />
-                                      Apagar
-                                    </Button>
-                                  </div>
-                                </>
-                              ) : (
-                                <>
-                                  <div className="flex items-center gap-2 flex-1">
-                                    <span className="font-semibold">Prompts</span>
-                                    {isSearchOpen ? (
-                                      <div className="flex items-center gap-1 relative animate-in fade-in slide-in-from-left-2">
-                                        <Search className="absolute left-2 top-2 h-4 w-4 text-muted-foreground" />
-                                        <Input
-                                          autoFocus
-                                          value={searchQuery}
-                                          onChange={(e) => setSearchQuery(e.target.value)}
-                                          className="pl-8 pr-7 h-9 w-[320px] text-sm"
-                                          placeholder="Buscar..."
-                                        />
-                                        <Button variant="ghost" size="icon" className="absolute right-0 top-0.5 h-7 w-7" onClick={() => { setIsSearchOpen(false); setSearchQuery(""); }}>
-                                          <X className="h-3.5 w-3.5" />
-                                        </Button>
-                                      </div>
-                                    ) : (
-                                      <Button variant="ghost" size="icon" onClick={() => setIsSearchOpen(true)} className="h-8 w-8 text-muted-foreground hover:text-foreground">
-                                        <Search className="h-4 w-4 stroke-[2.5]" />
-                                      </Button>
-                                    )}
-                                  </div>
+              <div className="max-w-4xl mx-auto relative">                {/* Modal de Prompts no CHAT - acoplado à barra de input */}
+                {selectedConversationId && (
+                  <PromptsModal
+                    variant="anchored"
+                    isOpen={isPromptsModalOpen}
+                    onClose={() => setIsPromptsModalOpen(false)}
+                    onSelectPrompt={(content) => setMessageInput(content)}
+                    isCreatePromptOpen={isCreatePromptOpen}
+                    setIsCreatePromptOpen={setIsCreatePromptOpen}
+                    viewingPrompt={viewingPrompt}
+                    setViewingPrompt={setViewingPrompt}
+                    editingPromptId={editingPromptId}
+                    setEditingPromptId={setEditingPromptId}
+                    newPromptTitle={newPromptTitle}
+                    setNewPromptTitle={setNewPromptTitle}
+                    newPromptContent={newPromptContent}
+                    setNewPromptContent={setNewPromptContent}
+                    newPromptCategory={newPromptCategory}
+                    setNewPromptCategory={setNewPromptCategory}
+                    customCategory={customCategory}
+                    setCustomCategory={setCustomCategory}
+                    isCreatingCollection={isCreatingCollection}
+                    setIsCreatingCollection={setIsCreatingCollection}
+                    newCollectionName={newCollectionName}
+                    setNewCollectionName={setNewCollectionName}
+                    currentCollectionId={currentCollectionId}
+                    setCurrentCollectionId={setCurrentCollectionId}
+                    currentCollection={currentCollection}
+                    promptCollections={promptCollections}
+                    isSelectMode={isSelectMode}
+                    setIsSelectMode={setIsSelectMode}
+                    selectedPromptIds={selectedPromptIds}
+                    setSelectedPromptIds={setSelectedPromptIds}
+                    deleteConfirmDialog={deleteConfirmDialog}
+                    setDeleteConfirmDialog={setDeleteConfirmDialog}
+                    filteredPrompts={filteredPrompts}
+                    hasNextPage={hasNextPage}
+                    isFetchingNextPage={isFetchingNextPage}
+                    fetchNextPage={fetchNextPage}
+                    openCreatePrompt={openCreatePrompt}
+                    savePrompt={savePrompt}
+                    selectAllPrompts={selectAllPrompts}
+                    createPromptMutation={createPromptMutation}
+                    updatePromptMutation={updatePromptMutation}
+                    createCollectionMutation={createCollectionMutation}
+                    searchQuery={searchQuery}
+                    setSearchQuery={setSearchQuery}
+                    isSearchOpen={isSearchOpen}
+                    setIsSearchOpen={setIsSearchOpen}
+                  />
+                )}
 
 
-                                  <div className="flex items-center gap-2">
-                                    <Popover>
-                                      <PopoverTrigger asChild>
-                                        <Button size="sm" className="gap-2 bg-blue-900 hover:bg-blue-800 text-white">
-                                          {currentCollection?.name || "Coleções"}
-                                          <ChevronDown className="h-3 w-3 opacity-80" />
-                                        </Button>
-                                      </PopoverTrigger>
-                                      <PopoverContent className="w-[220px] p-0" align="end">
-                                        <Command>
-                                          <CommandInput placeholder="Buscar coleção..." />
-                                          <CommandList>
-                                            <CommandEmpty>Nenhuma coleção encontrada.</CommandEmpty>
-                                            <CommandGroup heading="Minhas Coleções">
-                                              {/* Lista de coleções */}
-                                              {promptCollections?.map((col) => (
-                                                <CommandItem
-                                                  key={col.id}
-                                                  onSelect={() => setCurrentCollectionId(col.id)}
-                                                  className="hover:bg-slate-100 data-[selected]:bg-blue-100"
-                                                >
-                                                  <Folder className="mr-2 h-4 w-4 text-blue-600" />
-                                                  <span className="flex-1 truncate">{col.name}</span>
-                                                  <span className="text-xs text-slate-500 ml-2">{col.promptCount}</span>
-                                                </CommandItem>
-                                              ))}
-                                              {(!promptCollections || promptCollections.length === 0) && (
-                                                <div className="px-2 py-3 text-sm text-muted-foreground text-center">
-                                                  Nenhuma coleção criada
-                                                </div>
-                                              )}
-                                            </CommandGroup>
-                                            <CommandSeparator />
-                                            <CommandGroup>
-                                              {isCreatingCollection ? (
-                                                <div className="px-2 py-1.5">
-                                                  <Input
-                                                    placeholder="Nome da coleção..."
-                                                    value={newCollectionName}
-                                                    onChange={(e) => setNewCollectionName(e.target.value)}
-                                                    onKeyDown={(e) => {
-                                                      if (e.key === 'Enter' && newCollectionName.trim()) {
-                                                        createCollectionMutation.mutate({ name: newCollectionName.trim() });
-                                                      } else if (e.key === 'Escape') {
-                                                        setNewCollectionName("");
-                                                        setIsCreatingCollection(false);
-                                                      }
-                                                    }}
-                                                    className="h-8 text-sm"
-                                                    autoFocus
-                                                  />
-                                                  <div className="flex gap-1 mt-1">
-                                                    <Button
-                                                      size="sm"
-                                                      variant="ghost"
-                                                      className="h-7 text-xs flex-1"
-                                                      onClick={() => { setNewCollectionName(""); setIsCreatingCollection(false); }}
-                                                    >
-                                                      Cancelar
-                                                    </Button>
-                                                    <Button
-                                                      size="sm"
-                                                      className="h-7 text-xs flex-1 bg-blue-900 hover:bg-blue-800 text-white"
-                                                      disabled={!newCollectionName.trim() || createCollectionMutation.isPending}
-                                                      onClick={() => {
-                                                        if (newCollectionName.trim()) {
-                                                          createCollectionMutation.mutate({ name: newCollectionName.trim() });
-                                                        }
-                                                      }}
-                                                    >
-                                                      {createCollectionMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : "Criar"}
-                                                    </Button>
-                                                  </div>
-                                                </div>
-                                              ) : (
-                                                <CommandItem
-                                                  onSelect={() => setIsCreatingCollection(true)}
-                                                  className="text-blue-900 hover:bg-blue-50"
-                                                >
-                                                  <Plus className="mr-2 h-4 w-4" />
-                                                  Nova Coleção
-                                                </CommandItem>
-                                              )}
-                                            </CommandGroup>
-                                          </CommandList>
-                                        </Command>
-                                      </PopoverContent>
-                                    </Popover>
 
-                                    <Button size="sm" onClick={() => { setEditingPromptId(null); setNewPromptTitle(""); setNewPromptContent(""); setIsCreatePromptOpen(true); }} className="gap-1 bg-blue-900 hover:bg-blue-800 text-white">
-                                      <Plus className="h-4 w-4" />
-                                      Prompt
-                                    </Button>
-                                    <button onClick={() => setIsPromptsModalOpen(false)} className="text-muted-foreground hover:text-foreground p-1">
-                                      <X className="h-5 w-5" />
-                                    </button>
-                                  </div>
-                                </>
-                              )}
-                            </div>
 
-                            {/* Área de navegação de pasta */}
-                            {currentCollectionId !== null && (
-                              <div className="flex items-center gap-2 px-4 py-2 border-b bg-slate-50">
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className="gap-1 text-muted-foreground hover:text-foreground"
-                                  onClick={() => setCurrentCollectionId(null)}
-                                >
-                                  <ArrowLeft className="h-4 w-4" />
-                                  Voltar
-                                </Button>
-                                <div className="flex items-center gap-2 text-sm font-medium">
-                                  <Folder className="h-4 w-4 text-blue-600" />
-                                  {currentCollection?.name}
-                                  <span className="text-muted-foreground">({filteredPrompts.length})</span>
-                                </div>
-                              </div>
-                            )}
-
-                            <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300">
-                              {filteredPrompts && filteredPrompts.length > 0 ? (
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 p-4">
-                                  {filteredPrompts.map((prompt) => (
-                                    <div
-                                      key={prompt.id}
-                                      className={`p-4 rounded-xl border shadow-sm transition-all cursor-pointer group relative ${isSelectMode
-                                        ? selectedPromptIds.includes(prompt.id) ? 'bg-primary/5 border-primary ring-1 ring-primary' : 'bg-white hover:bg-muted/50'
-                                        : 'bg-white hover:shadow-md'
-                                        }`}
-                                      onClick={() => {
-                                        if (isSelectMode) {
-                                          if (selectedPromptIds.includes(prompt.id)) {
-                                            setSelectedPromptIds(selectedPromptIds.filter((id) => id !== prompt.id));
-                                          } else {
-                                            setSelectedPromptIds([...selectedPromptIds, prompt.id]);
-                                          }
-                                        }
-                                      }}
-                                    >
-                                      <div className="flex gap-3">
-                                        {isSelectMode && (
-                                          <div className={`mt-0.5 h-5 w-5 rounded border flex items-center justify-center transition-colors ${selectedPromptIds.includes(prompt.id) ? 'bg-primary border-primary' : 'border-muted-foreground bg-white'}`}>
-                                            {selectedPromptIds.includes(prompt.id) && <Check className="h-3.5 w-3.5 text-white" />}
-                                          </div>
-                                        )}
-                                        <div className="flex-1 min-w-0">
-                                          <div className="flex items-start justify-between mb-2">
-                                            <h3 className="font-semibold text-sm text-foreground flex-1 pr-2 truncate">{prompt.title}</h3>
-                                            {!isSelectMode && (
-                                              <div className="flex items-center gap-1">
-                                                {/* Menu de opções - aparece só no hover */}
-                                                <DropdownMenu>
-                                                  <DropdownMenuTrigger asChild>
-                                                    <button className="p-1 rounded opacity-0 group-hover:opacity-100 hover:bg-gray-100 transition-all" onClick={(e) => e.stopPropagation()}>
-                                                      <MoreVertical className="h-4 w-4 text-muted-foreground" />
-                                                    </button>
-                                                  </DropdownMenuTrigger>
-                                                  <DropdownMenuContent align="end">
-                                                    <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setViewingPrompt({ id: prompt.id, title: prompt.title, content: prompt.content, category: prompt.category, tags: prompt.tags as string[] | undefined }); }}>
-                                                      <Eye className="h-4 w-4 mr-2" /> Visualizar
-                                                    </DropdownMenuItem>
-                                                    <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setEditingPromptId(prompt.id); setNewPromptTitle(prompt.title); setNewPromptContent(prompt.content); setNewPromptCategory(prompt.category || "uncategorized"); setIsCreatePromptOpen(true); }}>
-                                                      <Edit className="h-4 w-4 mr-2" /> Editar
-                                                    </DropdownMenuItem>
-
-                                                    <DropdownMenuSub>
-                                                      <DropdownMenuSubTrigger>
-                                                        <div className="flex items-center">
-                                                          <FolderOpen className="mr-2 h-4 w-4" /> Mover para
-                                                        </div>
-                                                      </DropdownMenuSubTrigger>
-                                                      <DropdownMenuSubContent>
-                                                        {/* Só mostra "Retirar da coleção" se o prompt está em uma coleção */}
-                                                        {prompt.collectionId && (
-                                                          <>
-                                                            <DropdownMenuItem onClick={(e) => { e.stopPropagation(); updatePromptMutation.mutate({ id: prompt.id, collectionId: null }); }}>
-                                                              <X className="h-4 w-4 mr-2 text-muted-foreground" />
-                                                              Retirar da coleção
-                                                            </DropdownMenuItem>
-                                                            <DropdownMenuSeparator />
-                                                          </>
-                                                        )}
-                                                        {promptCollections?.filter(col => col.id !== prompt.collectionId).map((col) => (
-                                                          <DropdownMenuItem key={col.id} onClick={(e) => { e.stopPropagation(); updatePromptMutation.mutate({ id: prompt.id, collectionId: col.id }); }}>
-                                                            <Folder className="h-4 w-4 mr-2 text-blue-600" />
-                                                            {col.name}
-                                                          </DropdownMenuItem>
-                                                        ))}
-                                                      </DropdownMenuSubContent>
-                                                    </DropdownMenuSub>
-
-                                                    <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setIsSelectMode(true); setSelectedPromptIds([prompt.id]); }}>
-                                                      <CheckSquare className="h-4 w-4 mr-2" /> Selecionar vários
-                                                    </DropdownMenuItem>
-                                                    <DropdownMenuSeparator />
-                                                    <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setDeleteConfirmDialog({ isOpen: true, promptId: prompt.id }); }} className="text-destructive">
-                                                      <Trash2 className="h-4 w-4 mr-2" /> Excluir
-                                                    </DropdownMenuItem>
-                                                  </DropdownMenuContent>
-                                                </DropdownMenu>
-                                                {/* Botão Usar */}
-                                                <button
-                                                  onClick={(e) => { e.stopPropagation(); setMessageInput(prompt.content); setIsPromptsModalOpen(false); }}
-                                                  className="flex items-center gap-1 px-3 py-1 rounded-full border border-amber-200 bg-amber-50 text-xs font-medium text-amber-700 hover:bg-amber-100 hover:border-amber-300 transition-colors"
-                                                >
-                                                  Usar <ArrowDown className="h-3 w-3" />
-                                                </button>
-                                              </div>
-                                            )}
-                                          </div>
-                                          <p className="text-xs text-muted-foreground line-clamp-2">{prompt.content}</p>
-                                          {prompt.tags && prompt.tags.length > 0 && (
-                                            <div className="flex flex-wrap gap-1 mt-2">
-                                              {prompt.tags.map((tag: string) => (
-                                                <Badge key={tag} variant="outline" className="text-[10px] px-1 py-0 h-5">
-                                                  {tag}
-                                                </Badge>
-                                              ))}
-                                            </div>
-                                          )}
-                                        </div>
-                                      </div>
-                                    </div>
-                                  ))}
-                                </div>
-                              ) : (
-                                <div className="flex flex-col items-center justify-center py-12 text-center">
-                                  <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center mb-3">
-                                    <BookMarked className="h-6 w-6 text-muted-foreground" />
-                                  </div>
-                                  <p className="text-sm text-primary font-medium">Nenhum prompt encontrado</p>
-                                </div>
-                              )}
-                              {hasNextPage && (
-                                <div className="p-4 pt-0">
-                                  <Button variant="ghost" className="w-full text-xs" onClick={() => fetchNextPage()} disabled={isFetchingNextPage}>
-                                    {isFetchingNextPage ? <Loader2 className="h-4 w-4 animate-spin" /> : "Carregar mais"}
-                                  </Button>
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-
-                {/* Input/Action Bar Container */}
+                {/* Input Container */}
                 {isCreatePromptOpen ? (
                   /* Action bar when creating/editing a prompt */
                   <div className="border p-4 relative shadow-sm bg-gray-100 rounded-[2rem] transition-all duration-200 z-30">
