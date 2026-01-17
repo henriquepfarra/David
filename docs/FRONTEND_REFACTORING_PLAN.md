@@ -1,26 +1,27 @@
 # 🔧 Plano de Refatoração do Frontend: David.tsx (v3 - Final)
 
-**Atualização**: 14/01/2026
-**Tempo estimado**: 30h (~5 dias úteis)
-**Status**: ✅ Aprovado
+**Atualização**: 17/01/2026
+**Status**: ✅ **FASE 3 COMPLETA - Merged na main**
+
+> ⚠️ **NOTA**: Veja `FRONTEND_REFACTORING_PLAN_V4.md` para as próximas fases.
 
 ## 📚 Documentação Relacionada
 
 - [📊 Resumo Executivo](./EXECUTIVE_SUMMARY.md) - Para gestão e stakeholders
 - [🚀 Próximos Passos](./NEXT_STEPS.md) - Guia de início rápido
-- [📝 Templates de PR](./PR_TEMPLATES.md) - Templates para cada fase
-- [📋 Este documento](./FRONTEND_REFACTORING_PLAN.md) - Plano técnico detalhado
+- [📋 Plano V4](./FRONTEND_REFACTORING_PLAN_V4.md) - **Próximas fases (5-10)**
+- [🔧 Issues Pendentes](./issues/PROMPTS_MODAL_IMPROVEMENTS.md) - Melhorias identificadas
 
 ---
 
 ## Estado Atual vs Meta
 
-| Métrica | Atual | Meta |
-|---------|-------|------|
-| Linhas | 2924 | <500/arquivo |
-| useState | 46 | <10/componente |
-| useEffect | 11 | <5/componente |
-| Fontes de verdade (upload) | 3 | 1 |
+| Métrica | Inicial | Atual (17/01) | Meta | Progresso |
+|---------|---------|---------------|------|-----------|
+| Linhas | 2924 | **2262** | <500 | -22% ✅ |
+| useState | 46 | **29** | <10 | -37% ✅ |
+| useEffect | 11 | 12 | <5 | +1 🟡 |
+| Fontes de verdade (upload) | 3 | **1** | 1 | ✅ |
 
 ---
 
