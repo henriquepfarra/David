@@ -12,3 +12,7 @@ export type { AttachedFile, AttachedProcess } from './AttachedFilesBadge';
 
 export { UploadProgress } from './UploadProgress';
 export type { UploadState } from './UploadProgress';
+
+export { MessageList } from './MessageList';
+export { ProcessBanner } from './ProcessBanner';
+
