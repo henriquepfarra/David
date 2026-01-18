@@ -58,6 +58,8 @@ import {
   ProcessSelectorDialog,
   ProcessDataDialog,
   DuplicateProcessDialog,
+  UploadDocsDialog,
+  PromptSelectorDialog,
   type DraftType,
 } from "@/components/dialogs";
 
@@ -1716,207 +1718,62 @@ export default function David() {
         />
 
         {/* Dialog de Upload de Documentos */}
-        < Dialog open={isUploadDocsOpen} onOpenChange={setIsUploadDocsOpen} >
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>📎 Upload de Documentos do Processo</DialogTitle>
-              <DialogDescription>
-                Adicione documentos relacionados ao processo atual para enriquecer o contexto do DAVID.
-              </DialogDescription>
-            </DialogHeader>
+        <UploadDocsDialog
+          isOpen={isUploadDocsOpen}
+          onClose={() => setIsUploadDocsOpen(false)}
+          processId={selectedProcessId}
+          onUploadFiles={async (files) => {
+            if (!selectedProcessId) {
+              toast.error("Nenhum processo selecionado");
+              return;
+            }
 
-            <div className="space-y-4">
-              <div className="border-2 border-dashed border-border rounded-lg p-8 text-center">
-                <Upload className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-                <p className="text-sm text-muted-foreground mb-2">
-                  Arraste arquivos aqui ou clique para selecionar
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  Formatos aceitos: PDF, DOCX, TXT
-                </p>
-                <input
-                  type="file"
-                  multiple
-                  accept=".pdf,.docx,.txt"
-                  className="hidden"
-                  id="process-docs-upload"
-                  onChange={(e) => {
-                    const files = Array.from(e.target.files || []);
-                    if (files.length > 0) {
-                      setUploadingFiles(files);
-                    }
-                  }}
-                />
-                <Button
-                  variant="outline"
-                  className="mt-4"
-                  onClick={() => document.getElementById('process-docs-upload')?.click()}
-                >
-                  <Upload className="h-4 w-4 mr-2" />
-                  Selecionar Arquivos
-                </Button>
-              </div>
+            for (const file of files) {
+              try {
+                // Ler arquivo como base64
+                const reader = new FileReader();
+                const fileData = await new Promise<string>((resolve, reject) => {
+                  reader.onload = () => {
+                    const base64 = reader.result as string;
+                    resolve(base64.split(',')[1]);
+                  };
+                  reader.onerror = reject;
+                  reader.readAsDataURL(file);
+                });
 
-              {/* Preview de arquivos selecionados */}
-              {uploadingFiles.length > 0 && (
-                <div className="space-y-2">
-                  <h4 className="text-sm font-medium">Arquivos selecionados:</h4>
-                  {uploadingFiles.map((file, idx) => (
-                    <div key={idx} className="flex items-center justify-between p-2 bg-muted rounded">
-                      <div className="flex items-center gap-2">
-                        <FileText className="h-4 w-4" />
-                        <span className="text-sm">{file.name}</span>
-                        <span className="text-xs text-muted-foreground">({(file.size / 1024).toFixed(1)} KB)</span>
-                      </div>
-                      {uploadProgress[file.name] !== undefined && (
-                        <span className="text-xs text-muted-foreground">{uploadProgress[file.name]}%</span>
-                      )}
-                    </div>
-                  ))}
-                  <div className="flex gap-2">
-                    <Button
-                      onClick={async () => {
-                        if (!selectedProcessId) {
-                          toast.error("Nenhum processo selecionado");
-                          return;
-                        }
+                const fileType = file.name.split('.').pop() || 'txt';
+                await uploadDocMutation.mutateAsync({
+                  processId: selectedProcessId,
+                  fileName: file.name,
+                  fileData,
+                  fileType,
+                  documentType: 'outro',
+                });
 
-                        for (const file of uploadingFiles) {
-                          try {
-                            setUploadProgress(prev => ({ ...prev, [file.name]: 0 }));
-
-                            // Ler arquivo como base64
-                            const reader = new FileReader();
-                            const fileData = await new Promise<string>((resolve, reject) => {
-                              reader.onload = () => {
-                                const base64 = reader.result as string;
-                                resolve(base64.split(',')[1]); // Remove "data:...;base64,"
-                              };
-                              reader.onerror = reject;
-                              reader.readAsDataURL(file);
-                            });
-
-                            setUploadProgress(prev => ({ ...prev, [file.name]: 50 }));
-
-                            // Upload via tRPC
-                            const fileType = file.name.split('.').pop() || 'txt';
-                            await uploadDocMutation.mutateAsync({
-                              processId: selectedProcessId,
-                              fileName: file.name,
-                              fileData,
-                              fileType,
-                              documentType: 'outro',
-                            });
-
-                            setUploadProgress(prev => ({ ...prev, [file.name]: 100 }));
-                            toast.success(`${file.name} enviado com sucesso!`);
-                          } catch (error) {
-                            console.error('Erro no upload:', error);
-                            toast.error(`Erro ao enviar ${file.name}`);
-                          }
-                        }
-
-                        // Limpar estado
-                        setUploadingFiles([]);
-                        setUploadProgress({});
-                        setIsUploadDocsOpen(false);
-                      }}
-                      className="flex-1"
-                    >
-                      <Upload className="h-4 w-4 mr-2" />
-                      Enviar Arquivos
-                    </Button>
-                    <Button
-                      variant="outline"
-                      onClick={() => {
-                        setUploadingFiles([]);
-                        setUploadProgress({});
-                      }}
-                    >
-                      Cancelar
-                    </Button>
-                  </div>
-                </div>
-              )}
-
-              <div className="text-xs text-muted-foreground">
-                💡 <strong>Dica:</strong> Os documentos serão processados e seu conteúdo será disponibilizado para o DAVID usar como referência durante as conversas.
-              </div>
-            </div>
-          </DialogContent>
-        </Dialog >
+                toast.success(`${file.name} enviado com sucesso!`);
+              } catch (error) {
+                console.error('Erro no upload:', error);
+                toast.error(`Erro ao enviar ${file.name}`);
+                throw error;
+              }
+            }
+          }}
+        />
 
         {/* Dialog de Seleção de Prompt */}
-        < Dialog open={isPromptSelectorOpen} onOpenChange={setIsPromptSelectorOpen} >
-          <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>📝 Aplicar Prompt Especializado</DialogTitle>
-              <DialogDescription>
-                Selecione um prompt salvo para aplicar na conversa atual.
-              </DialogDescription>
-            </DialogHeader>
-
-            <div className="space-y-3">
-              {!savedPrompts || savedPrompts.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground">
-                  <MessageSquare className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                  <p>Nenhum prompt salvo encontrado.</p>
-                  <Button
-                    variant="outline"
-                    className="mt-4"
-                    onClick={() => {
-                      setIsPromptSelectorOpen(false);
-                      setLocation("/prompts");
-                    }}
-                  >
-                    Criar Primeiro Prompt
-                  </Button>
-                </div>
-              ) : (
-                savedPrompts.map((prompt) => (
-                  <div
-                    key={prompt.id}
-                    className="border rounded-lg p-4 hover:bg-accent cursor-pointer transition-colors"
-                    onClick={() => {
-                      applyPromptMutation.mutate({
-                        conversationId: selectedConversationId!,
-                        promptId: prompt.id,
-                      });
-                      setIsPromptSelectorOpen(false);
-                    }}
-                  >
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="flex-1">
-                        <h4 className="font-semibold">{prompt.title}</h4>
-                        {prompt.category && (
-                          <span className="text-xs text-muted-foreground">
-                            {prompt.category}
-                          </span>
-                        )}
-                        <p className="text-sm text-muted-foreground mt-2 line-clamp-2">
-                          {prompt.content}
-                        </p>
-                      </div>
-                      <ChevronRight className="h-5 w-5 text-muted-foreground flex-shrink-0" />
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-
-            <div className="flex gap-2 justify-end mt-4 pt-4 border-t">
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setIsPromptSelectorOpen(false);
-                  setLocation("/prompts");
-                }}
-              >
-                Gerenciar Prompts
-              </Button>
-            </div>
-          </DialogContent>
-        </Dialog >
+        <PromptSelectorDialog
+          isOpen={isPromptSelectorOpen}
+          onClose={() => setIsPromptSelectorOpen(false)}
+          prompts={savedPrompts}
+          onSelectPrompt={(prompt) => {
+            applyPromptMutation.mutate({
+              conversationId: selectedConversationId!,
+              promptId: prompt.id,
+            });
+            setIsPromptSelectorOpen(false);
+          }}
+          onNavigateToPrompts={() => setLocation("/prompts")}
+        />
 
         {/* Dialog de Confirmação de Deletar */}
         <DeleteConversationDialog

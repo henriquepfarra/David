@@ -12,7 +12,5 @@ export { FilesModal } from './FilesModal';
 export { ProcessSelectorDialog } from './ProcessSelectorDialog';
 export { ProcessDataDialog } from './ProcessDataDialog';
 export { DuplicateProcessDialog } from './DuplicateProcessDialog';
-
-// TODO: Dialogs restantes a serem extraídos (complexos, com lógica inline):
-// export { UploadDocsDialog } from './UploadDocsDialog';
-// export { PromptSelectorDialog } from './PromptSelectorDialog';
+export { UploadDocsDialog } from './UploadDocsDialog';
+export { PromptSelectorDialog } from './PromptSelectorDialog';
