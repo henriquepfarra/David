@@ -15,4 +15,5 @@ export type { UploadState } from './UploadProgress';
 
 export { MessageList } from './MessageList';
 export { ProcessBanner } from './ProcessBanner';
+export { ChatInputArea } from './ChatInputArea';
 

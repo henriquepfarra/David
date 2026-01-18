@@ -45,7 +45,7 @@ import { useConversationId } from "@/hooks/useConversationId";
 import { usePdfUpload } from "@/hooks/usePdfUpload";
 import { usePrompts } from "@/hooks/usePrompts";
 import { ChatInput } from "@/components/ChatInput";
-import { AttachedFilesBadge, UploadProgress, MessageList } from "@/components/chat";
+import { AttachedFilesBadge, UploadProgress, MessageList, ChatInputArea } from "@/components/chat";
 import { HomeScreen } from "@/components/HomeScreen";
 import { PromptsModal } from "@/components/prompts";
 import {
@@ -1054,238 +1054,82 @@ export default function David() {
 
 
 
-                {/* Input Container */}
-                {isCreatePromptOpen ? (
-                  /* Action bar when creating/editing a prompt */
-                  <div className="border p-4 relative shadow-sm bg-gray-100 rounded-[2rem] transition-all duration-200 z-30">
-                    <div className="flex items-center justify-between">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => {
-                          setIsCreatePromptOpen(false);
-                          setNewPromptTitle("");
-                          setNewPromptContent("");
-                          setNewPromptCategory("none");
-                          setCustomCategory("");
-                          setEditingPromptId(null);
-                        }}
-                      >
-                        Cancelar
-                      </Button>
-                      <Button
-                        size="sm"
-                        className="gap-2 bg-blue-900 hover:bg-blue-800 text-white"
-                        onClick={() => {
-                          let finalCategory: string | undefined = undefined;
-                          if (newPromptCategory === "__new__") {
-                            finalCategory = customCategory.trim() || undefined;
-                          } else if (newPromptCategory !== "none") {
-                            finalCategory = newPromptCategory;
-                          }
-
-                          if (newPromptTitle.trim() && newPromptContent.trim()) {
-                            if (editingPromptId) {
-                              updatePromptMutation.mutate({
-                                id: editingPromptId,
-                                title: newPromptTitle.trim(),
-                                content: newPromptContent.trim(),
-                                category: finalCategory,
-                              });
-                            } else {
-                              createPromptMutation.mutate({
-                                title: newPromptTitle.trim(),
-                                content: newPromptContent.trim(),
-                                category: finalCategory,
-                              });
-                            }
-                          }
-                        }}
-                        disabled={!newPromptTitle.trim() || !newPromptContent.trim() || (newPromptCategory === "__new__" && !customCategory.trim()) || createPromptMutation.isPending || updatePromptMutation.isPending}
-                      >
-                        {(createPromptMutation.isPending || updatePromptMutation.isPending) ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4" />}
-                        {editingPromptId ? 'Salvar Alterações' : 'Salvar Prompt'}
-                      </Button>
-                    </div>
-                  </div>
-                ) : viewingPrompt ? (
-                  /* Action bar when viewing a prompt - styled like input */
-                  <div className="border p-4 relative shadow-sm bg-white rounded-[2rem] transition-all duration-200 z-30">
-                    <div className="flex items-center justify-between">
-                      <Button variant="ghost" size="sm" onClick={() => setViewingPrompt(null)}>
-                        Cancelar
-                      </Button>
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => {
-                            setDeleteConfirmDialog({ isOpen: true, promptId: viewingPrompt.id });
-                          }}
-                          className="p-2 rounded hover:bg-destructive/10 text-destructive transition-colors"
-                          title="Excluir"
-                        >
-                          <Trash2 className="h-5 w-5" />
-                        </button>
-                        <button
-                          onClick={() => {
-                            setEditingPromptId(viewingPrompt.id);
-                            setNewPromptTitle(viewingPrompt.title);
-                            setNewPromptContent(viewingPrompt.content);
-                            setNewPromptCategory(viewingPrompt.category || "uncategorized");
-                            setViewingPrompt(null);
-                            setIsCreatePromptOpen(true);
-                          }}
-                          className="p-2 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
-                          title="Editar"
-                        >
-                          <Edit className="h-5 w-5" />
-                        </button>
-                        <Button
-                          onClick={() => {
-                            setMessageInput(viewingPrompt.content);
-                            setIsPromptsModalOpen(false);
-                            setViewingPrompt(null);
-                          }}
-                          className="gap-1"
-                        >
-                          <ArrowRight className="h-4 w-4" /> Usar
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  /* Regular input container */
-                  <div className={`border p-4 relative shadow-sm bg-white rounded-[2rem] transition-all duration-200 z-30 ${isPromptsModalOpen ? 'opacity-60 pointer-events-none' : 'focus-within:ring-1 focus-within:ring-primary/50'}`}>
-
-
-                    {/* 🎯 BADGE FLUTUANTE - Usando componente UploadProgress */}
-                    {uploadState.isUploading && (
-                      <div className="absolute -top-[90px] left-0 right-0 px-4 z-50 pointer-events-none">
-                        <div className="bg-white rounded-xl border border-border shadow-lg p-3 max-w-md mx-auto pointer-events-auto">
-                          <UploadProgress uploadState={uploadState} />
-                        </div>
-                      </div>
-                    )}
-                    {/* Badge do Processo/Arquivo - Usando componentes extraídos */}
-                    {(uploadState.isUploading || attachedFiles.length > 0 || selectedProcessId) && (
-                      <div className="flex-shrink-0 min-h-[80px] mb-3">
-                        {uploadState.isUploading ? (
-                          <UploadProgress uploadState={uploadState} />
-                        ) : (
-                          <AttachedFilesBadge
-                            files={attachedFiles}
-                            process={selectedProcessId ? {
-                              id: selectedProcessId,
-                              processNumber: processes?.find(p => p.id === selectedProcessId)?.processNumber || 'Processo anexado'
-                            } : null}
-                            onRemoveFile={(uri) => setAttachedFiles(prev => prev.filter(f => f.uri !== uri))}
-                            onRemoveProcess={() => setSelectedProcessId(undefined)}
-                          />
-                        )}
-                      </div>
-                    )}
-
-                    <div className="flex justify-between items-start mb-2 relative">
-                      <Textarea
-                        ref={textareaRef}
-                        value={messageInput}
-                        onChange={(e) => {
-                          setMessageInput(e.target.value);
-                          adjustTextareaHeight();
-                        }}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter" && !e.shiftKey) {
-                            e.preventDefault();
-                            handleSendMessage();
-                          }
-                        }}
-                        placeholder="O que posso fazer por você?"
-                        className="border-0 shadow-none resize-none min-h-[60px] w-full p-0 pr-[180px] focus-visible:ring-0 bg-transparent text-lg placeholder:text-muted-foreground/50"
-                        style={{ maxHeight: "200px" }}
-                      />
-
-                      {/* Controles do Input (Modelo + Magic) */}
-                      <div className="absolute top-0 right-0 flex items-center gap-1">
-                        {/* Indicador de Modelo (Compacto) */}
-                        <div className="hidden sm:flex items-center gap-1.5 px-2 py-1 bg-primary/5 hover:bg-primary/10 transition-colors rounded-md border border-primary/10 cursor-help select-none mr-1" title={`Modelo: ${settings.data?.llmModel || 'Padrão'}`}>
-                          <Bot className="w-3.5 h-3.5 text-primary/70" />
-                          <span className="text-[10px] font-bold text-muted-foreground/80 uppercase tracking-tight">
-                            {settings.data?.llmModel?.replace(/-/g, " ").toUpperCase() || "GEMINI 2.0 FLASH"}
-                          </span>
-                        </div>
-
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 text-muted-foreground hover:text-primary transition-colors"
-                          title="Melhorar Prompt (IA)"
-                          onClick={handleEnhancePrompt}
-                          disabled={!messageInput.trim() || enhancePromptMutation.isPending}
-                        >
-                          {enhancePromptMutation.isPending ? (
-                            <Loader2 className="h-4 w-4 animate-spin text-primary" />
-                          ) : (
-                            <Wand2 className="h-5 w-5" />
-                          )}
-                        </Button>
-                      </div>
-                    </div>
-
-                    <div className="flex justify-between items-center mt-2">
-                      <div className="flex gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="gap-2 rounded-full h-9 px-4 border-dashed border-primary/30 hover:bg-primary/10 hover:border-primary/50 hover:text-primary transition-all font-medium"
-                          onClick={open}
-                        >
-                          <Gavel className="h-4 w-4" />
-                          Enviar Processo
-                        </Button>
-
-                        {/* Prompts Toggle Button */}
-                        <Button
-                          variant={isPromptsModalOpen ? "secondary" : "ghost"}
-                          size="sm"
-                          className="gap-2 rounded-full h-9 px-3"
-                          onClick={() => setIsPromptsModalOpen(!isPromptsModalOpen)}
-                        >
-                          <BookMarked className="h-4 w-4" />
-                          Prompts
-                        </Button>
-                      </div>
-
-                      <div className="flex gap-2 items-center">
-                        <Button
-                          onClick={handleRecordClick}
-                          variant={isRecording ? "destructive" : "ghost"}
-                          size="icon"
-                          className={`h-10 w-10 rounded-full transition-all ${isRecording ? 'animate-pulse' : 'text-muted-foreground hover:text-primary hover:bg-accent'}`}
-                          title={isRecording ? "Parar Gravação" : "Gravar áudio"}
-                          disabled={transcribeAudioMutation.isPending}
-                        >
-                          {transcribeAudioMutation.isPending ? (
-                            <Loader2 className="h-5 w-5 animate-spin" />
-                          ) : (
-                            <Mic className={`h-5 w-5 ${isRecording ? 'fill-current' : ''}`} />
-                          )}
-                        </Button>
-                        <Button
-                          onClick={handleSendMessage}
-                          disabled={!messageInput.trim() && !isProcessing}
-                          size="icon"
-                          className={`h-10 w-10 rounded-full transition-all duration-300 ${messageInput.trim() ? 'bg-primary hover:bg-primary/90 text-primary-foreground shadow-md hover:scale-105' : 'bg-muted text-muted-foreground'}`}
-                        >
-                          {isProcessing ? (
-                            <Loader2 className="h-5 w-5 animate-spin" />
-                          ) : (
-                            <Send className="h-5 w-5 ml-0.5" />
-                          )}
-                        </Button>
-                      </div>
-                    </div>
-
-                  </div>
-                )}
+                <ChatInputArea
+                  // Input
+                  messageInput={messageInput}
+                  setMessageInput={setMessageInput}
+                  onSendMessage={handleSendMessage}
+                  isProcessing={isProcessing}
+                  // Upload
+                  openUpload={open}
+                  uploadState={uploadState}
+                  // Files
+                  attachedFiles={attachedFiles}
+                  onRemoveFile={(uri) => setAttachedFiles(prev => prev.filter(f => f.uri !== uri))}
+                  selectedProcessId={selectedProcessId}
+                  processNumber={processes?.find(p => p.id === selectedProcessId)?.processNumber}
+                  onRemoveProcess={() => setSelectedProcessId(undefined)}
+                  // Prompts Modal
+                  isPromptsModalOpen={isPromptsModalOpen}
+                  setIsPromptsModalOpen={setIsPromptsModalOpen}
+                  // Create/Edit Prompt
+                  isCreatePromptOpen={isCreatePromptOpen}
+                  setIsCreatePromptOpen={setIsCreatePromptOpen}
+                  newPromptTitle={newPromptTitle}
+                  setNewPromptTitle={setNewPromptTitle}
+                  newPromptContent={newPromptContent}
+                  setNewPromptContent={setNewPromptContent}
+                  newPromptCategory={newPromptCategory}
+                  setNewPromptCategory={setNewPromptCategory}
+                  customCategory={customCategory}
+                  setCustomCategory={setCustomCategory}
+                  editingPromptId={editingPromptId}
+                  setEditingPromptId={setEditingPromptId}
+                  onCreatePrompt={() => {
+                    let finalCategory: string | undefined = undefined;
+                    if (newPromptCategory === "__new__") {
+                      finalCategory = customCategory.trim() || undefined;
+                    } else if (newPromptCategory !== "none") {
+                      finalCategory = newPromptCategory;
+                    }
+                    createPromptMutation.mutate({
+                      title: newPromptTitle.trim(),
+                      content: newPromptContent.trim(),
+                      category: finalCategory,
+                    });
+                  }}
+                  onUpdatePrompt={() => {
+                    let finalCategory: string | undefined = undefined;
+                    if (newPromptCategory === "__new__") {
+                      finalCategory = customCategory.trim() || undefined;
+                    } else if (newPromptCategory !== "none") {
+                      finalCategory = newPromptCategory;
+                    }
+                    if (editingPromptId) {
+                      updatePromptMutation.mutate({
+                        id: editingPromptId,
+                        title: newPromptTitle.trim(),
+                        content: newPromptContent.trim(),
+                        category: finalCategory,
+                      });
+                    }
+                  }}
+                  isCreatingPrompt={createPromptMutation.isPending}
+                  isUpdatingPrompt={updatePromptMutation.isPending}
+                  // Viewing Prompt
+                  viewingPrompt={viewingPrompt}
+                  setViewingPrompt={setViewingPrompt}
+                  onDeletePromptRequest={(promptId) => setDeleteConfirmDialog({ isOpen: true, promptId })}
+                  // Audio
+                  isRecording={isRecording}
+                  onRecordClick={handleRecordClick}
+                  isTranscribing={transcribeAudioMutation.isPending}
+                  // Enhance
+                  onEnhancePrompt={handleEnhancePrompt}
+                  isEnhancing={enhancePromptMutation.isPending}
+                  // Settings
+                  llmModel={settings.data?.llmModel}
+                />
 
                 {/* Footer Texto */}
                 <div className="text-center mt-2">
