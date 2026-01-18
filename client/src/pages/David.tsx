@@ -55,6 +55,9 @@ import {
   RenameConversationDialog,
   DeleteConversationDialog,
   FilesModal,
+  ProcessSelectorDialog,
+  ProcessDataDialog,
+  DuplicateProcessDialog,
   type DraftType,
 } from "@/components/dialogs";
 
@@ -1680,162 +1683,37 @@ export default function David() {
         />
 
         {/* Dialog de Seleção de Processo */}
-        < Dialog open={isProcessSelectorOpen} onOpenChange={setIsProcessSelectorOpen} >
-          <DialogContent className="max-w-2xl">
-            <DialogHeader>
-              <DialogTitle>⚖️ Selecionar Processo Ativo</DialogTitle>
-              <DialogDescription>
-                Selecione o processo que deseja vincular a esta conversa. O contexto do processo será injetado automaticamente.
-              </DialogDescription>
-            </DialogHeader>
-
-            <div className="space-y-4">
-              {processes && processes.length > 0 ? (
-                <div className="grid gap-2 max-h-[400px] overflow-y-auto">
-                  {processes.map((process) => (
-                    <Card
-                      key={process.id}
-                      className={`p-4 cursor-pointer transition-colors ${selectedProcessId === process.id
-                        ? "border-primary bg-primary/5"
-                        : "hover:border-primary/50"
-                        }`}
-                      onClick={() => {
-                        setSelectedProcessId(process.id);
-                        if (selectedConversationId) {
-                          updateProcessMutation.mutate({
-                            conversationId: selectedConversationId,
-                            processId: process.id,
-                          });
-
-                          // Atualizar título da conversa com o número do processo
-                          renameConversationMutation.mutate({
-                            conversationId: selectedConversationId,
-                            title: process.processNumber,
-                          });
-                        }
-                        setIsProcessSelectorOpen(false);
-                      }}
-                    >
-                      <div className="flex items-start justify-between">
-                        <div className="space-y-1">
-                          <div className="font-mono text-sm font-semibold">
-                            {process.processNumber}
-                          </div>
-                          <div className="text-sm">
-                            <span className="text-muted-foreground">Autor:</span> {process.plaintiff}
-                          </div>
-                          <div className="text-sm">
-                            <span className="text-muted-foreground">Réu:</span> {process.defendant}
-                          </div>
-                          {process.subject && (
-                            <div className="text-xs text-muted-foreground mt-1">
-                              {process.subject}
-                            </div>
-                          )}
-                        </div>
-                        {selectedProcessId === process.id && (
-                          <Check className="h-5 w-5 text-primary" />
-                        )}
-                      </div>
-                    </Card>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-8 text-muted-foreground">
-                  <FileText className="h-12 w-12 mx-auto mb-2 opacity-50" />
-                  <p>Nenhum processo cadastrado</p>
-                  <Button
-                    variant="link"
-                    onClick={() => {
-                      setIsProcessSelectorOpen(false);
-                      setLocation("/processos");
-                    }}
-                    className="mt-2"
-                  >
-                    Cadastrar primeiro processo
-                  </Button>
-                </div>
-              )}
-            </div>
-          </DialogContent>
-        </Dialog >
+        <ProcessSelectorDialog
+          isOpen={isProcessSelectorOpen}
+          onClose={() => setIsProcessSelectorOpen(false)}
+          processes={processes}
+          selectedProcessId={selectedProcessId}
+          onSelectProcess={(process) => {
+            setSelectedProcessId(process.id);
+            if (selectedConversationId) {
+              updateProcessMutation.mutate({
+                conversationId: selectedConversationId,
+                processId: process.id,
+              });
+              renameConversationMutation.mutate({
+                conversationId: selectedConversationId,
+                title: process.processNumber,
+              });
+            }
+            setIsProcessSelectorOpen(false);
+          }}
+          onNavigateToProcesses={() => {
+            setIsProcessSelectorOpen(false);
+            setLocation("/processos");
+          }}
+        />
 
         {/* Dialog de Visualização de Dados do Processo */}
-        < Dialog open={isProcessDataOpen} onOpenChange={setIsProcessDataOpen} >
-          <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>📋 Dados do Processo</DialogTitle>
-            </DialogHeader>
-
-            {selectedProcessId && processes && (() => {
-              const currentProcess = processes.find((p) => p.id === selectedProcessId);
-              if (!currentProcess) return <p>Processo não encontrado</p>;
-
-              return (
-                <div className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label className="text-muted-foreground">Número do Processo</Label>
-                      <p className="font-mono font-semibold">{currentProcess.processNumber}</p>
-                    </div>
-                    <div>
-                      <Label className="text-muted-foreground">Data de Distribuição</Label>
-                      <p>{currentProcess.distributionDate ? new Date(currentProcess.distributionDate).toLocaleDateString('pt-BR') : '-'}</p>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label className="text-muted-foreground">Autor/Requerente</Label>
-                      <p>{currentProcess.plaintiff}</p>
-                    </div>
-                    <div>
-                      <Label className="text-muted-foreground">Réu/Requerido</Label>
-                      <p>{currentProcess.defendant}</p>
-                    </div>
-                  </div>
-
-                  {currentProcess.court && (
-                    <div>
-                      <Label className="text-muted-foreground">Vara/Juizado</Label>
-                      <p>{currentProcess.court}</p>
-                    </div>
-                  )}
-
-                  {currentProcess.subject && (
-                    <div>
-                      <Label className="text-muted-foreground">Assunto</Label>
-                      <p>{currentProcess.subject}</p>
-                    </div>
-                  )}
-
-
-
-                  {currentProcess.facts && (
-                    <div>
-                      <Label className="text-muted-foreground">Fatos</Label>
-                      <p className="text-sm whitespace-pre-wrap">{currentProcess.facts}</p>
-                    </div>
-                  )}
-
-                  {currentProcess.requests && (
-                    <div>
-                      <Label className="text-muted-foreground">Pedidos</Label>
-                      <p className="text-sm whitespace-pre-wrap">{currentProcess.requests}</p>
-                    </div>
-                  )}
-
-                  {currentProcess.evidence && (
-                    <div>
-                      <Label className="text-muted-foreground">Provas</Label>
-                      <p className="text-sm whitespace-pre-wrap">{currentProcess.evidence}</p>
-                    </div>
-                  )}
-                </div>
-              );
-            })()}
-          </DialogContent>
-        </Dialog >
+        <ProcessDataDialog
+          isOpen={isProcessDataOpen}
+          onClose={() => setIsProcessDataOpen(false)}
+          process={processes?.find((p) => p.id === selectedProcessId)}
+        />
 
         {/* Dialog de Upload de Documentos */}
         < Dialog open={isUploadDocsOpen} onOpenChange={setIsUploadDocsOpen} >
@@ -2056,54 +1934,21 @@ export default function David() {
         />
 
         {/* Dialog de Processo Duplicado */}
-        <Dialog
-          open={duplicateProcessDialog.isOpen}
-          onOpenChange={(open) => setDuplicateProcessDialog(prev => ({ ...prev, isOpen: open }))}
-        >
-          <DialogContent className="sm:max-w-md">
-            <DialogHeader>
-              <DialogTitle className="flex items-center gap-2 text-amber-600">
-                ⚠️ Processo já existe!
-              </DialogTitle>
-              <DialogDescription>
-                O processo <strong>{duplicateProcessDialog.processNumber}</strong> já está vinculado a outra(s) conversa(s):
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-2 my-4">
-              {duplicateProcessDialog.existingConversations.map((conv) => (
-                <div
-                  key={conv.id}
-                  className="flex items-center justify-between p-3 bg-muted rounded-lg"
-                >
-                  <span className="text-sm font-medium truncate flex-1">{conv.title}</span>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => {
-                      setSelectedConversationId(conv.id);
-                      setDuplicateProcessDialog({ isOpen: false, processNumber: null, existingConversations: [] });
-                      toast.info("Navegando para conversa existente...");
-                    }}
-                  >
-                    <ChevronRight className="h-4 w-4 mr-1" />
-                    Ir
-                  </Button>
-                </div>
-              ))}
-            </div>
-            <div className="flex gap-2 justify-end">
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setDuplicateProcessDialog({ isOpen: false, processNumber: null, existingConversations: [] });
-                  toast.success("Processo mantido nesta conversa.");
-                }}
-              >
-                Manter aqui
-              </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
+        <DuplicateProcessDialog
+          isOpen={duplicateProcessDialog.isOpen}
+          onClose={() => setDuplicateProcessDialog({ isOpen: false, processNumber: null, existingConversations: [] })}
+          processNumber={duplicateProcessDialog.processNumber}
+          existingConversations={duplicateProcessDialog.existingConversations}
+          onNavigateToConversation={(conversationId) => {
+            setSelectedConversationId(conversationId);
+            setDuplicateProcessDialog({ isOpen: false, processNumber: null, existingConversations: [] });
+            toast.info("Navegando para conversa existente...");
+          }}
+          onKeepHere={() => {
+            setDuplicateProcessDialog({ isOpen: false, processNumber: null, existingConversations: [] });
+            toast.success("Processo mantido nesta conversa.");
+          }}
+        />
       </div>
 
       {/* Modal de Arquivos Anexados */}

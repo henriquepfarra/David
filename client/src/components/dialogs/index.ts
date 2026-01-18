@@ -9,10 +9,10 @@ export { EditDraftDialog, type DraftType } from './EditDraftDialog';
 export { RenameConversationDialog } from './RenameConversationDialog';
 export { DeleteConversationDialog } from './DeleteConversationDialog';
 export { FilesModal } from './FilesModal';
+export { ProcessSelectorDialog } from './ProcessSelectorDialog';
+export { ProcessDataDialog } from './ProcessDataDialog';
+export { DuplicateProcessDialog } from './DuplicateProcessDialog';
 
-// TODO: Dialogs restantes a serem extraídos:
-// export { ProcessSelectorDialog } from './ProcessSelectorDialog';
-// export { ProcessDataDialog } from './ProcessDataDialog';
+// TODO: Dialogs restantes a serem extraídos (complexos, com lógica inline):
 // export { UploadDocsDialog } from './UploadDocsDialog';
 // export { PromptSelectorDialog } from './PromptSelectorDialog';
-// export { DuplicateProcessDialog } from './DuplicateProcessDialog';
