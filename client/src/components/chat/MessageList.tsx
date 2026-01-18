@@ -15,9 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Check, Edit, ChevronDown } from "lucide-react";
 import { Streamdown } from "streamdown";
 import { ProcessBanner } from "./ProcessBanner";
-
-// Logo do app
-const APP_LOGO = "/david-logo.svg";
+import { APP_LOGO } from "@/const";
 
 interface Message {
     id: number;
