@@ -1,42 +1,9 @@
 import { useState, useRef, useEffect, useMemo } from "react";
 import { trpc } from "@/lib/trpc";
-import { useDropzone } from "react-dropzone";
 import { motion, AnimatePresence } from "framer-motion";
-import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
-import { Input } from "@/components/ui/input";
-import { Card } from "@/components/ui/card";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Loader2, Send, Plus, Trash2, FileText, BookMarked, X, Edit, ArrowRight, Upload, ChevronRight, ChevronDown, Gavel, Mic, Wand2, Bot } from "lucide-react";
-
-
-
-
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
+import { Upload } from "lucide-react";
 import { toast } from "sonner";
 import { useLocation } from "wouter";
-import { ToolsMenu } from "@/components/ToolsMenu";
 import DashboardLayout from "@/components/DashboardLayout";
 
 import { useAuth } from "@/_core/hooks/useAuth";
@@ -44,8 +11,8 @@ import { useChatStream } from "@/hooks/useChatStream";
 import { useConversationId } from "@/hooks/useConversationId";
 import { usePdfUpload } from "@/hooks/usePdfUpload";
 import { usePrompts } from "@/hooks/usePrompts";
-import { ChatInput } from "@/components/ChatInput";
-import { AttachedFilesBadge, UploadProgress, MessageList, ChatInputArea } from "@/components/chat";
+import { useDavidMutations } from "@/hooks/useDavidMutations";
+import { MessageList, ChatInputArea } from "@/components/chat";
 import { HomeScreen } from "@/components/HomeScreen";
 import { PromptsModal } from "@/components/prompts";
 import {
@@ -323,21 +290,6 @@ export default function David() {
   }, [searchQuery]);
 
 
-  // 🔧 REMOVIDO: Query listPaginated e estados de prompts
-  // Agora vêm do usePrompts hook (linha 226)
-
-  // 🔧 REMOVIDO: Mutations de prompts (create, update, delete, createCollection)
-  // Agora vêm do usePrompts hook (linha 226)
-
-
-  // Mutation para upload de documentos
-  const uploadDocMutation = trpc.processDocuments.upload.useMutation({
-    onError: (error) => {
-      console.error("[UploadDoc] Erro ao fazer upload:", error);
-      // Erro já é tratado no catch onde mutateAsync é chamado
-    },
-  });
-
   // Queries
   const { data: conversations, refetch: refetchConversations } = trpc.david.listConversations.useQuery();
   const { data: processes } = trpc.processes.list.useQuery();
@@ -351,6 +303,42 @@ export default function David() {
       refetchOnReconnect: false,
     }
   );
+  const settings = trpc.settings.get.useQuery();
+
+  // 🔧 INTEGRADO: useDavidMutations hook substitui todas as mutations inline
+  const {
+    createConversationMutation,
+    renameConversationMutation,
+    deleteConversationMutation,
+    togglePinMutation,
+    deleteMultipleMutation,
+    updateProcessMutation,
+    generateTitleMutation,
+    updateGoogleFileMutation,
+    cleanupGoogleFileMutation,
+    cleanupIfEmptyMutation,
+    approveDraftMutation,
+    applyPromptMutation,
+    enhancePromptMutation,
+    transcribeAudioMutation,
+    uploadDocMutation,
+  } = useDavidMutations({
+    onConversationCreated: (data) => setSelectedConversationId(data.id),
+    onConversationDeleted: () => {
+      setSelectedConversationId(null);
+      setIsDeleteDialogOpen(false);
+      setDeletingConversationId(null);
+    },
+    onConversationRenamed: () => {
+      setIsRenameDialogOpen(false);
+      setRenamingConversationId(null);
+      setNewConversationTitle("");
+    },
+    onConversationsRefetch: refetchConversations,
+    onMessagesRefetch: refetchMessages,
+    onSelectionCleared: () => setSelectedConversations(new Set()),
+    onSelectionModeOff: () => setIsSelectionMode(false),
+  });
 
   // Debug de erros de carregamento
   useEffect(() => {
@@ -359,10 +347,6 @@ export default function David() {
       toast.error("Erro ao carregar conversa. Tente recarregar a página.");
     }
   }, [conversationError]);
-
-  // Debug de navegação removido
-
-  // Log de render removido - era fonte de spam no console
 
   // Sincronizar selectedProcessId com a conversa carregada
   useEffect(() => {
@@ -379,108 +363,6 @@ export default function David() {
       refetchMessages();
     }
   }, [selectedConversationId, refetchMessages]);
-  // 🔧 REMOVIDO: Query promptCollections e estados de navegação
-  // Agora vêm do usePrompts hook (linha 226)
-
-  // Mutations
-  const createConversationMutation = trpc.david.createConversation.useMutation({
-    onSuccess: (data) => {
-      // Navegar para nova conversa
-      setSelectedConversationId(data.id);
-      refetchConversations();
-    },
-    onError: (error) => {
-      toast.error("Erro ao criar conversa: " + error.message);
-      console.error("[CreateConv] Erro ao criar conversa:", error);
-    },
-  });
-
-  const utils = trpc.useUtils();
-
-  const updateProcessMutation = trpc.david.updateConversationProcess.useMutation({
-    onSuccess: () => {
-      refetchMessages();
-      toast.success("Processo vinculado à conversa");
-      // Título será definido manualmente com número do processo nos locais de chamada
-      if (selectedConversationId) {
-        // generateTitleMutation removido para usar número do processo
-      }
-    },
-    onError: (error) => {
-      toast.error("Erro ao vincular processo: " + error.message);
-    },
-  });
-
-  // Mutation para gerar título automático da conversa
-  const generateTitleMutation = trpc.david.generateTitle.useMutation({
-    onSuccess: () => {
-      refetchConversations(); // Atualiza lista de conversas na sidebar
-    },
-    onError: (error) => {
-      console.error("[TitleGen] Erro ao gerar título:", error.message);
-      // Não mostrar toast pois é operação em background
-    },
-  });
-
-  // Mutation para atualizar arquivo Google na conversa
-  const updateGoogleFileMutation = trpc.david.updateGoogleFile.useMutation({
-    onSuccess: () => {
-      // Arquivo vinculado silenciosamente
-    },
-    onError: (error) => {
-      console.error("[UpdateGoogle] Erro:", error.message);
-    },
-  });
-
-  // Mutation para limpar arquivo Google ao sair da conversa
-  const cleanupGoogleFileMutation = trpc.david.cleanupGoogleFile.useMutation({
-    onSuccess: () => {
-      // Arquivo limpo silenciosamente
-    },
-    onError: (error) => {
-      console.error("[Cleanup] Erro ao limpar arquivo:", error.message);
-    },
-  });
-
-  // Query para obter configurações do usuário (modelo LLM)
-  const settings = trpc.settings.get.useQuery();
-
-  const cleanupIfEmptyMutation = trpc.david.cleanupIfEmpty.useMutation({
-    onSuccess: (data) => {
-      if (data.deleted) {
-        refetchConversations();
-      }
-    },
-    onError: (error) => {
-      console.error("[Cleanup] Erro ao limpar conversa vazia:", error.message);
-      // Não mostrar toast pois é operação em background
-    },
-  });
-
-  // 🔧 REMOVIDO: uploadState, uploadPdfQuickMutation, onDrop, useDropzone
-  // Agora vêm do usePdfUpload hook (linha 211)
-
-  // NOTA: registerFromUploadMutation ainda existe mas não é usado pelo fluxo atual
-  // (uploadPdfQuick não extrai mais o processo automaticamente)
-
-  const approveDraftMutation = trpc.david.approvedDrafts.create.useMutation({
-    onSuccess: () => {
-      toast.success("✅ Minuta aprovada e salva para aprendizado!");
-    },
-    onError: (error) => {
-      toast.error("Erro ao salvar minuta: " + error.message);
-    },
-  });
-
-  const applyPromptMutation = trpc.david.savedPrompts.applyToConversation.useMutation({
-    onSuccess: () => {
-      refetchMessages();
-      toast.success("📝 Prompt aplicado com sucesso!");
-    },
-    onError: (error) => {
-      toast.error("Erro ao aplicar prompt: " + error.message);
-    },
-  });
 
   // Effect para cleanup ao trocar de conversa
   useEffect(() => {
@@ -643,54 +525,6 @@ export default function David() {
     toast.info("Geração interrompida");
   };
 
-  const renameConversationMutation = trpc.david.renameConversation.useMutation({
-    onSuccess: () => {
-      refetchConversations();
-      setIsRenameDialogOpen(false);
-      setRenamingConversationId(null);
-      setNewConversationTitle("");
-      toast.success("✏️ Conversa renomeada");
-    },
-    onError: (error) => {
-      toast.error("Erro ao renomear: " + error.message);
-    },
-  });
-
-  const deleteConversationMutation = trpc.david.deleteConversation.useMutation({
-    onSuccess: () => {
-      refetchConversations();
-      setSelectedConversationId(null);
-      setIsDeleteDialogOpen(false);
-      setDeletingConversationId(null);
-      toast.success("🗑️ Conversa deletada");
-    },
-    onError: (error) => {
-      toast.error("Erro ao deletar: " + error.message);
-    },
-  });
-
-  const togglePinMutation = trpc.david.togglePin.useMutation({
-    onSuccess: () => {
-      refetchConversations();
-      toast.success("📌 Status de fixação alterado");
-    },
-    onError: (error) => {
-      toast.error("Erro ao fixar: " + error.message);
-    },
-  });
-
-  const deleteMultipleMutation = trpc.david.deleteMultiple.useMutation({
-    onSuccess: (data) => {
-      refetchConversations();
-      setSelectedConversations(new Set());
-      setIsSelectionMode(false);
-      toast.success(`🗑️ ${data.deletedCount} conversa(s) deletada(s)`);
-    },
-    onError: (error) => {
-      toast.error("Erro ao deletar conversas: " + error.message);
-    },
-  });
-
   // Auto-scroll ao receber novas mensagens ou durante streaming
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -755,32 +589,30 @@ export default function David() {
   };
 
   // --- Áudio & Enhancer Logic ---
-  const enhancePromptMutation = trpc.david.enhancePrompt.useMutation({
-    onSuccess: (data) => {
-      setMessageInput(data.content);
-      toast.success("Prompt melhorado!");
-      adjustTextareaHeight();
-    },
-    onError: () => toast.error("Erro ao melhorar prompt"),
-  });
-
-  const transcribeAudioMutation = trpc.david.transcribeAudio.useMutation({
-    onSuccess: (data) => {
-      setMessageInput((prev) => (prev ? prev + " " : "") + data.text);
-      if (textareaRef.current) {
-        textareaRef.current.focus();
-        adjustTextareaHeight();
-      }
-    },
-    onError: () => toast.error("Erro ao transcrever áudio"),
-  });
-
   const [isRecording, setIsRecording] = useState(false);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
 
   const handleEnhancePrompt = () => {
     if (!messageInput.trim()) return;
-    enhancePromptMutation.mutate({ prompt: messageInput });
+    enhancePromptMutation.mutate({ prompt: messageInput }, {
+      onSuccess: (data) => {
+        setMessageInput(data.content);
+        toast.success("Prompt melhorado!");
+        adjustTextareaHeight();
+      },
+    });
+  };
+
+  const handleTranscribeAudio = (base64Audio: string) => {
+    transcribeAudioMutation.mutate({ audio: base64Audio }, {
+      onSuccess: (data) => {
+        setMessageInput((prev) => (prev ? prev + " " : "") + data.text);
+        if (textareaRef.current) {
+          textareaRef.current.focus();
+          adjustTextareaHeight();
+        }
+      },
+    });
   };
 
   const handleRecordClick = async () => {
@@ -804,7 +636,7 @@ export default function David() {
           reader.readAsDataURL(audioBlob);
           reader.onloadend = () => {
             const base64Audio = (reader.result as string).split(",")[1];
-            transcribeAudioMutation.mutate({ audio: base64Audio });
+            handleTranscribeAudio(base64Audio);
           };
           stream.getTracks().forEach((track) => track.stop());
         };
@@ -919,7 +751,9 @@ export default function David() {
               isCreatingConversation={createConversationMutation.isPending}
               isStreaming={isStreaming}
             />
-          )}          {/* Modal de Prompts - Na HOME aparece centralizado */}
+          )}
+
+          {/* Modal de Prompts - Na HOME aparece centralizado */}
           {!selectedConversationId && (
             <PromptsModal
               variant="centered"
@@ -971,9 +805,6 @@ export default function David() {
             />
           )}
 
-
-
-
           {/* Área de Input - esconde quando na HOME (sem conversa selecionada) */}
           <div {...getRootProps()} className={`outline-none ${!selectedConversationId ? 'hidden' : ''}`}>
             <input {...getInputProps()} />
@@ -999,7 +830,8 @@ export default function David() {
             {/* Banner de progresso removido - agora fica dentro do input */}
 
             <div className="p-4 border-t bg-background">
-              <div className="max-w-4xl mx-auto relative">                {/* Modal de Prompts no CHAT - acoplado à barra de input */}
+              <div className="max-w-4xl mx-auto relative">
+                {/* Modal de Prompts no CHAT - acoplado à barra de input */}
                 {selectedConversationId && (
                   <PromptsModal
                     variant="anchored"
@@ -1050,9 +882,6 @@ export default function David() {
                     setIsSearchOpen={setIsSearchOpen}
                   />
                 )}
-
-
-
 
                 <ChatInputArea
                   // Input
