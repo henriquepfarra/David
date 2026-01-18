@@ -71,9 +71,9 @@ export default function PendingTheses() {
                         })
                     }
                     isLoading={
-                        approveThesisMutation.isLoading ||
-                        editThesisMutation.isLoading ||
-                        rejectThesisMutation.isLoading
+                        approveThesisMutation.isPending ||
+                        editThesisMutation.isPending ||
+                        rejectThesisMutation.isPending
                     }
                 />
             ))}

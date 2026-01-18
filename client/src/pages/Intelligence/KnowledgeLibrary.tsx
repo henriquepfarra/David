@@ -34,7 +34,7 @@ export default function KnowledgeLibrary() {
                 <div className="flex items-center justify-center py-12">
                     <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
                 </div>
-            ) : !theses || theses.length === 0 ? (
+            ) : !theses || theses.theses.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-12 text-center">
                     <div className="text-4xl mb-4">📚</div>
                     <p className="text-sm text-muted-foreground">
@@ -43,7 +43,7 @@ export default function KnowledgeLibrary() {
                 </div>
             ) : (
                 <div className="space-y-4">
-                    {theses.map((thesis) => (
+                    {theses.theses.map((thesis) => (
                         <div
                             key={thesis.id}
                             className="border rounded-lg p-4 hover:bg-accent/50 transition-colors"

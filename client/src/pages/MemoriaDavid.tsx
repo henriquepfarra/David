@@ -33,7 +33,7 @@ import DashboardLayout from "@/components/DashboardLayout";
 
 interface Thesis {
   id: number;
-  thesis: string;
+  thesis: string | null;
   legalFoundations?: string | null;
   keywords?: string | null;
   decisionPattern?: string | null;
@@ -45,7 +45,7 @@ interface Draft {
   originalDraft: string;
   editedDraft?: string | null;
   draftType: string;
-  createdAt: string;
+  createdAt: Date | string;
 }
 
 export default function MemoriaDavid() {

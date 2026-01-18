@@ -19,7 +19,7 @@ interface Draft {
   title: string;
   content: string;
   draftType: string;
-  createdAt: string;
+  createdAt: Date | string;
 }
 
 export default function Minutas() {

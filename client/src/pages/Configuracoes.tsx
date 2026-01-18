@@ -656,11 +656,12 @@ Deixe vazio se não tiver preferências específicas.`}
                             className="pr-10"
                           />
                           {isLlmConfigured ? (
-                            <Trash2
-                              className="absolute right-3 top-2.5 h-4 w-4 text-destructive opacity-70 hover:opacity-100 cursor-pointer transition-opacity"
-                              onClick={handleRemoveLlmApiKey}
-                              title="Remover chave de API"
-                            />
+                            <span title="Remover chave de API">
+                              <Trash2
+                                className="absolute right-3 top-2.5 h-4 w-4 text-destructive opacity-70 hover:opacity-100 cursor-pointer transition-opacity"
+                                onClick={handleRemoveLlmApiKey}
+                              />
+                            </span>
                           ) : (
                             <Key className="absolute right-3 top-2.5 h-4 w-4 text-muted-foreground opacity-50" />
                           )}

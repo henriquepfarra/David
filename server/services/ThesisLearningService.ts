@@ -67,7 +67,7 @@ export class ThesisLearningService {
 
         // 4. Salvar no banco com status PENDING_REVIEW
         console.log(`[ThesisLearning] Salvando tese com status PENDING_REVIEW...`);
-        const insertResult = await db.insert(learnedTheses).values({
+        const [insertResult] = await db.insert(learnedTheses).values({
             userId: draft.userId,
             approvedDraftId: draft.id,
             processId: draft.processId ?? undefined,
@@ -88,9 +88,9 @@ export class ThesisLearningService {
             // Quality Gate
             status: "PENDING_REVIEW",
             isObsolete: 0,
-        });
+        }).$returningId();
 
-        const thesisId = insertResult.insertId;
+        const thesisId = insertResult.id;
 
         console.log(
             `✅ [ThesisLearning] Tese #${thesisId} extraída e salva com sucesso (status: PENDING_REVIEW)`
