@@ -13,7 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Loader2, Send, Plus, Trash2, FileText, Settings, BookMarked, X, Check, Edit, ArrowRight, Upload, MessageSquare, ChevronRight, ChevronDown, Pin, PinOff, Gavel, Brain, Mic, Wand2, Bot, Paperclip } from "lucide-react";
+import { Loader2, Send, Plus, Trash2, FileText, BookMarked, X, Edit, ArrowRight, Upload, ChevronRight, ChevronDown, Gavel, Mic, Wand2, Bot } from "lucide-react";
 
 
 
@@ -35,12 +35,10 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { Streamdown } from "streamdown";
 import { useLocation } from "wouter";
 import { ToolsMenu } from "@/components/ToolsMenu";
 import DashboardLayout from "@/components/DashboardLayout";
 
-import { APP_LOGO } from "@/const";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { useChatStream } from "@/hooks/useChatStream";
 import { useConversationId } from "@/hooks/useConversationId";
