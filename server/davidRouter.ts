@@ -537,7 +537,8 @@ export const davidRouter = router({
         conversation.processId,
         history.slice(-5).map(m => ({ role: m.role, content: m.content })),
         ctx.user.id,
-        input.systemPromptOverride
+        input.systemPromptOverride,
+        conversation.googleFileUri // Passar fileUri para classificação de intento correta
       );
 
       logger.info(`[DavidRouter] Intent: ${IntentService.formatDebugBadge(intentResult)}`);
@@ -721,7 +722,8 @@ Retorne APENAS essas informações de forma objetiva.`,
         conversation.processId,
         history.slice(-5).map(m => ({ role: m.role, content: m.content })),
         ctx.user.id,
-        input.systemPromptOverride
+        input.systemPromptOverride,
+        conversation.googleFileUri // Passar fileUri para classificação de intento correta
       );
 
       logger.info(`[DavidRouter] Intent (Stream): ${IntentService.formatDebugBadge(intentResult)}`);

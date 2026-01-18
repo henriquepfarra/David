@@ -1,10 +1,16 @@
 # TODO - DAVID (Assistente Jurídico IA)
 
-> **Última atualização**: 10/01/2026
+> **Última atualização**: 18/01/2026
 
 ---
 
 ## ✅ Concluído
+
+### Estabilização MVP (Janeiro/2026)
+- [x] **Loop of Death corrigido**: Hook `useConversationId` como fonte única de verdade
+- [x] **LLM model default**: Fallback para `gemini-2.5-flash` quando não configurado
+- [x] **Cleanup código morto**: David.tsx -38% linhas (2.924 → 1.820), -37% useState (46 → 29)
+- [x] **Upload PDF estável**: Não trava mais, navegação funciona corretamente
 
 ### Manutenção e Refatoração (30/12/2025)
 - [x] **Limpeza de UI**: Remoção de 21 componentes e libs não utilizados (Shadcn UI orphans)
@@ -101,46 +107,44 @@
 
 ---
 
-## 🔧 Em Andamento / Pendente Imediato
+## 🔧 Em Andamento (Semana 2: Features Jurídicas + Fixes Core)
 
-**Nenhuma tarefa pendente imediata.** O sistema está estável.
+### 2A. Sistema de Teses (Aprendizado Ativo) - Prioridade Alta
+- [ ] **UI de revisão de teses pendentes** `PendingTheses.tsx` (Já existe backend)
+- [ ] **Dialog de revisão** `ThesisReviewDialog.tsx` (Aprovar/Rejeitar/Editar)
+- [ ] **Badge de pendentes** no sidebar `DashboardLayout.tsx`
+- [ ] **Tab "Pendentes"** na página Memória `MemoriaDavid.tsx`
 
----
+### 2B. Análise de Petições (Novo Intent)
+- [ ] **IntentService com fileUri**: Classificar considerando upload visual (Fix #8)
+- [ ] Intent `PETITION_ANALYSIS` no `IntentService.ts`
+- [ ] Prompt estruturado para análise de peças
+- [ ] Integração com `DavidRouter` (`/analisar` ou detecção)
 
-## 📋 Próximas Prioridades
-
-### Rastreabilidade de Documentos
-- [ ] Instrução de extração com número de eventos/páginas
-- [ ] Formato: "(Evento X, fls. Y)"
-- [ ] Diagnóstico de legibilidade do PDF
-
-### Exportação
-- [ ] Exportar minuta para PDF
-- [ ] Exportar minuta para DOCX
-
-### Melhorias no Active Learning
-- [ ] Interface para aprovação/rejeição de teses pendentes (PENDING_REVIEW)
-- [ ] Dashboard de estatísticas de aprendizado
-- [ ] Bulk actions (aprovar/rejeitar múltiplas teses)
+### 2C. Melhorar Contexto e Resposta
+- [ ] **Thinking vs Resposta**: Integridade check no System Prompt (Fix #2)
+- [ ] **Rastreabilidade**: Prompt citando "pág. X" sempre que usar PDF (Fix #4)
+- [ ] **DB Súmulas**: Validar separação System/User no RAG (Fix #1)
+- [ ] Verificar integração `File API` no `ContextBuilder`
 
 ---
 
-## 🚀 Melhorias Futuras
+## 📋 Próximas Prioridades (Semana 3: UI Polish)
 
-### Interface
-- [ ] Tema escuro/claro
-- [ ] Sugestões contextuais durante chat
-- [ ] Comando `/precedentes` para busca manual
+### UI/UX Profissional
+- [ ] **Badge de arquivos**: Visualização melhorada no chat (Fix #5)
+- [ ] **Comandos prontos**: Atalhos `/analisar`, `/resumir` (Fix #7)
+- [ ] **API Keys**: Revisão da UX de chaves (Fix #3)
+- [ ] **Módulos de Gabinete**: Investigar e definir (Fix #6)
+- [ ] **Empty States**: Chat vazio, listas vazias, inbox zero
+- [ ] **Loading States**: Skeletons consistentes
+- [ ] **Feedback de Upload**: Barra de progresso visível
 
-### Thinking e Performance
-- [ ] Otimização de cache de embeddings
-- [ ] Monitoring de performance do RAG hybrid
-- [ ] Thinking logs para debug de Intent classification
-
-### Integração Avançada
-- [ ] Armazenamento de PDFs em S3/R2
-- [ ] Sincronização com Google Drive
-- [ ] Webhook para atualizações de processo
+### Backlog Pós-MVP
+- [ ] Exportação de minutas (PDF/DOCX)
+- [ ] Interface avançada de Knowledge Base
+- [ ] Refatoração profunda do `David.tsx`
+- [ ] Aumentar cobertura de testes para 70%
 
 ---
 

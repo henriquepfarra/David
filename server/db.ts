@@ -377,12 +377,10 @@ export async function getUserKnowledgeBase(userId: number) {
   const db = await getDb();
   if (!db) return [];
   const { knowledgeBase } = await import("../drizzle/schema");
-  // Buscar documentos do usuário OU documentos do sistema (súmulas, artigos, etc.)
+  // Buscar documentos APENAS do usuário para gestão na UI (Settings)
+  // Documentos do sistema (súmulas) são usados apenas internamente pelo RagService
   return db.select().from(knowledgeBase).where(
-    or(
-      eq(knowledgeBase.userId, userId),
-      eq(knowledgeBase.source, "sistema")
-    )
+    eq(knowledgeBase.userId, userId)
   ).orderBy(knowledgeBase.createdAt);
 }
 

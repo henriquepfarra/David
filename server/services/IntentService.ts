@@ -45,6 +45,7 @@ export interface IntentResult {
 
 export interface ClassifyContext {
     processId?: number | null;
+    fileUri?: string | null;
     history?: Array<{ role: string; content: string }>;
 }
 
@@ -262,7 +263,7 @@ Responda APENAS com o JSON:
 
 const CONCRETE_CLASSIFIER_PROMPT = `Você é um classificador de intenções para um assistente jurídico.
 
-O usuário está com um PROCESSO aberto. Analise a mensagem e responda:
+O usuário está com um PROCESSO aberto ou analisando um DOCUMENTO (PDF). Analise a mensagem e responda:
 
 1. needsFacts: A resposta precisa ler os fatos do processo/PDF? (true/false)
 2. needsStyle: A resposta precisa imitar o estilo do juiz? (true/false)
@@ -448,10 +449,13 @@ export async function classify(
     context: ClassifyContext,
     apiKey: string
 ): Promise<IntentResult> {
-    const hasProcess = context.processId != null;
+    // -----------------------------------------------------------------------
+    // [MODIFICAÇÃO DO USUÁRIO]: Considera fileUri também como indicador de processo (caminho concreto)
+    // -----------------------------------------------------------------------
+    const hasProcess = context.processId != null || !!context.fileUri;
 
     console.log(
-        `[IntentService] Classificando: "${message.substring(0, 50)}..." | Processo: ${hasProcess}`
+        `[IntentService] Classificando: "${message.substring(0, 50)}..." | Processo/Arquivo: ${hasProcess} (PID: ${context.processId}, File: ${!!context.fileUri})`
     );
 
     if (!hasProcess) {

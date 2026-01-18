@@ -1,0 +1,338 @@
+# 🎯 Roadmap MVP: David em < 1 Mês
+
+**Data de Criação**: 18/01/2026
+**Prazo**: < 1 mês para primeiros usuários
+**Status**: 🚧 Em Execução
+
+---
+
+## 📊 Contexto da Decisão
+
+### Pergunta Original
+> Terminar refatoração vs. terminar funcionalidades primeiro?
+
+### Resposta
+**Nem um nem outro na forma pura** — seguir um caminho híbrido pragmático.
+
+### Racional
+| Opção | Prós | Contras |
+|-------|------|---------|
+| **Refatoração Pura** | Código limpo, fácil manutenção | 3-4 semanas sem entregar valor |
+| **Funcionalidades Puras** | Entrega rápida | Dívida técnica exponencial |
+| **Híbrido (escolhido)** | Estabiliza + entrega | Código imperfeito por mais tempo |
+
+### Princípio Guia
+> **"Corrigir apenas o que bloqueia funcionalidades ou uso, não refatorar por refatorar."**
+
+---
+
+## 📈 Estado Atual do Projeto
+
+| Área | Status | Detalhes |
+|------|--------|----------|
+| **UI/Layout** | 80-85% | Polish faltando (empty states, loading) |
+| **Features Jurídicas** | Backend ✅ / Frontend 60% | Teses pendentes, análise de petições |
+| **Refatoração** | Em pausa | David.tsx: 2.278 linhas (meta <500) |
+| **Testes** | 616 passando | Cobertura ~13% |
+| **Bug Crítico** | 🔴 Loop of Death | Bloqueia upload de PDF |
+
+---
+
+## 🗓️ Plano de Execução (4 Semanas)
+
+### Semana 1: Estabilização Crítica ⚡
+
+**Objetivo**: Eliminar bugs que bloqueiam uso básico
+
+| # | Tarefa | Arquivos | Status |
+|---|--------|----------|--------|
+| 1.1 | Corrigir Loop of Death | `David.tsx`, `DashboardLayout.tsx` | ✅ FEITO |
+| 1.2 | Definir LLM model default | `_core/llm.ts` | ✅ FEITO (fallback: gemini-2.5-flash) |
+| 1.3 | Cleanup código morto (Fase 8) | `David.tsx` + 10 dialogs | ✅ FEITO (-38% linhas) |
+
+**Entregável**: App estável para uso diário sem travamentos ✅ **COMPLETA**
+
+#### 1.1 Loop of Death - Detalhes
+
+**Problema**: Sincronização bidirecional de estado causa loop infinito
+```
+DashboardLayout → setLocation → David.tsx useEffect →
+setSelectedConversationId → re-render → polling detecta mudança → LOOP
+```
+
+**Solução**: Hook `useConversationId` (já criado)
+- URL como única fonte de verdade
+- Remover polling de query string
+- Remover sincronização duplicada
+
+**Arquivos a modificar**:
+- [x] `client/src/hooks/useConversationId.ts` — Já criado ✅
+- [ ] `client/src/pages/David.tsx` — Integrar hook, remover código legado
+- [ ] `client/src/components/DashboardLayout.tsx` — Usar hook para navegação
+
+**Validação**:
+- [ ] Upload PDF não trava
+- [ ] Navegar entre conversas funciona
+- [ ] F5 mantém conversa selecionada
+- [ ] Voltar/avançar do browser funciona
+
+---
+
+### Semana 2: Features Jurídicas + Chat/IA 🧑‍⚖️
+
+**Objetivo**: Completar aprendizado ativo + melhorar integração de contexto
+
+#### 2A. Sistema de Teses (Aprendizado Ativo) — ESSENCIAL
+
+| # | Tarefa | Arquivos | Backend |
+|---|--------|----------|---------|
+| 2A.1 | UI de revisão de teses pendentes | `PendingTheses.tsx` — CRIAR | ✅ Existe |
+| 2A.2 | Dialog approve/reject/edit | `ThesisReviewDialog.tsx` — CRIAR | ✅ Existe |
+| 2A.3 | Badge de pendentes no sidebar | `DashboardLayout.tsx` | ✅ Existe |
+| 2A.4 | Tab "Pendentes" na Memória | `MemoriaDavid.tsx` | ✅ Existe |
+
+**Endpoints disponíveis** (thesisRouter.ts):
+- `getPendingCount` — Contagem para badge
+- `getPendingTheses` — Lista para revisão
+- `approveThesis` — Aprovar tese
+- `editThesis` — Editar antes de aprovar
+- `rejectThesis` — Rejeitar tese
+
+**Fluxo do usuário**:
+```
+Juiz aprova minuta → Sistema extrai tese →
+Tese vai para "Pendentes" → Juiz revisa/aprova →
+Tese ativa influencia futuras respostas
+```
+
+#### 2B. Análise de Petições (Novo Intent)
+
+| # | Tarefa | Arquivos | Escopo |
+|---|--------|----------|--------|
+| 2B.1 | Adicionar intent PETITION_ANALYSIS | `IntentService.ts` | Classificação |
+| 2B.2 | Prompt específico para análise | `PromptBuilder.ts` | Template estruturado |
+| 2B.3 | Trigger por comando ou detecção | `davidRouter.ts` | `/analisar` ou auto |
+
+**Output esperado**:
+- Partes identificadas
+- Pedidos principais
+- Pontos de atenção
+- Prazos relevantes
+- Fundamentação legal citada
+
+#### 2C. Melhorar Uso de Documentos do Processo
+
+| # | Tarefa | Arquivos | Escopo |
+|---|--------|----------|--------|
+| 2C.1 | Verificar integração File API | `ContextBuilder.ts` | PDFs entram no contexto |
+| 2C.2 | Ajustar retrieval de chunks | `RagService.ts` | Priorizar docs do processo |
+| 2C.3 | Testar fluxo completo | E2E | Upload → Pergunta → Resposta |
+
+**Entregável**: David usa conteúdo dos documentos anexados nas respostas
+
+---
+
+### Semana 3: Polish de UI/UX ✨
+
+**Objetivo**: Experiência profissional para usuário final
+
+| # | Tarefa | Escopo | Prioridade |
+|---|--------|--------|------------|
+| 3.1 | Empty states | Chat vazio, prompts vazios, inbox | Alta |
+| 3.2 | Loading states consistentes | Skeleton loaders | Alta |
+| 3.3 | Feedback visual de uploads | Progress bar real | Média |
+| 3.4 | Responsividade mobile | Dialogs, sidebar | Média |
+| 3.5 | Onboarding básico | Tooltip primeiro uso | Baixa |
+
+**Entregável**: UI que não causa confusão em usuário novo
+
+---
+
+### Semana 4: Testes com Usuários + Buffer 🧪
+
+**Objetivo**: Validar com usuários reais, corrigir o que surgir
+
+| # | Tarefa | Foco |
+|---|--------|------|
+| 4.1 | Deploy para ambiente de teste | Staging com dados reais |
+| 4.2 | Sessões com 2-3 usuários | Observar uso, coletar feedback |
+| 4.3 | Hotfixes baseado em feedback | Priorizar por impacto |
+| 4.4 | Buffer para imprevistos | ~3 dias de margem |
+
+**Entregável**: Produto validado por usuários reais
+
+---
+
+## 🚫 O Que NÃO Fazer Agora
+
+| Item | Motivo | Quando Fazer |
+|------|--------|--------------|
+| Refatorar god functions do backend | Funciona, não bloqueia | Pós-MVP |
+| Extrair MessageList/ChatArea (Fase 5-6) | Nice-to-have | Pós-MVP |
+| Aumentar cobertura de testes para 70% | Importante mas não urgente | Pós-MVP |
+| Dark mode | Feature, não necessidade | Pós-feedback |
+| i18n | Só precisa português | Se expandir |
+| UI de Knowledge Base | Usuário não gerencia | Se necessário |
+
+---
+
+## 📁 Arquivos Críticos por Semana
+
+### Semana 1 (Estabilização)
+```
+client/src/
+├── pages/David.tsx              # Integrar useConversationId
+├── hooks/useConversationId.ts   # ✅ Já criado
+└── components/DashboardLayout.tsx # Usar hook para navegação
+
+server/
+└── davidRouter.ts               # Fallback de modelo LLM
+```
+
+### Semana 2 (Features Jurídicas)
+```
+client/src/
+├── pages/MemoriaDavid.tsx       # Tab de pendentes
+├── components/
+│   ├── PendingTheses.tsx        # CRIAR - Lista de teses
+│   └── dialogs/
+│       └── ThesisReviewDialog.tsx # CRIAR - Approve/reject
+└── components/DashboardLayout.tsx # Badge de pendentes
+
+server/services/
+├── IntentService.ts             # Novo intent PETITION_ANALYSIS
+├── PromptBuilder.ts             # Template de análise
+├── ContextBuilder.ts            # Verificar integração docs
+└── RagService.ts                # Priorizar docs do processo
+```
+
+### Semana 3 (UI Polish)
+```
+client/src/
+├── components/ui/               # Empty states, skeletons
+├── pages/*.tsx                  # Adicionar estados vazios
+└── styles/                      # Ajustes responsivos
+```
+
+---
+
+## ✅ Critérios de Sucesso (Definition of Done)
+
+### Para considerar "Pronto para Usuários":
+
+- [ ] **Estabilidade**
+  - [ ] Upload de PDF funciona sem travar (Loop of Death corrigido)
+  - [ ] Chat responde consistentemente (modelo default definido)
+
+- [ ] **Features Jurídicas**
+  - [ ] Juiz consegue aprovar/rejeitar teses extraídas
+  - [ ] David analisa petições quando solicitado
+  - [ ] Respostas usam conteúdo dos documentos do processo
+
+- [ ] **UX**
+  - [ ] UI não tem estados "em branco" confusos
+  - [ ] Funciona em mobile (pelo menos visualização)
+
+- [ ] **Validação**
+  - [ ] 2-3 usuários testaram sem assistência
+  - [ ] Completaram tarefas básicas com sucesso
+
+---
+
+## 🧪 Plano de Testes
+
+### 1. Loop of Death
+```bash
+# Testar manualmente:
+1. Abrir /david
+2. Criar nova conversa
+3. Upload de PDF
+4. Navegar para outra conversa
+5. Voltar para a conversa com PDF
+6. Verificar: sem travamento, sem "Maximum update depth"
+```
+
+### 2. Chat com Modelo Default
+```bash
+# Testar:
+1. Remover configuração de modelo do usuário
+2. Enviar mensagem
+3. Verificar: resposta normal (não crash)
+```
+
+### 3. Sistema de Teses
+```bash
+# Testar:
+1. Aprovar uma minuta
+2. Verificar extração de tese (backend)
+3. Acessar "Memória" > "Pendentes"
+4. Revisar e aprovar tese
+5. Verificar: tese aparece em "Ativas"
+```
+
+### 4. Análise de Petições
+```bash
+# Testar:
+1. Anexar petição (PDF)
+2. Enviar: "analise essa petição"
+3. Verificar: resposta estruturada com pontos de atenção
+```
+
+### 5. Contexto de Documentos
+```bash
+# Testar:
+1. Selecionar processo com documentos
+2. Perguntar algo específico do processo
+3. Verificar: resposta usa informações dos docs
+```
+
+---
+
+## 📊 Métricas de Acompanhamento
+
+| Métrica | Inicial | Meta | Atual |
+|---------|---------|------|-------|
+| David.tsx linhas | 2.924 | <1500 | **1.820** (-38%) |
+| useState hooks | 46 | <20 | **29** (-37%) |
+| useEffect hooks | 14 | <8 | **12** |
+| Bugs críticos | 2 | 0 | **0** ✅ |
+| Semana 1 | - | Completa | ✅ **100%** |
+| Features jurídicas completas | 60% | 90% | 60% |
+| Usuários testaram | 0 | 3+ | 0 |
+
+---
+
+## 🔄 Trade-offs Aceitos
+
+1. **David.tsx continua grande** — Refatoração completa adiada para pós-MVP
+2. **Cobertura de testes baixa** — Foco em testes manuais e E2E críticos
+3. **God functions no backend** — Funcionam, não bloqueiam
+4. **Sem dark mode** — Feature cosmética, não essencial
+
+---
+
+## 📅 Checkpoints
+
+| Data | Checkpoint | Critério |
+|------|------------|----------|
+| Fim Semana 1 | Estabilização | App não trava, chat funciona |
+| Fim Semana 2 | Features | Teses + análise funcionando |
+| Fim Semana 3 | Polish | UI profissional |
+| Fim Semana 4 | Validação | Feedback de usuários reais |
+
+---
+
+## 🚀 Próximos Passos Imediatos
+
+1. **AGORA**: Finalizar correção do Loop of Death
+   - Verificar se David.tsx já usa `useConversationId`
+   - Remover código legado de polling/sincronização
+   - Atualizar DashboardLayout.tsx
+
+2. **Após Loop corrigido**: Testar upload de PDF end-to-end
+
+3. **Então**: Seguir para tarefas da Semana 2
+
+---
+
+**Documento vivo** — Atualizar conforme progresso

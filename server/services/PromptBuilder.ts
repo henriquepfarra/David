@@ -25,6 +25,7 @@ import {
   CORE_ZERO_TOLERANCE,
   CORE_TRANSPARENCY,
   CORE_STYLE,
+  CORE_THINKING,
 } from "../prompts/core";
 
 import {
@@ -160,7 +161,8 @@ export class PromptBuilder {
     processId: number | null,
     history: Array<{ role: string; content: string }>,
     userId: number,
-    systemPromptOverride?: string
+    systemPromptOverride?: string,
+    fileUri?: string | null // Novo argumento opcional
   ): Promise<{ systemPrompt: string; intentResult: any }> {
     // Classificar intenção para selecionar motores
     const settings = await getUserSettings(userId);
@@ -168,6 +170,7 @@ export class PromptBuilder {
       userQuery,
       {
         processId: processId || undefined,
+        fileUri: fileUri || undefined, // Passar fileUri para o contexto de classificação
         history: history.slice(-5).map((m) => ({
           role: m.role,
           content: m.content,
@@ -194,6 +197,7 @@ ${CORE_TRACEABILITY}
 ${CORE_ZERO_TOLERANCE}
 ${CORE_TRANSPARENCY}
 ${CORE_STYLE}
+${CORE_THINKING}
 ${JEC_CONTEXT}
 ${CORE_ORCHESTRATOR}
 ${useMotor("A", CORE_MOTOR_A)}
