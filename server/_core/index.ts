@@ -27,8 +27,10 @@ import { createAbstractBuilder, createConcreteBuilder } from "../services/Contex
 import { classify, formatDebugBadge } from "../services/IntentService";
 import type { IntentResult } from "../services/IntentService";
 
-// Cartucho JEC
+// Cartucho JEC (mantido para compatibilidade)
 import { JEC_CONTEXT } from "../modules/jec/context";
+// Módulos dinâmicos
+import { getModulePrompt } from "../prompts/modules";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -106,6 +108,10 @@ async function startServer() {
 
       // Buscar configurações de LLM do usuário
       const settings = await getUserSettings(user.id);
+
+      // Módulo especializado do usuário (configuração fixa, não por conversa)
+      const moduleSlug = (settings as any)?.defaultModule || 'default';
+      console.log(`[Stream-Module] Módulo ativo: ${moduleSlug}`);
 
       // Validação: usuário DEVE configurar sua própria chave de API para o Cérebro
       if (!settings?.llmApiKey) {
@@ -293,6 +299,12 @@ async function startServer() {
       // Preferências de estilo
       if (systemPromptOverride) {
         builder.injectStylePreferences(systemPromptOverride);
+      }
+
+      // Injetar prompt do módulo especializado
+      const modulePrompt = getModulePrompt((moduleSlug || 'default') as any);
+      if (modulePrompt) {
+        builder.addSection("MODULO", modulePrompt);
       }
 
       const systemPrompt = builder.build();

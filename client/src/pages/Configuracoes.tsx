@@ -15,7 +15,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { trpc } from "@/lib/trpc";
-import { FileText, Loader2, Save, Upload, Edit, Trash2, RefreshCw, Key, Brain, BookOpen, Database, Check, Search } from "lucide-react";
+import { FileText, Loader2, Save, Upload, Edit, Trash2, RefreshCw, Key, Brain, BookOpen, Database, Check, Search, Scale } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { DEFAULT_DAVID_SYSTEM_PROMPT } from "@shared/defaultPrompts";
@@ -64,6 +64,12 @@ export default function Configuracoes() {
 
   const { data: settings, isLoading: settingsLoading } = trpc.settings.get.useQuery();
   const { data: knowledgeDocs, isLoading: docsLoading } = trpc.knowledgeBase.listUserDocs.useQuery();
+
+  // Módulos especializados
+  const { data: modulesList } = trpc.modules.list.useQuery();
+  const { data: userDefaultModule } = trpc.modules.getUserDefault.useQuery();
+  const setUserDefaultModuleMutation = trpc.modules.setUserDefault.useMutation();
+
   const utils = trpc.useUtils();
 
   const updateSettingsMutation = trpc.settings.update.useMutation({
@@ -332,8 +338,10 @@ export default function Configuracoes() {
             </TabsTrigger>
           </TabsList>
 
-          {/* Aba Personalização do Assistente - Layout 2 Colunas */}
+          {/* Aba Personalização do Assistente */}
           <TabsContent value="personalizacao">
+            {/* Especialização movida para Sidebar - acesso mais rápido */}
+
             <div className="grid lg:grid-cols-2 gap-6">
               {/* Coluna Esquerda: Instruções */}
               <Card className="flex flex-col h-[600px]">

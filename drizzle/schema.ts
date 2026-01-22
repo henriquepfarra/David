@@ -104,6 +104,8 @@ export const userSettings = mysqlTable("userSettings", {
   readerModel: varchar("readerModel", { length: 100 }).default("gemini-2.0-flash"),
   // Configurações do assistente
   customSystemPrompt: longtext("customSystemPrompt"), // System Prompt customizado do David
+  // Módulo especializado padrão
+  defaultModule: varchar("defaultModule", { length: 20 }).default("default"), // 'default' | 'jec' | 'familia' | 'criminal' | 'fazenda'
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
@@ -186,6 +188,7 @@ export const conversations = mysqlTable("conversations", {
   isPinned: int("isPinned").default(0).notNull(), // 0 = não fixada, 1 = fixada
   googleFileUri: varchar("googleFileUri", { length: 500 }), // URI do arquivo no Google (para sessão)
   googleFileName: varchar("googleFileName", { length: 200 }), // Nome do arquivo no Google (para cleanup)
+  moduleSlug: varchar("moduleSlug", { length: 20 }), // Módulo usado nesta conversa (opcional)
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 }, (table) => ({

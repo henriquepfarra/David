@@ -10,11 +10,13 @@ import { useAuth } from "@/_core/hooks/useAuth";
 import { useChatStream } from "@/hooks/useChatStream";
 import { useConversationId } from "@/hooks/useConversationId";
 import { usePdfUpload } from "@/hooks/usePdfUpload";
+// useModuleState removido - módulo agora é config global
 import { usePrompts } from "@/hooks/usePrompts";
 import { useDavidMutations } from "@/hooks/useDavidMutations";
 import { MessageList, ChatInputArea } from "@/components/chat";
 import { HomeScreen } from "@/components/HomeScreen";
 import { PromptsModal } from "@/components/prompts";
+// ModuleHeader removido - módulo agora é config global em Settings
 import {
   DeletePromptDialog,
   EditDraftDialog,
@@ -252,6 +254,8 @@ export default function David() {
     selectedCategory,
   });
 
+  // Módulo agora é config global em Settings, não por conversa
+
   // Estado do modal de arquivos
   const [isFilesModalOpen, setIsFilesModalOpen] = useState(false);
 
@@ -440,6 +444,7 @@ export default function David() {
 
     await performStream(conversationId, content, {
       googleFileUri, // ✅ Passar arquivo ao backend
+      // moduleSlug agora é pego pelo backend via userSettings
       onDone: async () => {
         try {
           // Buscar novas mensagens do banco (inclui a que acabou de ser salva)
@@ -699,11 +704,9 @@ export default function David() {
           {/* Chat principal */}
 
 
-          {/* Header minimalista - badge agora fica na área do input */}
-          <div className="p-2 border-b bg-card/50 backdrop-blur-sm sticky top-0 z-10 flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              {/* Espaço reservado para possíveis controles futuros */}
-            </div>
+          {/* Header minimalista */}
+          <div className="p-2 border-b bg-card/50 backdrop-blur-sm sticky top-0 z-10">
+            {/* Módulo agora é config global em Settings */}
           </div>
 
           {selectedConversationId ? (

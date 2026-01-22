@@ -37,6 +37,7 @@ import {
 } from "../prompts/engines";
 
 import { JEC_CONTEXT } from "../modules/jec/context";
+import { getModulePrompt } from "../prompts/modules"; // ✅ Módulos dinâmicos
 
 export interface BuildContextsParams {
   userId: number;
@@ -162,7 +163,8 @@ export class PromptBuilder {
     history: Array<{ role: string; content: string }>,
     userId: number,
     systemPromptOverride?: string,
-    fileUri?: string | null // Novo argumento opcional
+    fileUri?: string | null, // Novo argumento opcional
+    moduleSlug?: string // ✅ Módulo especializado ativo
   ): Promise<{ systemPrompt: string; intentResult: any }> {
     // Classificar intenção para selecionar motores
     const settings = await getUserSettings(userId);
@@ -188,7 +190,9 @@ export class PromptBuilder {
     );
 
     // MONTAGEM DINÂMICA DO CÉREBRO (Brain Assembly)
-    // Core (Universal) + Módulo (JEC) + Orquestrador + Motores Ativos
+    // Core (Universal) + Módulo (Dinâmico) + Orquestrador + Motores Ativos
+    const modulePrompt = getModulePrompt((moduleSlug || 'default') as any); // ✅ Módulo dinâmico
+
     const baseSystemPrompt = `
 ${CORE_IDENTITY}
 ${CORE_TONE}
@@ -198,7 +202,7 @@ ${CORE_ZERO_TOLERANCE}
 ${CORE_TRANSPARENCY}
 ${CORE_STYLE}
 ${CORE_THINKING}
-${JEC_CONTEXT}
+${modulePrompt}
 ${CORE_ORCHESTRATOR}
 ${useMotor("A", CORE_MOTOR_A)}
 ${useMotor("B", CORE_MOTOR_B)}
@@ -217,8 +221,24 @@ ${useMotor("D", CORE_MOTOR_D)}
         ? `\n\n⚠️ MODO ANÁLISE ATIVADO ⚠️\nEsta é uma solicitação de ANÁLISE, não de minuta. Execute os motores A, B, C, D para análise crítica completa, mas NÃO elabore documento final. Forneça apenas a análise estruturada conforme os protocolos. O bloco CORE_STYLE (Manual de Redação Judicial) permanece INATIVO durante análises.\n`
         : "";
 
+    // ⚡ VALIDAÇÃO TÉCNICA: Instruções imperativas quando há arquivo anexado
+    const fileValidationInstruction = fileUri
+      ? `\n\n⚡ ALERTA DE ARQUIVO DETECTADO ⚡
+Há um arquivo anexado nesta conversa (URI: ${fileUri}).
+
+VOCÊ DEVE EXECUTAR OBRIGATORIAMENTE:
+1️⃣ IMEDIATAMENTE executar o CHECKPOINT 0 (Diagnóstico de Integridade)
+2️⃣ Validar tecnicamente o arquivo ANTES de iniciar o <thinking>
+3️⃣ Emitir o bloco de diagnóstico padronizado conforme especificado em CORE_GATEKEEPER
+4️⃣ Se arquivo ilegível/corrompido (❌), PARAR e avisar o usuário
+
+⛔ NÃO PROSSIGA com análise até validar o arquivo.
+⚠️ O CHECKPOINT 0 VEM ANTES DO <thinking>. Esta ordem é INVIOLÁVEL.
+`
+      : "";
+
     const systemPrompt =
-      baseSystemPrompt + stylePreferences + analysisInstruction;
+      baseSystemPrompt + stylePreferences + analysisInstruction + fileValidationInstruction;
 
     return { systemPrompt, intentResult };
   }

@@ -27,7 +27,7 @@ Ações Obrigatórias:
 - Caça aos Gaps: Identifique lapsos temporais suspeitos, relações familiares ocultas ou má-fé processual.
 - Validação de Legibilidade: Se a prova é ilegível ou cortada, marque como "Fato Não Provado". Não tente adivinhar.
 
-Output deste Motor: Um conjunto de "Fatos Validados" e "Alertas de Inconsistência".
+Output deste Motor: Um conjunto de "Fatos Validados" e "Alertas de Inconsistência". Você deve
 `;
 
 /**

@@ -33,6 +33,7 @@ import { CSSProperties, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { DashboardLayoutSkeleton } from './DashboardLayoutSkeleton';
 import { MemoriaJuridicaMenuItem } from './MemoriaJuridicaMenuItem';
+import { EspecializacaoMenuItem } from './EspecializacaoMenuItem';
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "./ui/dialog";
@@ -373,6 +374,11 @@ function DashboardLayoutContent({
             {/* 🎓 Memória Jurídica - Novo item com badge */}
             {!isCollapsed && (
               <MemoriaJuridicaMenuItem />
+            )}
+
+            {/* ⚖️ Especialização - Seleção de módulo */}
+            {!isCollapsed && (
+              <EspecializacaoMenuItem />
             )}
           </SidebarHeader>
 

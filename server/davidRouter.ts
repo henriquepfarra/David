@@ -538,7 +538,8 @@ export const davidRouter = router({
         history.slice(-5).map(m => ({ role: m.role, content: m.content })),
         ctx.user.id,
         input.systemPromptOverride,
-        conversation.googleFileUri // Passar fileUri para classificação de intento correta
+        conversation.googleFileUri, // Passar fileUri para classificação de intento correta
+        undefined // sendMessage não usa módulos (apenas sendMessageStream)
       );
 
       logger.info(`[DavidRouter] Intent: ${IntentService.formatDebugBadge(intentResult)}`);
@@ -594,6 +595,7 @@ export const davidRouter = router({
         conversationId: z.number(),
         content: z.string(),
         systemPromptOverride: z.string().optional(),
+        moduleSlug: z.string().optional(), // ✅ Módulo especializado
       })
     )
     .subscription(async function* ({ ctx, input }) {
@@ -717,13 +719,15 @@ Retorne APENAS essas informações de forma objetiva.`,
       });
 
       // 7. Construir system prompt e classificar intenção
+      logger.info(`[Stream-Module] Módulo ativo: ${input.moduleSlug || 'default'}`);
       const { systemPrompt, intentResult } = await promptBuilder.buildSystemPrompt(
         input.content,
         conversation.processId,
         history.slice(-5).map(m => ({ role: m.role, content: m.content })),
         ctx.user.id,
         input.systemPromptOverride,
-        conversation.googleFileUri // Passar fileUri para classificação de intento correta
+        conversation.googleFileUri, // Passar fileUri para classificação de intento correta
+        input.moduleSlug // ✅ Passar módulo ativo
       );
 
       logger.info(`[DavidRouter] Intent (Stream): ${IntentService.formatDebugBadge(intentResult)}`);

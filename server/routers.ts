@@ -11,6 +11,7 @@ import { listAvailableModels } from "./llmModels";
 import { davidRouter } from "./davidRouter";
 import { processDocumentsRouter } from "./processDocumentsRouter";
 import { thesisRouter } from "./routers/thesisRouter"; // ← NOVO: Router de Active Learning
+import { modulesRouter } from "./modulesRouter"; // ← NOVO: Router de Módulos Especializados
 import { ENV } from "./_core/env";
 import { sdk } from "./_core/sdk";
 
@@ -19,6 +20,7 @@ export const appRouter = router({
   david: davidRouter,
   processDocuments: processDocumentsRouter,
   thesis: thesisRouter, // ← NOVO: Endpoints de Active Learning
+  modules: modulesRouter, // ← NOVO: Endpoints de Módulos Especializados
   auth: router({
     me: publicProcedure.query(opts => opts.ctx.user),
     logout: publicProcedure.mutation(({ ctx }) => {

@@ -20,6 +20,7 @@ import {
     Loader2,
     X,
 } from "lucide-react";
+// ModuleHeader removido - módulo agora é config global em Settings
 
 interface UploadState {
     isUploading: boolean;

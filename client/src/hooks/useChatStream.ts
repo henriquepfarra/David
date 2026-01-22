@@ -23,6 +23,7 @@ export interface StreamState {
 
 export interface StreamCallbacks {
     googleFileUri?: string; // ✅ URI do arquivo Google para contexto
+    moduleSlug?: string; // ✅ Módulo especializado ativo
     onDone?: () => void;
     onError?: (error: string) => void;
     onTitleGenerate?: (conversationId: number) => void;
@@ -120,7 +121,8 @@ export function useChatStream(): UseChatStreamReturn {
                 body: JSON.stringify({
                     conversationId,
                     content,
-                    ...(callbacks?.googleFileUri && { googleFileUri: callbacks.googleFileUri }) // ✅ Enviar arquivo se fornecido
+                    ...(callbacks?.googleFileUri && { googleFileUri: callbacks.googleFileUri }), // ✅ Enviar arquivo se fornecido
+                    ...(callbacks?.moduleSlug && { moduleSlug: callbacks.moduleSlug }) // ✅ Enviar módulo ativo
                 }),
                 signal: abortControllerRef.current.signal,
             });
