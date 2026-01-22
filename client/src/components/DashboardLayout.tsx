@@ -176,7 +176,7 @@ function DashboardLayoutContent({
   const [renameDialogOpen, setRenameDialogOpen] = useState(false);
   const [renamingConvId, setRenamingConvId] = useState<number | null>(null);
   const [newTitle, setNewTitle] = useState("");
-  const [isSearchOpen, setIsSearchOpen] = useState(false);
+
 
   // States for selection mode
   const [isSelectionMode, setIsSelectionMode] = useState(false);
@@ -290,7 +290,7 @@ function DashboardLayoutContent({
           className="border-r-0"
           disableTransition={isResizing}
         >
-          <SidebarHeader className="p-3 space-y-3">
+          <SidebarHeader className="p-3 space-y-0.5">
             {/* Logo and Title */}
             <div className="flex items-center gap-3 group-data-[collapsible=icon]:px-0 transition-all w-full">
               {isCollapsed ? (
@@ -332,51 +332,32 @@ function DashboardLayoutContent({
               )}
             </div>
 
-            {/* Novo chat - estilo ChatGPT */}
+            {/* Novo chat + Lupa (estilo Gemini) */}
             {!isCollapsed && (
-              <button
-                onClick={handleNewChat}
-                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-accent transition-colors text-left"
-              >
-                <SquarePen className="h-4 w-4" />
-                <span className="text-sm">Novo chat</span>
-              </button>
-            )}
-
-            {/* Buscar em chats */}
-            {!isCollapsed && !isSearchOpen && (
-              <button
-                onClick={() => setIsSearchOpen(true)}
-                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-accent transition-colors text-left text-muted-foreground"
-              >
-                <Search className="h-4 w-4" />
-                <span className="text-sm">Buscar em chats</span>
-              </button>
-            )}
-
-            {/* Input de busca */}
-            {!isCollapsed && isSearchOpen && (
-              <div className="relative px-2">
-                <Search className="absolute left-5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  autoFocus
-                  placeholder="Buscar em chats..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  onBlur={() => {
-                    if (!searchQuery) setIsSearchOpen(false);
-                  }}
-                  className="pl-9 h-9"
-                />
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={handleNewChat}
+                  className="flex-1 flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-accent transition-colors text-left"
+                >
+                  <SquarePen className="h-4 w-4" />
+                  <span className="text-sm">Novo chat</span>
+                </button>
+                <button
+                  onClick={() => setLocation("/david/search")}
+                  className="h-9 w-9 flex items-center justify-center hover:bg-accent rounded-lg transition-colors shrink-0"
+                  title="Buscar em chats"
+                >
+                  <Search className="h-4 w-4 text-muted-foreground" />
+                </button>
               </div>
             )}
 
-            {/* 🎓 Memória Jurídica - Novo item com badge */}
+            {/* 🎓 Memória Jurídica */}
             {!isCollapsed && (
               <MemoriaJuridicaMenuItem />
             )}
 
-            {/* ⚖️ Especialização - Seleção de módulo */}
+            {/* ⚖️ Especialização */}
             {!isCollapsed && (
               <EspecializacaoMenuItem />
             )}

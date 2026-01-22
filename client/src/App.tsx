@@ -14,6 +14,7 @@ import David from "./pages/David";
 import DavidPrompts from "./pages/DavidPrompts";
 import MemoriaDavid from "./pages/MemoriaDavid";
 import Intelligence from "./pages/Intelligence";
+import SearchPage from "./pages/SearchPage";
 import LocalAuth from "./pages/LocalAuth";
 
 function Router() {
@@ -25,6 +26,7 @@ function Router() {
       <Route path={"/processos"} component={Processos} />
       <Route path={"/processo/:id"} component={ProcessoDetalhes} />
       <Route path={"/minutas"} component={Minutas} />
+      <Route path={"/david/search"} component={SearchPage} />
       <Route path={"/david"} component={David} />
       <Route path={"/david/prompts"} component={DavidPrompts} />
       <Route path={"/david/memoria"} component={MemoriaDavid} />

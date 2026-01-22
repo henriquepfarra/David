@@ -24,7 +24,7 @@ export function MemoriaJuridicaMenuItem() {
     return (
         <button
             onClick={() => setLocation("/intelligence")}
-            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors text-left relative ${isActive ? "bg-accent" : "hover:bg-accent"
+            className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-left relative ${isActive ? "bg-accent" : "hover:bg-accent"
                 }`}
         >
             <GraduationCap className="h-4 w-4 shrink-0" />

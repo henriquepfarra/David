@@ -46,15 +46,15 @@ export function EspecializacaoMenuItem() {
         <>
             <button
                 onClick={() => setIsOpen(true)}
-                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-accent transition-colors text-left group"
+                className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-accent transition-colors text-left group"
             >
                 <Scale className="h-4 w-4 text-primary" />
                 <div className="flex-1 min-w-0">
                     <span className="text-sm block">Especialização</span>
                     {/* Mostrar módulo ativo embaixo - maior e colorido */}
                     <span className={`text-xs font-medium truncate block ${isJEC
-                            ? 'text-primary'
-                            : 'text-muted-foreground'
+                        ? 'text-primary'
+                        : 'text-muted-foreground'
                         }`}>
                         {activeModuleName}
                     </span>
