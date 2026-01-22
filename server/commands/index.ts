@@ -64,6 +64,8 @@ async function loadHandlers() {
     try {
         // /consultar handler
         await import('./handlers/consultar.handler')
+        // /minutar handler
+        await import('./handlers/minutar.handler')
     } catch (error) {
         // Handlers not yet created, that's fine
         console.debug('[Commands] Some handlers not yet available')

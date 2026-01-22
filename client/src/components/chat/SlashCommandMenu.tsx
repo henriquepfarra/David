@@ -42,19 +42,12 @@ const AVAILABLE_COMMANDS: CommandInfo[] = [
         description: 'Busca teses e diretrizes na base de conhecimento',
         requiresArgument: true,
     },
-    // Future commands (Phase 4):
-    // {
-    //   trigger: '/analise1',
-    //   name: 'Triagem Inicial',
-    //   description: 'Análise completa de petição inicial',
-    //   requiresArgument: false,
-    // },
-    // {
-    //   trigger: '/minutar',
-    //   name: 'Minutar Decisão',
-    //   description: 'Gera minuta de decisão/sentença',
-    //   requiresArgument: true,
-    // },
+    {
+        trigger: '/minutar',
+        name: 'Minutar Decisão',
+        description: 'Gera minuta de decisão/sentença com base na análise',
+        requiresArgument: true,
+    },
 ]
 
 // ============================================
