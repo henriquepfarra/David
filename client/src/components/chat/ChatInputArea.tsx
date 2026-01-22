@@ -8,7 +8,7 @@
  * - ViewingPrompt: barra de ação para visualizar prompt e usar
  */
 
-import { useRef, useEffect } from "react";
+import { useRef, useEffect, useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -25,6 +25,7 @@ import {
     Bot,
 } from "lucide-react";
 import { AttachedFilesBadge, UploadProgress } from "@/components/chat";
+import { SlashCommandMenu } from "./SlashCommandMenu";
 import type { UploadState } from "./UploadProgress";
 
 interface AttachedFile {
@@ -139,6 +140,24 @@ export function ChatInputArea({
     llmModel,
 }: ChatInputAreaProps) {
     const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+    // Slash command menu state
+    const [showSlashMenu, setShowSlashMenu] = useState(false);
+    const slashFilter = useMemo(() => {
+        if (!messageInput.startsWith('/')) return '';
+        // Extract the partial command after /
+        const match = messageInput.match(/^\/([a-z0-9]*)$/i);
+        return match ? match[1] : '';
+    }, [messageInput]);
+
+    // Show menu when typing / at start
+    useEffect(() => {
+        if (messageInput.startsWith('/') && messageInput.match(/^\/[a-z0-9]*$/i)) {
+            setShowSlashMenu(true);
+        } else {
+            setShowSlashMenu(false);
+        }
+    }, [messageInput]);
 
     // Auto-ajuste do textarea
     const adjustTextareaHeight = () => {
@@ -297,6 +316,20 @@ export function ChatInputArea({
             )}
 
             <div className="flex justify-between items-start mb-2 relative">
+                {/* Slash Command Menu */}
+                <SlashCommandMenu
+                    isOpen={showSlashMenu}
+                    onSelect={(cmd) => {
+                        // If command requires argument, add space for typing
+                        setMessageInput(cmd + ' ');
+                        setShowSlashMenu(false);
+                        textareaRef.current?.focus();
+                    }}
+                    onClose={() => setShowSlashMenu(false)}
+                    filter={slashFilter}
+                    position="above"
+                />
+
                 <Textarea
                     ref={textareaRef}
                     value={messageInput}

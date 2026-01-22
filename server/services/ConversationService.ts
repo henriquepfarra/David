@@ -68,7 +68,12 @@ export class ConversationService {
   }
 
   /**
-   * Tenta executar um comando especial (ex: /analise)
+   * Tenta executar um comando especial (ex: /analise, /consultar)
+   * 
+   * Prioridade:
+   * 1. Comandos do Sistema (CommandResolver) - /consultar, /analise1, etc.
+   * 2. Prompts Salvos do Usuário
+   * 
    * @returns O resultado do comando se executado com sucesso, null caso contrário
    */
   async tryExecuteCommand(
@@ -81,10 +86,87 @@ export class ConversationService {
       return null;
     }
 
-    // Verificar se há processo vinculado
+    logger.debug(
+      `[ConversationService] Detectado comando: ${content}`
+    );
+
+    // 1️⃣ PRIMEIRO: Tentar comandos do sistema (CommandResolver)
+    try {
+      const { commandResolver } = await import("../commands/CommandResolver");
+
+      // Determinar módulo ativo (default se não houver configuração)
+      const moduleSlug = 'default'; // TODO: Get from conversation settings
+
+      const plan = await commandResolver.resolve(content, {
+        userId: String(userId),
+        activeModule: moduleSlug as any,
+      });
+
+      if (plan.type === 'SYSTEM_COMMAND') {
+        logger.info(
+          `[ConversationService] Executando comando do sistema: /${plan.definition.slug}`
+        );
+
+        // Validar requisitos do comando
+        if (plan.definition.requiresProcess && !processId) {
+          return `⚠️ O comando /${plan.definition.slug} requer um processo vinculado à conversa.\n\nVincule um processo primeiro ou faça upload de um PDF.`;
+        }
+
+        // Criar contexto para o handler
+        const commandCtx = {
+          userId: String(userId),
+          conversationId: String(conversationId),
+          processId: processId ? String(processId) : undefined,
+          moduleSlug: moduleSlug as any,
+          argument: plan.argument,
+          history: [], // TODO: Load conversation history if needed
+          signal: new AbortController().signal,
+        };
+
+        // Executar handler e coletar resultado
+        // NOTA: Para sendMessage (não-streaming), coletamos todo o output
+        let finalOutput = '';
+
+        for await (const event of plan.definition.handler(commandCtx)) {
+          if (event.type === 'content_complete') {
+            finalOutput = event.content;
+          } else if (event.type === 'command_complete') {
+            finalOutput = event.result.finalOutput;
+          } else if (event.type === 'command_error') {
+            return `❌ Erro: ${event.error}`;
+          }
+        }
+
+        return finalOutput || null;
+      }
+
+      if (plan.type === 'SAVED_PROMPT') {
+        // Prompt salvo do usuário encontrado via resolver
+        logger.debug(
+          `[ConversationService] Prompt salvo encontrado via resolver`
+        );
+        return plan.content;
+      }
+
+    } catch (error) {
+      // CommandResolver errors (like module not supported)
+      if (error instanceof Error && error.name === 'CommandModuleError') {
+        return `⚠️ ${error.message}`;
+      }
+      if (error instanceof Error && error.name === 'CommandArgumentError') {
+        return `⚠️ ${error.message}`;
+      }
+      // Log other errors but continue to fallback
+      logger.debug(
+        `[ConversationService] CommandResolver error, trying saved prompts:`,
+        error
+      );
+    }
+
+    // 2️⃣ SEGUNDO: Fallback para prompt salvo (método legado)
     if (!processId) {
       logger.debug(
-        `[ConversationService] Comando ${content} detectado, mas conversa não tem processo vinculado`
+        `[ConversationService] Comando ${content} não é sistema e conversa não tem processo vinculado`
       );
       return null;
     }
@@ -100,7 +182,7 @@ export class ConversationService {
 
     // Tentar executar prompt salvo
     logger.debug(
-      `[ConversationService] Tentando executar comando: ${content}`
+      `[ConversationService] Tentando executar prompt salvo: ${content}`
     );
 
     try {
@@ -113,7 +195,7 @@ export class ConversationService {
 
       if (commandResult) {
         logger.debug(
-          `[ConversationService] Comando executado com sucesso: ${content}`
+          `[ConversationService] Prompt salvo executado com sucesso: ${content}`
         );
         return commandResult;
       }
