@@ -5,7 +5,7 @@
  * Este componente renderiza a tela estilo Gemini quando não há conversa ativa.
  */
 
-import { useRef, useEffect } from "react";
+import { useRef, useEffect, useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -19,7 +19,9 @@ import {
     FileText,
     Loader2,
     X,
+    Zap,
 } from "lucide-react";
+import { SlashCommandMenu } from "./chat/SlashCommandMenu";
 // ModuleHeader removido - módulo agora é config global em Settings
 
 interface UploadState {
@@ -73,6 +75,25 @@ export function HomeScreen({
     isStreaming,
 }: HomeScreenProps) {
     const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+    // Slash command menu state
+    const [showSlashMenu, setShowSlashMenu] = useState(false);
+    const slashFilter = useMemo(() => {
+        if (!messageInput.startsWith('/')) return '';
+        const match = messageInput.match(/^\/([a-z0-9]*)$/i);
+        return match ? match[1] : '';
+    }, [messageInput]);
+
+    // Show menu when typing / at start or clicking button
+    useEffect(() => {
+        if (messageInput.startsWith('/') && messageInput.match(/^\/[a-z0-9]*$/i)) {
+            setShowSlashMenu(true);
+        } else if (!showSlashMenu) {
+            // Don't auto-close if opened via button
+        } else if (!messageInput.startsWith('/')) {
+            setShowSlashMenu(false);
+        }
+    }, [messageInput]);
 
     // Auto-ajuste do textarea
     const adjustTextareaHeight = () => {
@@ -181,7 +202,19 @@ export function HomeScreen({
                         )}
 
                         {/* Container do input (flex horizontal) */}
-                        <div className="flex items-end gap-2">
+                        <div className="flex items-end gap-2 relative">
+                            {/* Slash Command Menu */}
+                            <SlashCommandMenu
+                                isOpen={showSlashMenu}
+                                onSelect={(cmd) => {
+                                    setMessageInput(cmd + ' ');
+                                    setShowSlashMenu(false);
+                                    textareaRef.current?.focus();
+                                }}
+                                onClose={() => setShowSlashMenu(false)}
+                                filter={slashFilter}
+                                position="above"
+                            />
                             {/* Botão de upload */}
                             <Button
                                 variant="ghost"
@@ -246,6 +279,19 @@ export function HomeScreen({
 
                 {/* Sugestões de ação */}
                 <div className="flex flex-wrap justify-center gap-2 pt-4">
+                    {/* Botão de Comandos */}
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        className="rounded-full gap-2 text-sm"
+                        onClick={() => {
+                            setShowSlashMenu(true);
+                            textareaRef.current?.focus();
+                        }}
+                    >
+                        <Zap className="h-4 w-4" />
+                        Comandos
+                    </Button>
                     <Button
                         variant="outline"
                         size="sm"

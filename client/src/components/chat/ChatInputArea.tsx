@@ -23,6 +23,7 @@ import {
     Mic,
     Wand2,
     Bot,
+    Zap,
 } from "lucide-react";
 import { AttachedFilesBadge, UploadProgress } from "@/components/chat";
 import { SlashCommandMenu } from "./SlashCommandMenu";
@@ -383,6 +384,19 @@ export function ChatInputArea({
                     >
                         <Gavel className="h-4 w-4" />
                         Enviar Processo
+                    </Button>
+
+                    <Button
+                        variant={showSlashMenu ? "secondary" : "ghost"}
+                        size="sm"
+                        className="gap-2 rounded-full h-9 px-3"
+                        onClick={() => {
+                            setShowSlashMenu(!showSlashMenu);
+                            textareaRef.current?.focus();
+                        }}
+                    >
+                        <Zap className="h-4 w-4" />
+                        Comandos
                     </Button>
 
                     <Button
