@@ -8,6 +8,26 @@ Esta pasta contém toda a documentação técnica, arquitetura, testes e relató
 Documentos de design e arquitetura do sistema:
 - **orchestration_architecture_v7.md** - Arquitetura completa do sistema de orquestração (IntentService + ContextBuilder + Motors)
 - **rag_on_demand_evolution.md** - Evolução do sistema RAG on-demand com hierarquia e filtros
+- **rag_on_demand_spec.md** - Especificação detalhada do RAG on-demand
+
+### `/modules` - Módulos de Especialização
+Planos e documentação dos módulos especializados (JEC, FONAJE, etc.):
+- **ESPECIALIZACOES_PLAN.md** - Plano original de especialização
+- **ESPECIALIZACOES_PLAN_V2.md** - Versão 2 do plano de especialização
+- **ESPECIALIZACOES_PLAN_V2.1_UPDATE.md** - Atualização V2.1 com abordagem híbrida (seed + RAG)
+
+### `/frontend` - Refatoração de Frontend
+Planos e documentação da refatoração do frontend:
+- **README.md** - Índice da documentação de refatoração
+- **FRONTEND_REFACTORING_PLAN.md** - Plano de refatoração (Fases 0-4) ✅ Fase 3 completa
+- **FRONTEND_REFACTORING_PLAN_V4.md** - Próximas fases (5-10)
+- **EXECUTIVE_SUMMARY.md** - Resumo executivo para stakeholders
+- **NEXT_STEPS.md** - Guia de início rápido
+- **PR_TEMPLATES.md** - Templates de PR para cada fase
+
+### `/rag` - Sistema RAG/Knowledge Base
+Planos relacionados ao sistema de busca e base de conhecimento:
+- **plano-rag-knowledge-base.md** - Plano completo de implementação da base de conhecimento inteligente
 
 ### `/testing` - Testes e Resultados
 Suites de teste e resultados de validação:
@@ -18,6 +38,18 @@ Suites de teste e resultados de validação:
 Relatórios de progresso e walkthroughs:
 - **orchestration_implementation.md** - Walkthrough completo da implementação da orquestração
 - **orchestration_task_checklist.md** - Checklist de tarefas concluídas (Blocos 1-5)
+- **walkthrough-implementacoes.md** - Walkthrough de implementações gerais
+- **MVP_ROADMAP.md** - Roadmap do MVP
+
+### `/db` - Database & Schema
+Documentação relacionada ao banco de dados:
+- **analise-schema-seed.md** - Análise do schema e seed
+- **ENUNCIADOS FOJESP.pdf** - Enunciados FOJESP
+- **enunciados fonaje.docx** - Enunciados FONAJE
+
+### `/issues` - Issues e Melhorias
+Issues identificadas e planos de melhoria:
+- **PROMPTS_MODAL_IMPROVEMENTS.md** - Melhorias do modal de prompts
 
 ## Principais Conquistas
 
@@ -40,10 +72,12 @@ Relatórios de progresso e walkthroughs:
 
 ## Como Usar Esta Documentação
 
-1. **Para entender a arquitetura:** Leia `architecture/orchestration_architecture_v7.md`
-2. **Para rodar testes:** Use as perguntas em `testing/the_gauntlet.md`
-3. **Para ver o que foi implementado:** Confira `reports/orchestration_implementation.md`
-4. **Para rastrear progresso:** Veja o checklist em `reports/orchestration_task_checklist.md`
+1. **Para entender a arquitetura geral:** Leia `architecture/orchestration_architecture_v7.md`
+2. **Para trabalhar com módulos especializados:** Veja `modules/ESPECIALIZACOES_PLAN_V2.1_UPDATE.md`
+3. **Para refatoração de frontend:** Comece por `frontend/README.md`
+4. **Para implementar RAG/Knowledge Base:** Consulte `rag/plano-rag-knowledge-base.md`
+5. **Para rodar testes:** Use as perguntas em `testing/the_gauntlet.md`
+6. **Para ver relatórios de implementação:** Confira `reports/orchestration_implementation.md`
 
 ## Status Atual
 
