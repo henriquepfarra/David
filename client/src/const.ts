@@ -4,6 +4,14 @@ export const APP_TITLE = import.meta.env.VITE_APP_TITLE || "DAVID";
 
 export const APP_LOGO = "/logo.png";
 
+// ============================================
+// FEATURE FLAGS - Beta
+// ============================================
+export const FEATURES = {
+  /** Transcrição de áudio (Whisper) - desabilitado no beta (requer OpenAI separada) */
+  AUDIO_TRANSCRIPTION: false,
+} as const;
+
 // Generate login URL - now uses Google OAuth
 export const getLoginUrl = () => {
   // Em desenvolvimento local, usar página de login local

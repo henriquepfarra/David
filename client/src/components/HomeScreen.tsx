@@ -54,6 +54,8 @@ interface HomeScreenProps {
     isTranscribing: boolean;
     isCreatingConversation: boolean;
     isStreaming: boolean;
+    /** Se deve mostrar botão de microfone (default: true) */
+    showMicButton?: boolean;
 }
 
 export function HomeScreen({
@@ -73,6 +75,7 @@ export function HomeScreen({
     isTranscribing,
     isCreatingConversation,
     isStreaming,
+    showMicButton = true,
 }: HomeScreenProps) {
     const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -243,20 +246,22 @@ export function HomeScreen({
                             {/* Botões de ação */}
                             <div className="flex items-center gap-1 shrink-0">
                                 {/* Microfone */}
-                                <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className={`h-10 w-10 rounded-full ${isRecording ? 'bg-red-100 text-red-600 animate-pulse' : 'text-muted-foreground hover:text-foreground hover:bg-muted'}`}
-                                    onClick={onRecordClick}
-                                    disabled={isTranscribing}
-                                    title={isRecording ? 'Parar gravação' : 'Gravar áudio'}
-                                >
-                                    {isTranscribing ? (
-                                        <Loader2 className="h-5 w-5 animate-spin" />
-                                    ) : (
-                                        <Mic className="h-5 w-5" />
-                                    )}
-                                </Button>
+                                {showMicButton && (
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className={`h-10 w-10 rounded-full ${isRecording ? 'bg-red-100 text-red-600 animate-pulse' : 'text-muted-foreground hover:text-foreground hover:bg-muted'}`}
+                                        onClick={onRecordClick}
+                                        disabled={isTranscribing}
+                                        title={isRecording ? 'Parar gravação' : 'Gravar áudio'}
+                                    >
+                                        {isTranscribing ? (
+                                            <Loader2 className="h-5 w-5 animate-spin" />
+                                        ) : (
+                                            <Mic className="h-5 w-5" />
+                                        )}
+                                    </Button>
+                                )}
 
                                 {/* Botão enviar */}
                                 <Button

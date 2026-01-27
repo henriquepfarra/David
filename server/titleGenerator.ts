@@ -1,8 +1,12 @@
 import { invokeLLM } from "./_core/llm";
+import { ENV } from "./_core/env";
 
 /**
  * Gera um título descritivo para uma conversa baseado na primeira mensagem do usuário
- * 
+ *
+ * NOTA: Esta função usa a chave do sistema (ENV.geminiApiKey) pois é uma
+ * feature auxiliar de baixo custo que melhora a UX.
+ *
  * @param userMessage - Primeira mensagem do usuário
  * @param processInfo - Informações do processo (opcional)
  * @returns Título gerado (máximo 60 caracteres)
@@ -59,6 +63,7 @@ Retorne APENAS o título, sem aspas ou explicações.`
           content: `Mensagem do usuário: "${userMessage}"${context}`
         }
       ],
+      apiKey: ENV.geminiApiKey, // Usa chave do sistema (feature grátis)
       response_format: {
         type: "text"
       }

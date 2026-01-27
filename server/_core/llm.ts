@@ -241,8 +241,8 @@ const resolveApiUrl = (provider?: string) => {
 };
 
 const assertApiKey = (apiKey?: string) => {
-  if (!apiKey && !ENV.geminiApiKey) {
-    throw new Error("LLM API Key is not configured. Please configure your API key in Settings.");
+  if (!apiKey) {
+    throw new Error("LLM API Key is required. Please pass an API key or configure in Settings.");
   }
 };
 
@@ -354,7 +354,8 @@ export async function invokeLLM(params: InvokeParams): Promise<InvokeResult> {
     headers["anthropic-version"] = "2023-06-01";
   } else {
     // OpenAI, Google, Groq, DeepSeek use Bearer token
-    headers["authorization"] = `Bearer ${apiKey || ENV.geminiApiKey}`;
+    // IMPORTANTE: apiKey é obrigatória - sem fallback para ENV
+    headers["authorization"] = `Bearer ${apiKey}`;
   }
 
   try {
@@ -462,7 +463,8 @@ export async function* invokeLLMStream(params: InvokeParams): AsyncGenerator<str
     headers["x-api-key"] = apiKey || "";
     headers["anthropic-version"] = "2023-06-01";
   } else {
-    headers["authorization"] = `Bearer ${apiKey || ENV.geminiApiKey}`;
+    // IMPORTANTE: apiKey é obrigatória - sem fallback para ENV
+    headers["authorization"] = `Bearer ${apiKey}`;
   }
 
   const response = await fetch(resolveApiUrl(provider), {
@@ -548,13 +550,16 @@ export async function* invokeLLMStreamWithThinking(
 
   // === GOOGLE: USAR API NATIVA PARA SUPORTE A THINKING ===
   if (normalizedProvider === "google") {
-    const geminiApiKey = apiKey || ENV.geminiApiKey;
+    // IMPORTANTE: apiKey é obrigatória - sem fallback para ENV
+    if (!apiKey) {
+      throw new Error("API Key é obrigatória para streaming. Configure sua chave em Configurações.");
+    }
     const geminiModel = model || "gemini-2.5-flash";
 
     console.log(`[LLM] Usando API nativa do Gemini para modelo: ${geminiModel}${fileUri ? ` com arquivo: ${fileUri}` : ''}`);
 
     // Delegar para função de streaming nativa do Gemini
-    yield* geminiNativeStreamWithThinking(messages, geminiModel, geminiApiKey, fileUri);
+    yield* geminiNativeStreamWithThinking(messages, geminiModel, apiKey, fileUri);
     return;
   }
 
@@ -599,7 +604,8 @@ export async function* invokeLLMStreamWithThinking(
     headers["x-api-key"] = apiKey || "";
     headers["anthropic-version"] = "2023-06-01";
   } else {
-    headers["authorization"] = `Bearer ${apiKey || ENV.geminiApiKey}`;
+    // IMPORTANTE: apiKey é obrigatória - sem fallback para ENV
+    headers["authorization"] = `Bearer ${apiKey}`;
   }
 
   const response = await fetch(resolveApiUrl(provider), {

@@ -45,7 +45,7 @@ describe("extractThesisFromDraft (Unit)", () => {
       ],
     });
 
-    const result = await extractThesisFromDraft("texto da minuta", "decisao");
+    const result = await extractThesisFromDraft("texto da minuta", "decisao", "test-api-key");
 
     expect(result).toBeDefined();
     expect(result.legalThesis).toBe("Tese jurídica simulada para teste unitário");
@@ -74,7 +74,7 @@ describe("extractThesisFromDraft (Unit)", () => {
       ],
     });
 
-    await expect(extractThesisFromDraft("texto", "decisao"))
+    await expect(extractThesisFromDraft("texto", "decisao", "test-api-key"))
       .rejects
       .toThrow(); // Espera erro de parse ou validação
   });
@@ -87,8 +87,14 @@ describe("extractThesisFromDraft (Unit)", () => {
       choices: [], // Lista vazia simulando o erro anterior
     } as any);
 
-    await expect(extractThesisFromDraft("texto", "decisao"))
+    await expect(extractThesisFromDraft("texto", "decisao", "test-api-key"))
       .rejects
       .toThrow("A resposta da LLM não possui escolhas (choices) válidas.");
+  });
+
+  it("deve lançar erro se apiKey não for fornecida", async () => {
+    await expect(extractThesisFromDraft("texto", "decisao", ""))
+      .rejects
+      .toThrow("API Key é obrigatória");
   });
 });

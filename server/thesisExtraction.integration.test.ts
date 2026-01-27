@@ -4,6 +4,7 @@ import { extractThesisFromDraft } from "./thesisExtractor";
 // Integration tests - run only when explicitly requested
 // Use process.env.RUN_INTEGRATION_TESTS="true" to enable
 const runIntegration = process.env.RUN_INTEGRATION_TESTS === "true";
+const testApiKey = process.env.GEMINI_API_KEY || "test-api-key";
 
 // Use describe.runIf (Vitest feature) or conditionally skip
 describe.runIf(runIntegration)("extractThesisFromDraft (Integration)", () => {
@@ -32,7 +33,7 @@ Intimem-se.
 São Paulo, 20 de março de 2024.
 `;
 
-        const result = await extractThesisFromDraft(sampleDraft, "decisao");
+        const result = await extractThesisFromDraft(sampleDraft, "decisao", testApiKey);
 
         expect(result).toBeDefined();
         expect(result.thesis).toBeTruthy();
@@ -73,7 +74,7 @@ Custas pelo réu.
 Publique-se. Registre-se. Intimem-se.
 `;
 
-        const result = await extractThesisFromDraft(sampleSentence, "sentenca");
+        const result = await extractThesisFromDraft(sampleSentence, "sentenca", testApiKey);
 
         expect(result).toBeDefined();
         expect(result.thesis).toBeTruthy();

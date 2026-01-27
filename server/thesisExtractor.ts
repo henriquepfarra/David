@@ -22,13 +22,21 @@ export interface ExtractedThesis {
 /**
  * Extrai automaticamente a tese jurídica de uma minuta aprovada
  * usando LLM com prompt especializado
- * 
+ *
  * VERSÃO 2.0 - Extração Dual (Legal Thesis + Writing Style)
+ *
+ * @param draftContent - Conteúdo da minuta aprovada
+ * @param draftType - Tipo da minuta (sentença, decisão, etc.)
+ * @param apiKey - Chave de API do usuário (OBRIGATÓRIA)
  */
 export async function extractThesisFromDraft(
   draftContent: string,
-  draftType: string
+  draftType: string,
+  apiKey: string
 ): Promise<ExtractedThesis> {
+  if (!apiKey) {
+    throw new Error("API Key é obrigatória para extração de tese. Configure sua chave em Configurações.");
+  }
   const extractionPrompt = `Você é um especialista em análise jurídica. Analise a seguinte ${draftType} e extraia:
 
 **PARTE 1: ARGUMENTAÇÃO JURÍDICA (Motor C)**
@@ -88,6 +96,7 @@ Responda APENAS no formato JSON abaixo (sem markdown, sem explicações adiciona
           content: extractionPrompt,
         },
       ],
+      apiKey,
       response_format: {
         type: "json_schema",
         json_schema: {

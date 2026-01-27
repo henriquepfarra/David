@@ -91,6 +91,8 @@ interface ChatInputAreaProps {
     isRecording: boolean;
     onRecordClick: () => void;
     isTranscribing: boolean;
+    /** Se deve mostrar botão de microfone (default: true) */
+    showMicButton?: boolean;
 
     // Enhance
     onEnhancePrompt: () => void;
@@ -136,6 +138,7 @@ export function ChatInputArea({
     isRecording,
     onRecordClick,
     isTranscribing,
+    showMicButton = true,
     onEnhancePrompt,
     isEnhancing,
     llmModel,
@@ -411,21 +414,23 @@ export function ChatInputArea({
                 </div>
 
                 <div className="flex gap-2 items-center">
-                    <Button
-                        onClick={onRecordClick}
-                        variant={isRecording ? "destructive" : "ghost"}
-                        size="icon"
-                        className={`h-10 w-10 rounded-full transition-all ${isRecording ? 'animate-pulse' : 'text-muted-foreground hover:text-primary hover:bg-accent'
-                            }`}
-                        title={isRecording ? "Parar Gravação" : "Gravar áudio"}
-                        disabled={isTranscribing}
-                    >
-                        {isTranscribing ? (
-                            <Loader2 className="h-5 w-5 animate-spin" />
-                        ) : (
-                            <Mic className={`h-5 w-5 ${isRecording ? 'fill-current' : ''}`} />
-                        )}
-                    </Button>
+                    {showMicButton && (
+                        <Button
+                            onClick={onRecordClick}
+                            variant={isRecording ? "destructive" : "ghost"}
+                            size="icon"
+                            className={`h-10 w-10 rounded-full transition-all ${isRecording ? 'animate-pulse' : 'text-muted-foreground hover:text-primary hover:bg-accent'
+                                }`}
+                            title={isRecording ? "Parar Gravação" : "Gravar áudio"}
+                            disabled={isTranscribing}
+                        >
+                            {isTranscribing ? (
+                                <Loader2 className="h-5 w-5 animate-spin" />
+                            ) : (
+                                <Mic className={`h-5 w-5 ${isRecording ? 'fill-current' : ''}`} />
+                            )}
+                        </Button>
+                    )}
 
                     <Button
                         onClick={onSendMessage}

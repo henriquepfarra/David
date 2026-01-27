@@ -40,6 +40,7 @@ import {
 } from "./db";
 import { IntentService } from "./services/IntentService";
 import { invokeLLM, invokeLLMStream, transcribeAudio } from "./_core/llm";
+import { ENV } from "./_core/env";
 import { observable } from "@trpc/server/observable";
 import { extractThesisFromDraft } from "./thesisExtractor";
 import { generateConversationTitle } from "./titleGenerator";
@@ -89,7 +90,7 @@ export const davidRouter = router({
       return { id: conversationId, title };
     }),
 
-  // Melhorar prompt com IA
+  // Melhorar prompt com IA (usa chave do sistema - feature grátis de baixo custo)
   enhancePrompt: protectedProcedure
     .input(z.object({ prompt: z.string() }))
     .mutation(async ({ input }) => {
@@ -101,6 +102,7 @@ export const davidRouter = router({
           },
           { role: "user", content: input.prompt }
         ],
+        apiKey: ENV.geminiApiKey, // Usa chave do sistema (feature grátis)
       });
 
       const content = typeof response.choices[0]?.message?.content === 'string'
@@ -480,6 +482,12 @@ export const davidRouter = router({
       const messageService = getMessageService();
       const promptBuilder = getPromptBuilder();
 
+      // 0. Validar API Key do usuário
+      const settings = await getUserSettings(ctx.user.id);
+      if (!settings?.llmApiKey) {
+        throw new Error("⚙️ Configure sua Chave de API em Configurações para usar o chat.");
+      }
+
       // 1. Validar acesso à conversa
       const conversation = await conversationService.validateAccess({
         conversationId: input.conversationId,
@@ -570,6 +578,9 @@ export const davidRouter = router({
       // 9. Invocar LLM
       const response = await invokeLLM({
         messages: llmMessages,
+        apiKey: settings.llmApiKey,
+        model: settings.llmModel || undefined,
+        provider: settings.llmProvider || undefined,
       });
 
       const assistantMessage =

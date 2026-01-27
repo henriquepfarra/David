@@ -5,6 +5,7 @@ import { Upload } from "lucide-react";
 import { toast } from "sonner";
 import { useLocation } from "wouter";
 import DashboardLayout from "@/components/DashboardLayout";
+import { FEATURES } from "@/const";
 
 import { useAuth } from "@/_core/hooks/useAuth";
 import { useChatStream } from "@/hooks/useChatStream";
@@ -753,6 +754,7 @@ export default function David() {
               isTranscribing={transcribeAudioMutation.isPending}
               isCreatingConversation={createConversationMutation.isPending}
               isStreaming={isStreaming}
+              showMicButton={FEATURES.AUDIO_TRANSCRIPTION}
             />
           )}
 
@@ -956,6 +958,7 @@ export default function David() {
                   isRecording={isRecording}
                   onRecordClick={handleRecordClick}
                   isTranscribing={transcribeAudioMutation.isPending}
+                  showMicButton={FEATURES.AUDIO_TRANSCRIPTION}
                   // Enhance
                   onEnhancePrompt={handleEnhancePrompt}
                   isEnhancing={enhancePromptMutation.isPending}

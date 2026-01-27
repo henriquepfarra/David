@@ -10,7 +10,7 @@
 
 import { extractThesisFromDraft, ExtractedThesis } from "../thesisExtractor";
 import { generateEmbedding } from "../_core/embeddings";
-import { getDb } from "../db";
+import { getDb, getUserSettings } from "../db";
 import { approvedDrafts, learnedTheses } from "../../drizzle/schema";
 import { eq } from "drizzle-orm";
 import { getRagService } from "./RagService";
@@ -51,11 +51,20 @@ export class ThesisLearningService {
         const draft = draftsResult[0];
         const draftContent = draft.editedDraft || draft.originalDraft;
 
-        // 2. Extrair tese dual via LLM
+        // 1.5. Buscar API key do usuário
+        const userSettings = await getUserSettings(draft.userId);
+        if (!userSettings?.llmApiKey) {
+            throw new Error(
+                "Você precisa configurar sua Chave de API para extrair teses. Vá em Configurações → Chaves de API."
+            );
+        }
+
+        // 2. Extrair tese dual via LLM (usando chave do usuário)
         console.log(`[ThesisLearning] Extraindo tese dual via LLM...`);
         const extracted: ExtractedThesis = await extractThesisFromDraft(
             draftContent,
-            draft.draftType
+            draft.draftType,
+            userSettings.llmApiKey
         );
 
         // 3. Gerar embeddings separados
