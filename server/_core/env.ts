@@ -19,6 +19,9 @@ const envSchema = z.object({
 
   // OpenAI API (para embeddings - text-embedding-3-small)
   OPENAI_API_KEY: z.string().optional(),
+
+  // Sentry Error Monitoring
+  SENTRY_DSN: z.string().optional(),
 });
 
 // Validate process.env

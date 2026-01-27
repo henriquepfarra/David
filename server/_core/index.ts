@@ -4,10 +4,37 @@ if (!globalThis.crypto) {
   (globalThis as any).crypto = webcrypto;
 }
 
+// Load environment variables first
+import "dotenv/config";
+
+// Initialize Sentry BEFORE any other imports (must be first!)
+import * as Sentry from "@sentry/node";
+
+const sentryDsn = process.env.SENTRY_DSN;
+if (sentryDsn) {
+  Sentry.init({
+    dsn: sentryDsn,
+    environment: process.env.NODE_ENV || "development",
+    // Only send errors in production
+    enabled: process.env.NODE_ENV === "production",
+    // Sample rate for performance monitoring
+    tracesSampleRate: 0.1,
+    // Don't send PII
+    beforeSend(event) {
+      // Remove sensitive headers
+      if (event.request?.headers) {
+        delete event.request.headers.cookie;
+        delete event.request.headers.authorization;
+      }
+      return event;
+    },
+  });
+  console.log("🛡️ Sentry initialized for error monitoring");
+}
+
 console.log("🚀 Server process starting...");
 console.log(`🌍 NODE_ENV: ${process.env.NODE_ENV}`);
 
-import "dotenv/config";
 import express from "express";
 import { createServer } from "http";
 import net from "net";
@@ -77,6 +104,12 @@ async function startServer() {
   // Configure body parser with larger size limit for file uploads
   app.use(express.json({ limit: "50mb" }));
   app.use(express.urlencoded({ limit: "50mb", extended: true }));
+
+  // Sentry request handler (must be first middleware)
+  if (sentryDsn && process.env.NODE_ENV === "production") {
+    Sentry.setupExpressErrorHandler(app);
+  }
+
   // OAuth callback under /api/oauth/callback
   registerOAuthRoutes(app);
 
@@ -391,12 +424,24 @@ async function startServer() {
         res.end();
       } catch (error: any) {
         console.error("Stream error:", error);
+        // Report LLM errors to Sentry
+        if (sentryDsn) {
+          Sentry.captureException(error, {
+            tags: { type: "llm_stream", conversationId },
+          });
+        }
         const errorMessage = error instanceof Error ? error.message : "Erro desconhecido";
         res.write(`data: ${JSON.stringify({ type: "error", content: `Erro na IA: ${errorMessage}` })}\n\n`);
         res.end();
       }
     } catch (error) {
       console.error("Endpoint error:", error);
+      // Report endpoint errors to Sentry
+      if (sentryDsn) {
+        Sentry.captureException(error, {
+          tags: { type: "stream_endpoint" },
+        });
+      }
       res.status(500).json({ error: "Internal server error" });
     }
   });
@@ -442,6 +487,17 @@ async function startServer() {
     const message = err.message || "Internal Server Error";
 
     console.error("[Unhandled Error]", err);
+
+    // Report to Sentry (only 5xx errors to avoid noise)
+    if (status >= 500 && sentryDsn) {
+      Sentry.captureException(err, {
+        tags: {
+          endpoint: req.path,
+          method: req.method,
+        },
+      });
+    }
+
     res.status(status).json({ message });
   });
 
