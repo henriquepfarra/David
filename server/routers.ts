@@ -12,6 +12,7 @@ import { davidRouter } from "./davidRouter";
 import { processDocumentsRouter } from "./processDocumentsRouter";
 import { thesisRouter } from "./routers/thesisRouter"; // ← NOVO: Router de Active Learning
 import { modulesRouter } from "./modulesRouter"; // ← NOVO: Router de Módulos Especializados
+import { commandsRouter } from "./commandsRouter"; // ← NOVO: Router de Comandos do Sistema
 import { ENV } from "./_core/env";
 import { sdk } from "./_core/sdk";
 
@@ -21,6 +22,7 @@ export const appRouter = router({
   processDocuments: processDocumentsRouter,
   thesis: thesisRouter, // ← NOVO: Endpoints de Active Learning
   modules: modulesRouter, // ← NOVO: Endpoints de Módulos Especializados
+  commands: commandsRouter, // ← NOVO: Endpoints de Comandos do Sistema
   auth: router({
     me: publicProcedure.query(opts => opts.ctx.user),
     logout: publicProcedure.mutation(({ ctx }) => {
@@ -130,8 +132,23 @@ export const appRouter = router({
         text: z.string(),
         images: z.array(z.string()).optional(),
       }))
-      .mutation(async ({ input }) => {
+      .mutation(async ({ ctx, input }) => {
         const { extractProcessData, extractProcessDataFromImages } = await import("./processExtractor");
+
+        // Buscar configurações do usuário
+        const settings = await db.getUserSettings(ctx.user.id);
+        if (!settings?.llmApiKey) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "⚙️ Configure sua Chave de API em Configurações para extrair dados de PDFs."
+          });
+        }
+
+        const llmConfig = {
+          apiKey: settings.llmApiKey,
+          model: settings?.llmModel || undefined,
+          provider: settings?.llmProvider || undefined
+        };
 
         console.log('[extractFromPDF] Texto recebido (primeiros 500 chars):', input.text?.substring(0, 500));
         console.log('[extractFromPDF] Tamanho do texto:', input.text?.length);
@@ -139,14 +156,14 @@ export const appRouter = router({
 
         // Se tiver texto, tentar extrair do texto primeiro
         if (input.text && input.text.length > 100) {
-          const result = await extractProcessData(input.text);
+          const result = await extractProcessData(input.text, llmConfig);
           console.log('[extractFromPDF] Resultado da extração:', JSON.stringify(result, null, 2));
           return result;
         }
 
         // Se não tiver texto suficiente mas tiver imagens, usar extração multimodal
         if (input.images && input.images.length > 0) {
-          return await extractProcessDataFromImages(input.images);
+          return await extractProcessDataFromImages(input.images, llmConfig);
         }
 
         throw new Error("Nenhum conteúdo válido fornecido para extração");

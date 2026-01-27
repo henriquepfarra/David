@@ -2,13 +2,14 @@
  * SlashCommandMenu - Dropdown menu for slash commands
  * 
  * Shows available commands when user types "/" in the chat input.
- * Commands are filtered based on module and search text.
+ * Commands are filtered based on active module and search text.
  * 
  * @see docs/architecture/system_commands_architecture.md
  */
 
 import { useMemo, useEffect, useRef, useState } from 'react'
 import { cn } from '@/lib/utils'
+import { trpc } from '@/lib/trpc'
 
 // ============================================
 // TYPES
@@ -19,6 +20,9 @@ interface CommandInfo {
     name: string
     description: string
     requiresArgument?: boolean
+    requiresProcess?: boolean
+    type?: 'simple' | 'orchestrated'
+    modules?: string[]
 }
 
 interface SlashCommandMenuProps {
@@ -27,15 +31,15 @@ interface SlashCommandMenuProps {
     onClose: () => void
     filter: string
     position?: 'above' | 'below'
+    /** Module slug to filter commands by (default: 'default') */
+    moduleSlug?: string
 }
 
 // ============================================
-// STATIC COMMANDS (matches server/commands registration)
+// FALLBACK COMMANDS (used when tRPC fails)
 // ============================================
 
-// For MVP, we define commands statically on the client
-// In a future version, this could come from a tRPC endpoint
-const AVAILABLE_COMMANDS: CommandInfo[] = [
+const FALLBACK_COMMANDS: CommandInfo[] = [
     {
         trigger: '/consultar',
         name: 'Consultar Base',
@@ -60,19 +64,29 @@ export function SlashCommandMenu({
     onClose,
     filter,
     position = 'above',
+    moduleSlug = 'default',
 }: SlashCommandMenuProps) {
     const menuRef = useRef<HTMLDivElement>(null)
     const [selectedIndex, setSelectedIndex] = useState(0)
 
+    // Fetch commands from backend based on module
+    const { data: commands = FALLBACK_COMMANDS } = trpc.commands.listAvailable.useQuery(
+        { moduleSlug },
+        {
+            staleTime: 60000, // Cache for 1 minute
+            enabled: isOpen, // Only fetch when menu is open
+        }
+    )
+
     // Filter commands by search text
     const filteredCommands = useMemo(() => {
         const searchTerm = filter.toLowerCase()
-        return AVAILABLE_COMMANDS.filter(cmd =>
+        return commands.filter(cmd =>
             cmd.trigger.toLowerCase().includes(searchTerm) ||
             cmd.name.toLowerCase().includes(searchTerm) ||
             cmd.description.toLowerCase().includes(searchTerm)
         )
-    }, [filter])
+    }, [commands, filter])
 
     // Reset selection when filter changes
     useEffect(() => {
@@ -149,6 +163,11 @@ export function SlashCommandMenu({
             <div className="px-3 py-2 border-b border-gray-200 dark:border-gray-700">
                 <span className="text-xs font-medium text-gray-500 dark:text-gray-400">
                     Comandos Disponíveis
+                    {moduleSlug !== 'default' && (
+                        <span className="ml-2 px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded text-[10px] uppercase">
+                            {moduleSlug}
+                        </span>
+                    )}
                 </span>
             </div>
 
@@ -180,12 +199,19 @@ export function SlashCommandMenu({
                             </div>
                         </div>
 
-                        {/* Argument indicator */}
-                        {cmd.requiresArgument && (
-                            <span className="text-xs text-gray-400 dark:text-gray-500 shrink-0">
-                                [arg]
-                            </span>
-                        )}
+                        {/* Badges */}
+                        <div className="flex items-center gap-1 shrink-0">
+                            {cmd.requiresArgument && (
+                                <span className="text-xs text-gray-400 dark:text-gray-500">
+                                    [arg]
+                                </span>
+                            )}
+                            {cmd.type === 'orchestrated' && (
+                                <span className="text-[10px] px-1 py-0.5 bg-amber-100 text-amber-700 rounded">
+                                    multi-step
+                                </span>
+                            )}
+                        </div>
                     </button>
                 ))}
             </div>

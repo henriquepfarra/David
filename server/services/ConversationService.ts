@@ -11,6 +11,7 @@ import {
   getConversationById,
   getProcessForContext,
   updateConversationTitle,
+  getConversationModuleSlug,
 } from "../db";
 import { executeSavedPrompt } from "../_core/promptExecutor";
 import { generateConversationTitle } from "../titleGenerator";
@@ -94,8 +95,8 @@ export class ConversationService {
     try {
       const { commandResolver } = await import("../commands/CommandResolver");
 
-      // Determinar módulo ativo (default se não houver configuração)
-      const moduleSlug = 'default'; // TODO: Get from conversation settings
+      // Get module from conversation or user default
+      const moduleSlug = await getConversationModuleSlug(conversationId, userId);
 
       const plan = await commandResolver.resolve(content, {
         userId: String(userId),

@@ -554,6 +554,39 @@ export async function getConversationGoogleFile(conversationId: number) {
 }
 
 /**
+ * Get the active module for a conversation.
+ * Falls back to user's default module if conversation doesn't have one set.
+ */
+export async function getConversationModuleSlug(
+  conversationId: number,
+  userId: number
+): Promise<string> {
+  const db = await getDb();
+  if (!db) return 'default';
+
+  // First, check if conversation has a module set
+  const convo = await db
+    .select({ moduleSlug: conversations.moduleSlug })
+    .from(conversations)
+    .where(eq(conversations.id, conversationId))
+    .limit(1);
+
+  if (convo[0]?.moduleSlug) {
+    return convo[0].moduleSlug;
+  }
+
+  // Fall back to user's default module
+  const { userSettings } = await import("../drizzle/schema");
+  const settings = await db
+    .select({ defaultModule: userSettings.defaultModule })
+    .from(userSettings)
+    .where(eq(userSettings.userId, userId))
+    .limit(1);
+
+  return settings[0]?.defaultModule || 'default';
+}
+
+/**
  * Find conversations that have a process with the given processNumber
  * Used to detect duplicate process uploads
  */
