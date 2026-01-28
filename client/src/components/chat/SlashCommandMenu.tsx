@@ -108,10 +108,22 @@ export function SlashCommandMenu({
                     setSelectedIndex(i => Math.max(i - 1, 0))
                     break
                 case 'Enter':
-                    e.preventDefault()
-                    if (filteredCommands[selectedIndex]) {
-                        onSelect(filteredCommands[selectedIndex].trigger)
+                    // Verify match validity to prevent stale state issues
+                    const selected = filteredCommands[selectedIndex];
+                    // Strict check: Only auto-select (index 0) if it's a plausible match
+                    // or if user manually navigated (selectedIndex > 0)
+                    const isPlausibleMatch = selected && (
+                        selectedIndex > 0 ||
+                        filter.length === 0 || // Just typed '/', auto-select first is ok
+                        selected.trigger.toLowerCase().includes(filter.toLowerCase()) ||
+                        selected.name.toLowerCase().includes(filter.toLowerCase())
+                    );
+
+                    if (isPlausibleMatch) {
+                        e.preventDefault();
+                        onSelect(selected.trigger);
                     }
+                    // Otherwise let the event bubble so ChatInputArea handles the send
                     break
                 case 'Escape':
                     e.preventDefault()
@@ -173,47 +185,57 @@ export function SlashCommandMenu({
 
             {/* Command List */}
             <div className="max-h-64 overflow-y-auto">
-                {filteredCommands.map((cmd, index) => (
-                    <button
-                        key={cmd.trigger}
-                        onClick={() => onSelect(cmd.trigger)}
-                        className={cn(
-                            'w-full px-3 py-2 text-left',
-                            'flex items-center gap-3 transition-colors',
-                            'hover:bg-gray-100 dark:hover:bg-gray-700',
-                            index === selectedIndex && 'bg-gray-100 dark:bg-gray-700'
-                        )}
-                    >
-                        {/* Command trigger */}
-                        <span className="text-blue-500 dark:text-blue-400 font-mono text-sm font-medium">
-                            {cmd.trigger}
-                        </span>
+                {filteredCommands.map((cmd, index) => {
+                    // Commands that are module-specific (not '*' global) get green color
+                    const isModuleSpecific = cmd.modules && !cmd.modules.includes('*');
 
-                        {/* Name and description */}
-                        <div className="flex-1 min-w-0">
-                            <div className="font-medium text-sm text-gray-900 dark:text-gray-100 truncate">
-                                {cmd.name}
-                            </div>
-                            <div className="text-xs text-gray-500 dark:text-gray-400 truncate">
-                                {cmd.description}
-                            </div>
-                        </div>
+                    return (
+                        <button
+                            key={cmd.trigger}
+                            onClick={() => onSelect(cmd.trigger)}
+                            className={cn(
+                                'w-full px-3 py-2 text-left',
+                                'flex items-center gap-3 transition-colors',
+                                'hover:bg-gray-100 dark:hover:bg-gray-700',
+                                index === selectedIndex && 'bg-gray-100 dark:bg-gray-700'
+                            )}
+                        >
+                            {/* Command trigger - Green for specialized, Blue for global */}
+                            <span className={cn(
+                                'font-mono text-sm font-medium',
+                                isModuleSpecific
+                                    ? 'text-emerald-600 dark:text-emerald-400'
+                                    : 'text-blue-500 dark:text-blue-400'
+                            )}>
+                                {cmd.trigger}
+                            </span>
 
-                        {/* Badges */}
-                        <div className="flex items-center gap-1 shrink-0">
-                            {cmd.requiresArgument && (
-                                <span className="text-xs text-gray-400 dark:text-gray-500">
-                                    [arg]
-                                </span>
-                            )}
-                            {cmd.type === 'orchestrated' && (
-                                <span className="text-[10px] px-1 py-0.5 bg-amber-100 text-amber-700 rounded">
-                                    multi-step
-                                </span>
-                            )}
-                        </div>
-                    </button>
-                ))}
+                            {/* Name and description */}
+                            <div className="flex-1 min-w-0">
+                                <div className="font-medium text-sm text-gray-900 dark:text-gray-100 truncate">
+                                    {cmd.name}
+                                </div>
+                                <div className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                                    {cmd.description}
+                                </div>
+                            </div>
+
+                            {/* Badges */}
+                            <div className="flex items-center gap-1 shrink-0">
+                                {cmd.requiresArgument && (
+                                    <span className="text-xs text-gray-400 dark:text-gray-500">
+                                        [arg]
+                                    </span>
+                                )}
+                                {cmd.type === 'orchestrated' && (
+                                    <span className="text-[10px] px-1.5 py-0.5 bg-violet-100 text-violet-700 dark:bg-violet-900 dark:text-violet-300 rounded font-medium">
+                                        multi-step
+                                    </span>
+                                )}
+                            </div>
+                        </button>
+                    );
+                })}
             </div>
 
             {/* Footer hint */}

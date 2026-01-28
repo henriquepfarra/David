@@ -38,6 +38,9 @@ export function EspecializacaoMenuItem() {
                     toast.success(`${name} ativado!`);
                     setIsOpen(false);
                 },
+                onError: (error) => {
+                    toast.error(`Erro ao ativar módulo: ${error.message}`);
+                },
             }
         );
     };
@@ -81,13 +84,14 @@ export function EspecializacaoMenuItem() {
                                 variant={userDefaultModule === mod.slug ? "default" : "outline"}
                                 size="sm"
                                 onClick={() => handleSelectModule(mod.slug, mod.name)}
-                                disabled={setUserDefaultModuleMutation.isPending}
+                                disabled={setUserDefaultModuleMutation.isPending || !mod.isAvailable}
                                 className="gap-2"
                             >
                                 {mod.slug === 'jec' && <Scale className="h-3 w-3" />}
                                 {mod.slug === 'default' && <Brain className="h-3 w-3" />}
                                 {mod.name}
                                 {userDefaultModule === mod.slug && <Check className="h-3 w-3" />}
+                                {!mod.isAvailable && <span className="text-[10px] opacity-50">(em breve)</span>}
                             </Button>
                         ))}
                     </div>

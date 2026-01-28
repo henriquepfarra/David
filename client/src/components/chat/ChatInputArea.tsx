@@ -27,6 +27,7 @@ import {
 } from "lucide-react";
 import { AttachedFilesBadge, UploadProgress } from "@/components/chat";
 import { SlashCommandMenu } from "./SlashCommandMenu";
+import { trpc } from "@/lib/trpc";
 import type { UploadState } from "./UploadProgress";
 
 interface AttachedFile {
@@ -145,6 +146,9 @@ export function ChatInputArea({
 }: ChatInputAreaProps) {
     const textareaRef = useRef<HTMLTextAreaElement>(null);
 
+    // Get user's active module for commands filtering
+    const { data: userDefaultModule } = trpc.modules.getUserDefault.useQuery();
+
     // Slash command menu state
     const [showSlashMenu, setShowSlashMenu] = useState(false);
     const slashFilter = useMemo(() => {
@@ -176,6 +180,10 @@ export function ChatInputArea({
     }, [messageInput]);
 
     const handleKeyPress = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+        // Se menu de comandos está aberto, não processar Enter aqui (SlashCommandMenu cuida)
+        if (showSlashMenu && e.key === "Enter") {
+            return; // SlashCommandMenu já tratou isso via listener global
+        }
         if (e.key === "Enter" && !e.shiftKey) {
             e.preventDefault();
             onSendMessage();
@@ -332,6 +340,7 @@ export function ChatInputArea({
                     onClose={() => setShowSlashMenu(false)}
                     filter={slashFilter}
                     position="above"
+                    moduleSlug={userDefaultModule || 'default'}
                 />
 
                 <Textarea

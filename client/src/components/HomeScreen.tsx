@@ -22,6 +22,7 @@ import {
     Zap,
 } from "lucide-react";
 import { SlashCommandMenu } from "./chat/SlashCommandMenu";
+import { trpc } from "@/lib/trpc";
 // ModuleHeader removido - módulo agora é config global em Settings
 
 interface UploadState {
@@ -78,6 +79,9 @@ export function HomeScreen({
     showMicButton = true,
 }: HomeScreenProps) {
     const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+    // Get user's active module for commands filtering
+    const { data: userDefaultModule } = trpc.modules.getUserDefault.useQuery();
 
     // Slash command menu state
     const [showSlashMenu, setShowSlashMenu] = useState(false);
@@ -217,6 +221,7 @@ export function HomeScreen({
                                 onClose={() => setShowSlashMenu(false)}
                                 filter={slashFilter}
                                 position="above"
+                                moduleSlug={userDefaultModule || 'default'}
                             />
                             {/* Botão de upload */}
                             <Button
