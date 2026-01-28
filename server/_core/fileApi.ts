@@ -291,6 +291,41 @@ export async function deletePdfFromGoogle(fileName: string, apiKey?: string): Pr
     console.log(`[FileAPI] File ${fileName} deleted from Google servers.`);
 }
 
+
+/**
+ * Reads content from an existing Google File URI using Flash Lite
+ * Used for cross-provider support (e.g. reading PDF with Google to send to OpenAI)
+ */
+export async function readContentFromUri(
+    fileUri: string,
+    apiKey?: string,
+    mimeType: string = "application/pdf"
+): Promise<string> {
+    const key = apiKey || ENV.geminiApiKey;
+    if (!key) throw new Error("Gemini API key is not configured");
+
+    const genAI = new GoogleGenerativeAI(key);
+    // Usar modelo rápido e barato para extração
+    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-lite" });
+
+    const instruction = getDefaultInstruction();
+
+    console.log(`[FileAPI] Extracting content from URI: ${fileUri}`);
+    const result = await model.generateContent([
+        {
+            fileData: {
+                mimeType,
+                fileUri
+            }
+        },
+        { text: instruction }
+    ]);
+
+    const text = result.response.text();
+    console.log(`[FileAPI] Content extracted. Length: ${text.length}`);
+    return text;
+}
+
 /**
  * Get list of available Gemini models suitable for PDF reading
  */

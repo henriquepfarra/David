@@ -531,10 +531,41 @@ export default function David() {
     toast.info("Geração interrompida");
   };
 
-  // Auto-scroll ao receber novas mensagens ou durante streaming
+  // Smart auto-scroll: só scrolls se usuário está perto do fim
+  // Isso permite que o usuário scrolle para cima para ver o thinking sem ser forçado para baixo
+  const chatContainerRef = useRef<HTMLDivElement>(null);
+  const userHasScrolledUp = useRef(false);
+
+  // Detectar se usuário scrollou para cima
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    const container = chatContainerRef.current;
+    if (!container) return;
+
+    const handleScroll = () => {
+      const { scrollTop, scrollHeight, clientHeight } = container;
+      const distanceFromBottom = scrollHeight - scrollTop - clientHeight;
+      // Se está a mais de 200px do fim, usuário scrollou para cima
+      userHasScrolledUp.current = distanceFromBottom > 200;
+    };
+
+    container.addEventListener('scroll', handleScroll);
+    return () => container.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  // Auto-scroll ao receber novas mensagens ou durante streaming
+  // Só faz scroll se usuário NÃO scrollou manualmente para cima
+  useEffect(() => {
+    if (!userHasScrolledUp.current) {
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
   }, [conversationData?.messages, streamingMessage, pendingUserMessage]);
+
+  // Resetar flag de scroll quando nova mensagem é enviada
+  useEffect(() => {
+    if (pendingUserMessage) {
+      userHasScrolledUp.current = false;
+    }
+  }, [pendingUserMessage]);
 
   const handleNewConversation = () => {
     // Resetar estados ao criar nova conversa
@@ -712,7 +743,7 @@ export default function David() {
 
           {selectedConversationId ? (
             <div className="flex-1 min-h-0 relative">
-              <div className="h-full overflow-y-auto p-4 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-transparent">
+              <div ref={chatContainerRef} className="h-full overflow-y-auto p-4 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-transparent">
                 <div className="space-y-4 max-w-4xl mx-auto pb-4">
 
                   <MessageList

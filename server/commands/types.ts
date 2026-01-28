@@ -37,6 +37,7 @@ export interface CommandContext {
     userId: string
     conversationId: string
     processId?: string
+    fileUri?: string  // Google File URI (PDF anexado)
     moduleSlug: ModuleSlug
     argument?: string
     history: Array<{ role: string; content: string }>
@@ -58,6 +59,7 @@ export interface CommandResult {
     veredito?: string
     steps: StepResult[]
     finalOutput: string
+    thinking?: string
     suggestion?: string
     modelSuggested?: number
 }
@@ -101,9 +103,20 @@ export type CommandEvent =
         delta: string
     }
     | {
+        type: 'thinking_chunk'
+        step: string
+        content: string
+    }
+    | {
+        type: 'content_chunk'
+        step: string
+        content: string
+    }
+    | {
         type: 'content_complete'
         step: string
         content: string
+        thinking?: string
     }
     // Command lifecycle
     | {

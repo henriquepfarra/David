@@ -175,8 +175,87 @@ async function startServer() {
         content,
       });
 
+      // ============================================
+      // VERIFICAR COMANDOS DO SISTEMA (com streaming real)
+      // ============================================
+      if (content.startsWith('/')) {
+        console.log(`[Stream] Detectado comando: ${content.substring(0, 30)}...`);
+        try {
+          const { commandResolver } = await import("../commands/CommandResolver");
+          const { getConversationModuleSlug } = await import("../db");
+
+          const moduleSlug = await getConversationModuleSlug(conversationId, user.id);
+          const plan = await commandResolver.resolve(content, {
+            userId: String(user.id),
+            activeModule: moduleSlug as any,
+          });
+
+          if (plan.type === 'SYSTEM_COMMAND') {
+            console.log(`[Stream] Executando comando: ${plan.definition.slug}`);
+
+            // Setup SSE headers
+            res.setHeader("Content-Type", "text/event-stream");
+            res.setHeader("Cache-Control", "no-cache, no-transform");
+            res.setHeader("Connection", "keep-alive");
+            res.flushHeaders();
+
+            // Contexto do comando
+            const commandCtx = {
+              userId: String(user.id),
+              conversationId: String(conversationId),
+              processId: conversation.processId ? String(conversation.processId) : undefined,
+              fileUri: conversation.googleFileUri || undefined,
+              args: content.split(/\s+/).slice(1),
+              rawInput: content,
+              activeModule: moduleSlug as any,
+              moduleSlug: moduleSlug as any,
+              history: [],
+              signal: new AbortController().signal,
+            };
+
+            let fullContent = '';
+            let fullThinking = '';
+
+            // Streaming real: processar eventos do handler incrementalmente
+            for await (const event of plan.definition.handler(commandCtx)) {
+              if (event.type === 'thinking_chunk') {
+                fullThinking += event.content;
+                res.write(`data: ${JSON.stringify({ type: "thinking", content: event.content })}\n\n`);
+              } else if (event.type === 'content_chunk') {
+                fullContent += event.content;
+                res.write(`data: ${JSON.stringify({ type: "chunk", content: event.content })}\n\n`);
+              } else if (event.type === 'content_complete') {
+                // Ignorar - já enviamos via chunks
+              } else if (event.type === 'command_complete') {
+                // Final - enviar done event
+              } else if (event.type === 'command_error') {
+                res.write(`data: ${JSON.stringify({ type: "error", content: event.error })}\n\n`);
+              }
+            }
+
+            // Salvar resposta completa com thinking separado
+            await createMessage({
+              conversationId,
+              role: "assistant",
+              content: fullContent,
+              thinking: fullThinking || undefined,
+            });
+
+            // Enviar done com conteúdo (sem tags thinking - já foi enviado separado via SSE)
+            res.write(`data: ${JSON.stringify({ type: "done", content: fullContent })}\n\n`);
+            res.end();
+            console.log(`[Stream] Comando finalizado com sucesso`);
+            return;
+          }
+        } catch (cmdError) {
+          console.error(`[Stream] Erro ao executar comando:`, cmdError);
+          // Se houver erro, continua para o fluxo normal de chat
+        }
+      }
+
       // Buscar histórico
       const history = await getConversationMessages(conversationId);
+
 
       // Contexto do processo
       let processContext = "";
@@ -372,8 +451,72 @@ async function startServer() {
       try {
         // PRIORITIZAR o URI do body (enviado pelo frontend) sobre o do banco (pode ter race condition)
         const fileUri = bodyFileUri || conversation.googleFileUri || undefined;
+        let pdfContextFromExtraction = "";
+
         if (fileUri) {
-          console.log(`[Stream] Incluindo arquivo PDF no contexto: ${fileUri}${bodyFileUri ? ' (via body)' : ' (via banco)'}`);
+          const provider = llmConfig.provider?.toLowerCase() || 'google';
+
+          if (provider === 'google') {
+            // NATIVO: Google Gemini lê o arquivo diretamente via URI
+            console.log(`[Stream] Incluindo arquivo PDF no contexto (Nativo): ${fileUri}`);
+          } else {
+            // CROSS-PROVIDER: Outros modelos (OpenAI, Claude) não leem URI do Google
+            // Solução: Extrair texto usando modelo barato do Google e injetar no contexto
+            console.log(`[Stream] Provider ${provider} não suporta URI nativo. Extraindo conteúdo...`);
+
+            try {
+              const { readContentFromUri } = await import("./fileApi");
+              // Usar chave de leitura do sistema (settings.readerApiKey ou ENV)
+              const readerKey = settings?.readerApiKey || process.env.GEMINI_API_KEY;
+
+              let extractedText = "";
+              let extractionSuccess = false;
+
+              // TENTATIVA 1: Chave do Sistema (Padrão para uploads OpenAI/Anthropic)
+              if (readerKey) {
+                try {
+                  console.log(`[Stream] Tentando extrair com chave de sistema: ${fileUri}`);
+                  extractedText = await readContentFromUri(fileUri, readerKey);
+                  extractionSuccess = true;
+                } catch (sysError) {
+                  console.warn("[Stream] Falha ao extrair com chave de sistema. Tentando chave do usuário...", sysError);
+                }
+              }
+
+              // TENTATIVA 2: Chave do Usuário (Fallback para arquivos antigos do Gemini)
+              if (!extractionSuccess && settings?.llmApiKey) {
+                try {
+                  console.log(`[Stream] Tentando extrair com chave do usuário: ${fileUri}`);
+                  extractedText = await readContentFromUri(fileUri, settings.llmApiKey);
+                  extractionSuccess = true;
+                  console.log("[Stream] Sucesso na extração com chave do usuário (fallback).");
+                } catch (userError) {
+                  console.error("[Stream] Falha também com chave do usuário.", userError);
+                }
+              }
+
+              if (extractionSuccess) {
+                pdfContextFromExtraction = `\n\n--- CONTEÚDO DO DOCUMENTO ANEXADO (PDF) ---\n${extractedText}\n------------------------------------------\n`;
+                console.log(`[Stream] Conteúdo extraído com sucesso (${extractedText.length} chars)`);
+              } else {
+                console.warn("[Stream] Não foi possível extrair PDF com nenhuma chave disponível.");
+                pdfContextFromExtraction = "\n\n[ERRO DE LEITURA: Não foi possível ler o documento anexado. Verifique as permissões.]\n";
+              }
+
+            } catch (extractError) {
+              console.error("[Stream] Erro fatal na extração:", extractError);
+              pdfContextFromExtraction = "\n\n[ERRO: Falha crítica na leitura do documento.]\n";
+            }
+          }
+        }
+
+        // Se extraímos texto manualmente, insira no System Prompt ou na última mensagem
+        if (pdfContextFromExtraction) {
+          // Injetar no início das mensagens para garantir contexto
+          llmMessages.splice(1, 0, { // Logo após o System Prompt original
+            role: "system",
+            content: "O usuário anexou um documento PDF. Abaixo está o conteúdo extraído dele para sua análise:" + pdfContextFromExtraction
+          });
         }
 
         for await (const yieldData of streamFn({
