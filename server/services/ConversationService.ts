@@ -39,6 +39,7 @@ export interface TryExecuteCommandParams {
   conversationId: number;
   userId: number;
   processId: number | null;
+  fileUri?: string | null;  // Google File URI (PDF anexado)
 }
 
 export interface HandleFirstMessageParams {
@@ -80,44 +81,45 @@ export class ConversationService {
   async tryExecuteCommand(
     params: TryExecuteCommandParams
   ): Promise<string | null> {
-    const { content, conversationId, userId, processId } = params;
+    const { content, conversationId, userId, processId, fileUri } = params;
 
     // Verificar se é um comando (começa com /)
     if (!content.startsWith("/")) {
       return null;
     }
 
-    logger.debug(
-      `[ConversationService] Detectado comando: ${content}`
-    );
+    console.log(`[ConversationService] Detectado comando: ${content} (processId: ${processId}, fileUri: ${fileUri ? 'presente' : 'null'})`);
 
     // 1️⃣ PRIMEIRO: Tentar comandos do sistema (CommandResolver)
     try {
+      console.log('[ConversationService] Importando CommandResolver...')
       const { commandResolver } = await import("../commands/CommandResolver");
 
       // Get module from conversation or user default
       const moduleSlug = await getConversationModuleSlug(conversationId, userId);
+      console.log(`[ConversationService] Module slug: ${moduleSlug}`);
 
       const plan = await commandResolver.resolve(content, {
         userId: String(userId),
         activeModule: moduleSlug as any,
       });
 
+      console.log(`[ConversationService] Plan type: ${plan.type}, definition: ${plan.type === 'SYSTEM_COMMAND' ? plan.definition.slug : 'N/A'}`)
+
       if (plan.type === 'SYSTEM_COMMAND') {
         logger.info(
           `[ConversationService] Executando comando do sistema: /${plan.definition.slug}`
         );
 
-        // Validar requisitos do comando
-        if (plan.definition.requiresProcess && !processId) {
-          return `⚠️ O comando /${plan.definition.slug} requer um processo vinculado à conversa.\n\nVincule um processo primeiro ou faça upload de um PDF.`;
-        }
+        // NOTA: Não validamos requiresProcess aqui - deixamos o handler decidir
+        // pois o handler pode usar fileUri ao invés de processId
 
         // Criar contexto para o handler
         const commandCtx = {
           userId: String(userId),
           conversationId: String(conversationId),
           processId: processId ? String(processId) : undefined,
+          fileUri: fileUri || undefined,  // ✅ Passar fileUri ao handler
           moduleSlug: moduleSlug as any,
           argument: plan.argument,
           history: [], // TODO: Load conversation history if needed
@@ -127,15 +129,38 @@ export class ConversationService {
         // Executar handler e coletar resultado
         // NOTA: Para sendMessage (não-streaming), coletamos todo o output
         let finalOutput = '';
+        let thinkingOutput = '';
 
         for await (const event of plan.definition.handler(commandCtx)) {
           if (event.type === 'content_complete') {
             finalOutput = event.content;
+            if ((event as any).thinking) {
+              thinkingOutput = (event as any).thinking;
+            }
           } else if (event.type === 'command_complete') {
             finalOutput = event.result.finalOutput;
+            if (event.result.thinking) {
+              thinkingOutput = event.result.thinking;
+            }
           } else if (event.type === 'command_error') {
             return `❌ Erro: ${event.error}`;
           }
+        }
+
+        // Se NÃO capturamos thinking diretamente, tentar extrair das tags no conteúdo
+        // (Prompt Injection: modelo gera <thinking>...</thinking> no texto)
+        if (!thinkingOutput && finalOutput.includes('<thinking>')) {
+          const thinkingMatch = finalOutput.match(/<thinking>([\s\S]*?)<\/thinking>/);
+          if (thinkingMatch) {
+            thinkingOutput = thinkingMatch[1].trim();
+            // Remover as tags do conteúdo final
+            finalOutput = finalOutput.replace(/<thinking>[\s\S]*?<\/thinking>\s*/g, '').trim();
+          }
+        }
+
+        // Se tem thinking (capturado diretamente ou extraído), formatar para exibição
+        if (thinkingOutput) {
+          return `<thinking>\n${thinkingOutput}\n</thinking>\n\n${finalOutput}`;
         }
 
         return finalOutput || null;
@@ -151,6 +176,7 @@ export class ConversationService {
 
     } catch (error) {
       // CommandResolver errors (like module not supported)
+      console.error(`[ConversationService] ERRO ao processar comando:`, error);
       if (error instanceof Error && error.name === 'CommandModuleError') {
         return `⚠️ ${error.message}`;
       }

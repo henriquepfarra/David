@@ -506,6 +506,7 @@ export const davidRouter = router({
         conversationId: input.conversationId,
         userId: ctx.user.id,
         processId: conversation.processId,
+        fileUri: conversation.googleFileUri,  // ✅ Passar fileUri ao comando
       });
 
       if (commandResult) {
@@ -632,12 +633,15 @@ export const davidRouter = router({
       });
 
       // 3. Tentar executar comando (se houver)
+      console.log(`[Stream] Verificando comando: "${input.content.substring(0, 30)}..." (fileUri: ${conversation.googleFileUri ? 'presente' : 'null'})`);
       const commandResult = await conversationService.tryExecuteCommand({
         content: input.content,
         conversationId: input.conversationId,
         userId: ctx.user.id,
         processId: conversation.processId,
+        fileUri: conversation.googleFileUri,  // ✅ Passar fileUri ao comando
       });
+      console.log(`[Stream] tryExecuteCommand retornou: ${commandResult ? 'resultado' : 'null'}`);
 
       if (commandResult) {
         // Salvar resposta do comando

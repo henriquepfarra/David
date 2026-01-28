@@ -10,7 +10,7 @@
  * @see docs/architecture/system_commands_architecture.md
  */
 
-import { registerCommand } from '../index'
+import { registerCommand } from '../registry'
 import type { CommandHandler, CommandContext, CommandEvent, StepResult } from '../types'
 import { getRagService } from '../../services/RagService'
 

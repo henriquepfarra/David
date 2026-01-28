@@ -39,6 +39,7 @@ class CommandResolverService {
             if (match) {
                 const [, slug, argument] = match
                 const trigger = `/${slug}`
+                console.log(`[CommandResolver] Resolving ${trigger}. Registry keys:`, Object.keys(SYSTEM_COMMANDS))
                 const systemCmd = SYSTEM_COMMANDS[trigger]
 
                 if (systemCmd) {

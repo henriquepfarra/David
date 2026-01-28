@@ -185,13 +185,26 @@ export const appRouter = router({
       }))
       .mutation(async ({ ctx, input }) => {
         const settings = await db.getUserSettings(ctx.user.id);
+        const isGoogleProvider = !settings?.llmProvider || settings.llmProvider === 'google';
 
-        // Validação: API key necessária
-        if (!settings?.readerApiKey && !ENV.geminiApiKey) {
-          throw new TRPCError({
-            code: "BAD_REQUEST",
-            message: "⚙️ Configure sua chave de API do Google em Configurações."
-          });
+        // Validação Inteligente:
+        // - Se for Google Gemini, precisamos da chave do usuário (llmApiKey)
+        // - Se for outro, precisamos da chave do sistema (readerApiKey ou ENV)
+
+        if (isGoogleProvider) {
+          if (!settings?.llmApiKey) {
+            throw new TRPCError({
+              code: "BAD_REQUEST",
+              message: "⚙️ Para usar o Gemini, configure sua Chave de API do Cérebro (Configurações)."
+            });
+          }
+        } else {
+          if (!settings?.readerApiKey && !ENV.geminiApiKey) {
+            throw new TRPCError({
+              code: "BAD_REQUEST",
+              message: "⚙️ Erro de configuração do sistema (Falta chave de leitura)."
+            });
+          }
         }
 
         try {
@@ -200,9 +213,25 @@ export const appRouter = router({
           const buffer = Buffer.from(input.fileData, "base64");
 
           console.log(`[uploadPdfQuick] Iniciando upload: ${input.filename}`);
+
+          // Lógica de Chave API (Fix v3):
+          // 1. Se o usuário usa Google (Gemini) no chat, TEMOS que usar a mesma chave dele (llmApiKey)
+          //    pois o Gemini exige que o arquivo e a geração usem a mesma chave.
+          // 2. Caso contrário (OpenAI, etc), usamos a chave do sistema (readerApiKey)
+
+          const isGoogleProvider = !settings?.llmProvider || settings.llmProvider === 'google';
+          let apiKeyToUse = settings?.readerApiKey || ENV.geminiApiKey; // Default: Sistema
+
+          if (isGoogleProvider && settings?.llmApiKey) {
+            apiKeyToUse = settings.llmApiKey;
+            console.log(`[uploadPdfQuick] Usando chave do usuário (provider: google)`);
+          } else {
+            console.log(`[uploadPdfQuick] Usando chave do sistema (provider: ${settings?.llmProvider || 'n/a'})`);
+          }
+
           const result = await uploadPdfForMultipleQueries(
             buffer,
-            settings?.readerApiKey || ENV.geminiApiKey
+            apiKeyToUse
           );
 
           console.log(`[uploadPdfQuick] ✅ Upload completo: ${result.fileUri}`);
