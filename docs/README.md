@@ -53,6 +53,15 @@ Documentação relacionada ao banco de dados:
 Issues identificadas e planos de melhoria:
 - **PROMPTS_MODAL_IMPROVEMENTS.md** - Melhorias do modal de prompts
 
+### `/archive` - Documentos Históricos
+Documentos de refatorações e correções já concluídas (referência histórica):
+- **LOOP_FIX_PLAN.md** - Plano de correção do Loop of Death (Janeiro/2026) ✅
+- **GEMINI_FEEDBACK_ACTION_PLAN.md** - Plano de ação baseado em feedback do Gemini ✅
+- **REFACTORING_GOD_FUNCTIONS_ANALYSIS.md** - Análise de refatoração de god functions ✅
+- **REFACTORING_GOD_FUNCTIONS_REPORT.md** - Relatório de refatoração concluída ✅
+- **TEST_RESULTS.md** - Resultados de testes (Dezembro/2025) ✅
+- **ANALISE_ERROS_TESTES.md** - Análise de erros de testes corrigidos ✅
+
 ## Principais Conquistas
 
 ### ✅ Orquestração Completa

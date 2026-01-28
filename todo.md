@@ -1,10 +1,24 @@
 # TODO - DAVID (Assistente Jurídico IA)
 
-> **Última atualização**: 18/01/2026
+> **Última atualização**: 27/01/2026
 
 ---
 
 ## ✅ Concluído
+
+### Beta Readiness - Produção (Janeiro/2026)
+- [x] **Segurança de API Keys**: Usuários usam suas próprias chaves para LLM
+  - Removido fallback perigoso em `llm.ts`
+  - `thesisExtractor.ts` requer apiKey como parâmetro
+  - `extractFromPDF` requer chave do usuário
+  - Features de UX (títulos, enhance) usam chave do sistema (baixo custo)
+- [x] **Feature Flag**: `FEATURES.AUDIO_TRANSCRIPTION = false` para beta
+- [x] **Monitoramento Sentry**: Integração frontend + backend
+  - ErrorBoundary no React para erros não tratados
+  - Captura de erros tRPC (exceto auth)
+  - Captura de erros 5xx no backend
+  - Remoção de dados sensíveis antes do envio
+- [x] **Documentação**: `docs/reports/BETA_READINESS.md` com roadmap e guia de escalabilidade
 
 ### Estabilização MVP (Janeiro/2026)
 - [x] **Loop of Death corrigido**: Hook `useConversationId` como fonte única de verdade
@@ -167,10 +181,22 @@
 
 ### Variáveis de Ambiente
 ```env
-DATABASE_URL      # MySQL/SQLite
-JWT_SECRET        # Sessões
-GOOGLE_CLIENT_ID  # OAuth
+# Core (obrigatórias)
+DATABASE_URL      # MySQL (produção) ou SQLite (dev)
+JWT_SECRET        # Sessões (mínimo 32 caracteres)
+
+# OAuth (opcional)
+GOOGLE_CLIENT_ID
 GOOGLE_CLIENT_SECRET
-GEMINI_API_KEY    # Opcional (fallback)
-OPENAI_API_KEY    # Whisper
+
+# LLM - Sistema (para features de baixo custo)
+GEMINI_API_KEY    # Geração de títulos, enhance prompt
+
+# Monitoramento (recomendado para produção)
+SENTRY_DSN        # Backend
+VITE_SENTRY_DSN   # Frontend (prefixo VITE_ obrigatório)
 ```
+
+### Documentação Relacionada
+- [Beta Readiness](docs/reports/BETA_READINESS.md) - Segurança, monitoramento e escalabilidade
+- [MVP Roadmap](docs/reports/MVP_ROADMAP.md) - Plano de funcionalidades
