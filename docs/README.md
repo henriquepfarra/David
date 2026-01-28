@@ -9,6 +9,7 @@ Documentos de design e arquitetura do sistema:
 - **orchestration_architecture_v7.md** - Arquitetura completa do sistema de orquestração (IntentService + ContextBuilder + Motors)
 - **rag_on_demand_evolution.md** - Evolução do sistema RAG on-demand com hierarquia e filtros
 - **rag_on_demand_spec.md** - Especificação detalhada do RAG on-demand
+- **system_commands_architecture.md** - 🆕 Arquitetura de Slash Commands do Sistema (/analise1, /minutar, /tese, etc.)
 
 ### `/modules` - Módulos de Especialização
 Planos e documentação dos módulos especializados (JEC, FONAJE, etc.):
@@ -40,6 +41,7 @@ Relatórios de progresso e walkthroughs:
 - **orchestration_task_checklist.md** - Checklist de tarefas concluídas (Blocos 1-5)
 - **walkthrough-implementacoes.md** - Walkthrough de implementações gerais
 - **MVP_ROADMAP.md** - Roadmap do MVP
+- **BETA_READINESS.md** - 🆕 Preparação para Beta: segurança de API keys, Sentry, e guia de escalabilidade
 
 ### `/db` - Database & Schema
 Documentação relacionada ao banco de dados:
@@ -81,6 +83,12 @@ Issues identificadas e planos de melhoria:
 
 ## Status Atual
 
-🟢 **PRODUCTION READY**
+🟢 **PRODUCTION READY (Beta)**
 
 Todos os blocos de 1-5 foram concluídos com sucesso. O sistema está robusto, testado e pronto para uso em produção.
+
+### Infraestrutura Beta (Janeiro 2026)
+- ✅ Segurança de API Keys - Usuários usam suas próprias chaves para LLM
+- ✅ Monitoramento de Erros - Sentry integrado (frontend + backend)
+- ✅ Deploy em Railway - MySQL + Express + Vite
+- 📋 Próximos passos documentados em [BETA_READINESS.md](./reports/BETA_READINESS.md)
