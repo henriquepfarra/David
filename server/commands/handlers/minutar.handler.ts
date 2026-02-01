@@ -288,13 +288,13 @@ export const minutarHandler: CommandHandler = async function* (ctx: CommandConte
         // Search for writing style samples
         const writingStyles = await ragService.searchWritingStyle(veredito, userIdNum, {
             limit: 2,
-            threshold: 0.3,
+            threshold: 0.5,
         })
 
         // Search for legal theses
         const theses = await ragService.searchLegalTheses(veredito, userIdNum, {
             limit: 3,
-            threshold: 0.3,
+            threshold: 0.5,
         })
 
         // Build the redação prompt
@@ -430,6 +430,8 @@ export const minutarHandler: CommandHandler = async function* (ctx: CommandConte
             type: 'content_complete',
             step: 'checkout',
             content: finalOutput,
+            // 🚀 Trigger para exibir botões de aprovação no frontend
+            metadata: { canApprove: true }
         }
 
         yield {

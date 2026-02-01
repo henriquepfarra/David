@@ -50,6 +50,7 @@ export interface ContextsResult {
   processContext: string;
   processDocsContext: string;
   similarCasesContext: string;
+  writingStyleContext: string;
 }
 
 export interface BuildLLMMessagesParams {
@@ -83,6 +84,7 @@ export class PromptBuilder {
     let processContext = "";
     let similarCasesContext = "";
     let processDocsContext = "";
+    let writingStyleContext = "";
 
     if (processId) {
       const process = await getProcessForContext(processId);
@@ -114,34 +116,56 @@ export class PromptBuilder {
         } catch (error) {
           logger.error("[PromptBuilder] Erro ao buscar documentos:", error);
         }
+      }
+    }
 
-        // Buscar casos similares baseados no assunto
-        if (process.subject) {
-          // Buscar teses jurídicas (Motor C - Argumentação)
-          const legalTheses = await ragService.searchLegalTheses(
-            process.subject,
-            userId,
-            { limit: 3, threshold: 0.6 }
-          );
+    // ============================================
+    // BUSCA DE MEMÓRIA (TESES E ESTILO)
+    // ============================================
+    // Tenta usar assunto do processo, fallback para query do usuário
+    const searchTerm = processId && processContext ? (await getProcessForContext(processId))?.subject || query : query;
 
-          if (legalTheses.length > 0) {
-            similarCasesContext = `\n\n## MEMÓRIA: CASOS SIMILARES JÁ DECIDIDOS POR VOCÊ\n\n`;
-            similarCasesContext += `Encontrei ${legalTheses.length} decisões suas anteriores sobre temas relacionados. Use-as como referência:\n\n`;
+    if (searchTerm) {
+      // 1. Motor C - Argumentação (Teses Jurídicas)
+      const legalTheses = await ragService.searchLegalTheses(
+        searchTerm,
+        userId,
+        { limit: 3, threshold: 0.5 }
+      );
 
-            legalTheses.forEach((thesis, index) => {
-              similarCasesContext += `### Precedente ${index + 1} (Similaridade: ${(thesis.similarity * 100).toFixed(0)}%)\n`;
-              similarCasesContext += `**Tese Firmada:** ${thesis.legalThesis}\n`;
-              if (thesis.legalFoundations) {
-                similarCasesContext += `**Fundamentos:** ${thesis.legalFoundations}\n`;
-              }
-              if (thesis.keywords) {
-                similarCasesContext += `**Palavras-chave:** ${thesis.keywords}\n`;
-              }
-              similarCasesContext += `\n`;
-            });
+      if (legalTheses.length > 0) {
+        similarCasesContext = `\n\n## 📚 TESES DO GABINETE (Memória do Juiz Titular)\n\n**INSTRUÇÃO CRÍTICA:** As teses abaixo foram firmadas pelo juiz titular. Prioridade ABSOLUTA sobre jurisprudência externa.\n\n`;
 
-            similarCasesContext += `\n**INSTRUÇÃO:** Ao gerar minutas, considere essas decisões anteriores para manter consistência e aplicar teses já firmadas. Se houver divergência, mencione ao usuário.\n`;
-          }
+        legalTheses.forEach((thesis, index) => {
+          similarCasesContext += `### Tese ${index + 1} (Similaridade: ${(thesis.similarity * 100).toFixed(0)}%)\n`;
+          similarCasesContext += `**Ratio Decidendi:** ${thesis.legalThesis}\n`;
+          if (thesis.legalFoundations) similarCasesContext += `**Fundamentos:** ${thesis.legalFoundations}\n`;
+          if (thesis.keywords) similarCasesContext += `**Palavras-chave:** ${thesis.keywords}\n`;
+          similarCasesContext += `\n`;
+        });
+      }
+
+      // 2. Motor B - Redação (Estilo)
+      // Buscar estilo se o termo de busca for relevante (evitar em "oi", "ola")
+      if (searchTerm.length > 3) {
+        const writingStyles = await ragService.searchWritingStyle(
+          searchTerm,
+          userId,
+          { limit: 2, threshold: 0.5 }
+        );
+
+        if (writingStyles.length > 0) {
+          writingStyleContext = `\n\n## ✍️ PADRÃO DE REDAÇÃO DO GABINETE\n\n**INSTRUÇÃO:** Replique o estilo de escrita abaixo (tom, estrutura, formalidade).\n\n`;
+
+          writingStyles.forEach((style, index) => {
+            writingStyleContext += `### Amostra ${index + 1}\n${style.writingStyleSample}\n\n`;
+            if (style.writingCharacteristics) {
+              writingStyleContext += `**Características:**\n`;
+              if (style.writingCharacteristics.formality) writingStyleContext += `- Formalidade: ${style.writingCharacteristics.formality}\n`;
+              if (style.writingCharacteristics.tone) writingStyleContext += `- Tom: ${style.writingCharacteristics.tone}\n`;
+            }
+            writingStyleContext += `\n`;
+          });
         }
       }
     }
@@ -151,6 +175,7 @@ export class PromptBuilder {
       processContext,
       processDocsContext,
       similarCasesContext,
+      writingStyleContext,
     };
   }
 
@@ -268,12 +293,14 @@ VOCÊ DEVE EXECUTAR OBRIGATORIAMENTE:
     );
 
     // Montar mensagem do sistema com todos os contextos
+    // 🔥 IMPORTANTE: Incluir similarCasesContext e writingStyleContext aqui!
     const fullSystemPrompt =
       systemPrompt +
       contexts.knowledgeBaseContext +
       contexts.processContext +
       contexts.processDocsContext +
-      contexts.similarCasesContext;
+      contexts.similarCasesContext +
+      contexts.writingStyleContext; // Nova injeção de estilo
 
     const llmMessages: LLMMessage[] = [
       { role: "system", content: fullSystemPrompt },

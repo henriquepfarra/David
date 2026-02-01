@@ -18,4 +18,5 @@ console.log('[CommandsIndex] Importing handlers...')
 import './handlers/consultar.handler'
 import './handlers/minutar.handler'
 import './handlers/analise1.handler'
+import './handlers/tese.handler'
 console.log('[CommandsIndex] Handlers imported.')
