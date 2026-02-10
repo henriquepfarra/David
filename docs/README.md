@@ -9,7 +9,8 @@ Documentos de design e arquitetura do sistema:
 - **orchestration_architecture_v7.md** - Arquitetura completa do sistema de orquestração (IntentService + ContextBuilder + Motors)
 - **rag_on_demand_evolution.md** - Evolução do sistema RAG on-demand com hierarquia e filtros
 - **rag_on_demand_spec.md** - Especificação detalhada do RAG on-demand
-- **system_commands_architecture.md** - 🆕 Arquitetura de Slash Commands do Sistema (/analise1, /minutar, /tese, etc.)
+- **system_commands_architecture.md** - Arquitetura de Slash Commands do Sistema (/analise1, /minutar, /tese, etc.)
+- **PDF_EXTRACTION_STRATEGY.md** - 🆕 Estratégia híbrida de extração de PDF (local + File API)
 
 ### `/modules` - Módulos de Especialização
 Planos e documentação dos módulos especializados (JEC, FONAJE, etc.):
