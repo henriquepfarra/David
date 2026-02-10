@@ -153,9 +153,9 @@ export function ChatInputArea({
     const [showSlashMenu, setShowSlashMenu] = useState(false);
     const slashFilter = useMemo(() => {
         if (!messageInput.startsWith('/')) return '';
-        // Extract the partial command after /
-        const match = messageInput.match(/^\/([a-z0-9]*)$/i);
-        return match ? match[1] : '';
+        // Extract everything after / to ensure specific filtering
+        // This prevents the menu from showing all commands (fallback) when the regex fails due to spaces
+        return messageInput.slice(1);
     }, [messageInput]);
 
     // Show menu when typing / at start
@@ -181,7 +181,10 @@ export function ChatInputArea({
 
     const handleKeyPress = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
         // Se menu de comandos está aberto, não processar Enter aqui (SlashCommandMenu cuida)
-        if (showSlashMenu && e.key === "Enter") {
+        // EXCETO se já houver espaço (argumentos), nesse caso o menu deve fechar/ignorar e o Enter deve enviar
+        const shouldLetMenuHandle = showSlashMenu && !messageInput.includes(' ');
+
+        if (shouldLetMenuHandle && e.key === "Enter") {
             return; // SlashCommandMenu já tratou isso via listener global
         }
         if (e.key === "Enter" && !e.shiftKey) {

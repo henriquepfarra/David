@@ -43,27 +43,53 @@ export const processDocumentsRouter = router({
             extractedText = result.value;
             pagesToProcess = [{ pageNumber: 1, text: extractedText }];
           } else if (input.fileType === "pdf") {
-            // Usar File API para leitura visual do PDF
-            const { readPdfWithVision } = await import("./_core/fileApi");
+            // Estratégia híbrida: extração local primeiro, File API como fallback
+            const { extractPdfWithQualityCheck } = await import("./_core/pdfExtractor");
             const { userSettings } = await import("../drizzle/schema");
             const { eq } = await import("drizzle-orm");
             const { db } = await import("./db");
 
-            // Buscar configurações do usuário
-            let apiKey: string | undefined;
-            let model = "gemini-2.0-flash-lite";
-            if (db) {
-              const settingsResult = await db.select().from(userSettings).where(eq(userSettings.userId, ctx.user.id)).limit(1);
-              const settings = settingsResult[0];
-              apiKey = settings?.readerApiKey || ENV.geminiApiKey || undefined;
-              model = settings?.readerModel || "gemini-2.0-flash-lite";
+            // 1. Tentar extração local primeiro (mais rápido e sem custo)
+            let useFileApi = false;
+            try {
+              const localResult = await extractPdfWithQualityCheck(buffer);
+
+              if (localResult.quality.isValid) {
+                // Extração local bem-sucedida
+                extractedText = localResult.fullText;
+                pagesToProcess = localResult.pages;
+                console.log(`[ProcessDocuments] Extração LOCAL bem-sucedida (${localResult.quality.confidence}): ${localResult.pages.length} páginas, ${localResult.quality.metrics.totalChars} chars`);
+              } else {
+                // Qualidade insuficiente - usar File API
+                useFileApi = true;
+                console.log(`[ProcessDocuments] Extração local insuficiente: ${localResult.quality.reason}. Usando File API...`);
+              }
+            } catch (localError) {
+              // Erro na extração local - usar File API
+              useFileApi = true;
+              console.log(`[ProcessDocuments] Erro na extração local: ${localError}. Usando File API...`);
             }
 
-            const result = await readPdfWithVision(buffer, { apiKey, model });
-            extractedText = result.content;
-            // File API retorna texto completo, tratamos como uma única página
-            pagesToProcess = [{ pageNumber: 1, text: extractedText }];
-            console.log(`[ProcessDocuments] File API: Leitura visual concluída. Tokens: ${result.tokensUsed}`);
+            // 2. Fallback para File API se necessário
+            if (useFileApi) {
+              const { readPdfWithVision } = await import("./_core/fileApi");
+
+              // Buscar configurações do usuário
+              let apiKey: string | undefined;
+              let model = "gemini-2.0-flash-lite";
+              if (db) {
+                const settingsResult = await db.select().from(userSettings).where(eq(userSettings.userId, ctx.user.id)).limit(1);
+                const settings = settingsResult[0];
+                apiKey = settings?.readerApiKey || ENV.geminiApiKey || undefined;
+                model = settings?.readerModel || "gemini-2.0-flash-lite";
+              }
+
+              const result = await readPdfWithVision(buffer, { apiKey, model });
+              extractedText = result.content;
+              // File API retorna texto completo, tratamos como uma única página
+              pagesToProcess = [{ pageNumber: 1, text: extractedText }];
+              console.log(`[ProcessDocuments] File API: Leitura visual concluída. Tokens: ${result.tokensUsed}`);
+            }
           } else {
             extractedText = "[Arquivo de imagem - sem extração de texto]";
           }
