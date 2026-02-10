@@ -201,10 +201,12 @@ async function startServer() {
 
             // Contexto do comando
             const commandCtx = {
+              command: `/${plan.definition.slug}`,
               userId: String(user.id),
               conversationId: String(conversationId),
               processId: conversation.processId ? String(conversation.processId) : undefined,
               fileUri: conversation.googleFileUri || undefined,
+              argument: plan.argument,  // ⚠️ CRITICAL: sem isso, handlers recebem undefined
               args: content.split(/\s+/).slice(1),
               rawInput: content,
               activeModule: moduleSlug as any,
@@ -218,6 +220,7 @@ async function startServer() {
 
             // Streaming real: processar eventos do handler incrementalmente
             for await (const event of plan.definition.handler(commandCtx)) {
+              console.log(`[Stream-CMD] Event: ${event.type}`);
               if (event.type === 'thinking_chunk') {
                 fullThinking += event.content;
                 res.write(`data: ${JSON.stringify({ type: "thinking", content: event.content })}\n\n`);
@@ -225,12 +228,42 @@ async function startServer() {
                 fullContent += event.content;
                 res.write(`data: ${JSON.stringify({ type: "chunk", content: event.content })}\n\n`);
               } else if (event.type === 'content_complete') {
-                // Ignorar - já enviamos via chunks
+                console.log(`[Stream-CMD] content_complete - content length: ${event.content?.length || 0}, fullContent so far: ${fullContent.length}`);
+                // content_complete é o resultado FINAL autorizado (ex: após checkout)
+                // Sempre usar, mesmo que já tenhamos chunks acumulados do streaming intermediário
+                if (event.content) {
+                  fullContent = event.content;
+                  // Não enviar novamente via SSE - os chunks já foram enviados em tempo real
+                }
+                if ((event as any).thinking && !fullThinking) {
+                  fullThinking = (event as any).thinking;
+                }
               } else if (event.type === 'command_complete') {
-                // Final - enviar done event
+                console.log(`[Stream-CMD] command_complete - finalOutput length: ${event.result?.finalOutput?.length || 0}, fullContent so far: ${fullContent.length}`);
+                // Extrair resultado final do comando (handlers com LLM interno não-streaming)
+                if (event.result?.finalOutput && !fullContent) {
+                  fullContent = event.result.finalOutput;
+                  res.write(`data: ${JSON.stringify({ type: "chunk", content: event.result.finalOutput })}\n\n`);
+                }
+                if (event.result?.thinking && !fullThinking) {
+                  fullThinking = event.result.thinking;
+                }
               } else if (event.type === 'command_error') {
+                console.log(`[Stream-CMD] command_error: ${event.error}`);
                 res.write(`data: ${JSON.stringify({ type: "error", content: event.error })}\n\n`);
               }
+            }
+
+            console.log(`[Stream-CMD] Loop finished. fullContent length: ${fullContent.length}, fullThinking length: ${fullThinking.length}`);
+
+            // Se fullContent está vazio (ex: command_error emitido, ou handler não produziu conteúdo)
+            // NÃO tentar salvar mensagem vazia - isso lançaria exceção
+            if (!fullContent || fullContent.trim().length === 0) {
+              console.log(`[Stream-CMD] fullContent vazio - encerrando sem salvar mensagem`);
+              res.write(`data: ${JSON.stringify({ type: "done", content: "" })}\n\n`);
+              res.end();
+              console.log(`[Stream] Comando finalizado (sem conteúdo)`);
+              return;
             }
 
             // Salvar resposta completa com thinking separado
@@ -249,7 +282,14 @@ async function startServer() {
           }
         } catch (cmdError) {
           console.error(`[Stream] Erro ao executar comando:`, cmdError);
-          // Se houver erro, continua para o fluxo normal de chat
+          // Se SSE headers já foram enviados, enviar erro via SSE e encerrar
+          if (res.headersSent) {
+            const errorMsg = cmdError instanceof Error ? cmdError.message : 'Erro desconhecido';
+            res.write(`data: ${JSON.stringify({ type: "error", content: `Erro no comando: ${errorMsg}` })}\n\n`);
+            res.end();
+            return;
+          }
+          // Se headers NÃO foram enviados, continua para o fluxo normal de chat
         }
       }
 

@@ -70,7 +70,8 @@ export function SlashCommandMenu({
     const [selectedIndex, setSelectedIndex] = useState(0)
 
     // Fetch commands from backend based on module
-    const { data: commands = FALLBACK_COMMANDS } = trpc.commands.listAvailable.useQuery(
+    // IMPORTANT: Track loading state to avoid selecting from stale fallback
+    const { data: commands, isLoading, isFetching } = trpc.commands.listAvailable.useQuery(
         { moduleSlug },
         {
             staleTime: 60000, // Cache for 1 minute
@@ -78,52 +79,118 @@ export function SlashCommandMenu({
         }
     )
 
+    // Use fetched commands or fallback only when fully loaded
+    const safeCommands = commands ?? FALLBACK_COMMANDS
+    const isCommandsReady = !isLoading && !isFetching && commands !== undefined
+
+
     // Filter commands by search text
     const filteredCommands = useMemo(() => {
         const searchTerm = filter.toLowerCase()
-        return commands.filter(cmd =>
+        return safeCommands.filter(cmd =>
             cmd.trigger.toLowerCase().includes(searchTerm) ||
             cmd.name.toLowerCase().includes(searchTerm) ||
             cmd.description.toLowerCase().includes(searchTerm)
         )
-    }, [commands, filter])
+    }, [safeCommands, filter])
 
     // Reset selection when filter changes
     useEffect(() => {
         setSelectedIndex(0)
     }, [filter])
 
+    // Auto-close menu when no commands match the filter
+    // This allows the parent component to know there are no valid commands
+    // and proceed with sending the message
+    useEffect(() => {
+        if (isOpen && isCommandsReady && filteredCommands.length === 0 && filter.length > 0) {
+            // No commands match the typed filter - close the menu
+            // This will set showSlashMenu to false in the parent, allowing Enter to send the message
+            onClose()
+        }
+    }, [isOpen, isCommandsReady, filteredCommands.length, filter.length, onClose])
+
+    // =====================================================
+    // REFS TO AVOID STALE CLOSURES IN KEYBOARD LISTENER
+    // =====================================================
+    const filteredCommandsRef = useRef(filteredCommands)
+    const selectedIndexRef = useRef(selectedIndex)
+    const filterRef = useRef(filter)
+    const isCommandsReadyRef = useRef(isCommandsReady)
+
+    // Keep refs in sync
+    useEffect(() => {
+        filteredCommandsRef.current = filteredCommands
+    }, [filteredCommands])
+
+    useEffect(() => {
+        selectedIndexRef.current = selectedIndex
+    }, [selectedIndex])
+
+    useEffect(() => {
+        filterRef.current = filter
+    }, [filter])
+
+    useEffect(() => {
+        isCommandsReadyRef.current = isCommandsReady
+    }, [isCommandsReady])
+
     // Handle keyboard navigation
     useEffect(() => {
+        // Don't register listener if menu is closed
         if (!isOpen) return
 
         const handleKeyDown = (e: KeyboardEvent) => {
+            // Use refs to get current values (avoid stale closures)
+            const currentFilteredCommands = filteredCommandsRef.current
+            const currentSelectedIndex = selectedIndexRef.current
+            const currentFilter = filterRef.current
+
+            // If no commands match, don't handle keyboard events
+            if (currentFilteredCommands.length === 0) return
+
             switch (e.key) {
                 case 'ArrowDown':
                     e.preventDefault()
-                    setSelectedIndex(i => Math.min(i + 1, filteredCommands.length - 1))
+                    setSelectedIndex(i => Math.min(i + 1, currentFilteredCommands.length - 1))
                     break
                 case 'ArrowUp':
                     e.preventDefault()
                     setSelectedIndex(i => Math.max(i - 1, 0))
                     break
                 case 'Enter':
+                    // Don't auto-select if commands are still loading (using fallback)
+                    if (!isCommandsReadyRef.current) {
+                        // Let the event bubble so HomeScreen/ChatInputArea handles the send
+                        return
+                    }
+
                     // Verify match validity to prevent stale state issues
-                    const selected = filteredCommands[selectedIndex];
-                    // Strict check: Only auto-select (index 0) if it's a plausible match
-                    // or if user manually navigated (selectedIndex > 0)
+                    const selected = currentFilteredCommands[currentSelectedIndex];
+
+                    // Strict check: Only auto-select if:
+                    // 1. User manually navigated (selectedIndex > 0), OR
+                    // 2. Just typed '/' with no filter, OR
+                    // 3. The selected command's trigger actually MATCHES exactly what was typed
+                    const filterWithSlash = '/' + currentFilter.toLowerCase();
+
+                    // Verify the selected command's trigger starts with exactly what the user typed
+                    const isExactOrPrefixMatch = selected && (
+                        selected.trigger.toLowerCase() === filterWithSlash ||
+                        selected.trigger.toLowerCase().startsWith(filterWithSlash)
+                    );
+
                     const isPlausibleMatch = selected && (
-                        selectedIndex > 0 ||
-                        filter.length === 0 || // Just typed '/', auto-select first is ok
-                        selected.trigger.toLowerCase().includes(filter.toLowerCase()) ||
-                        selected.name.toLowerCase().includes(filter.toLowerCase())
+                        currentSelectedIndex > 0 || // User manually selected
+                        currentFilter.length === 0 || // Just typed '/', auto-select first is ok
+                        isExactOrPrefixMatch // Filter matches the trigger prefix
                     );
 
                     if (isPlausibleMatch) {
                         e.preventDefault();
                         onSelect(selected.trigger);
                     }
-                    // Otherwise let the event bubble so ChatInputArea handles the send
+                    // Otherwise let the event bubble so HomeScreen/ChatInputArea handles the send
                     break
                 case 'Escape':
                     e.preventDefault()
@@ -131,8 +198,8 @@ export function SlashCommandMenu({
                     break
                 case 'Tab':
                     e.preventDefault()
-                    if (filteredCommands[selectedIndex]) {
-                        onSelect(filteredCommands[selectedIndex].trigger)
+                    if (currentFilteredCommands[currentSelectedIndex]) {
+                        onSelect(currentFilteredCommands[currentSelectedIndex].trigger)
                     }
                     break
             }
@@ -140,7 +207,7 @@ export function SlashCommandMenu({
 
         document.addEventListener('keydown', handleKeyDown)
         return () => document.removeEventListener('keydown', handleKeyDown)
-    }, [isOpen, filteredCommands, selectedIndex, onSelect, onClose])
+    }, [isOpen, onSelect, onClose]) // Only depend on stable props
 
     // Close on outside click
     useEffect(() => {

@@ -771,10 +771,18 @@ async function* geminiNativeStreamWithThinking(
     }
   }
 
+  // Detectar versão do modelo para configuração de thinking adequada
+  const isGemini3 = model.includes('gemini-3') || model.includes('gemini3');
+
+  const thinkingConfig: Record<string, unknown> = isGemini3
+    ? { thinkingLevel: 'HIGH', includeThoughts: true }
+    : { thinkingBudget: 8192, includeThoughts: true };
+
   const payload: Record<string, unknown> = {
     contents,
     generationConfig: {
       maxOutputTokens: 32768,
+      thinkingConfig,
     }
   };
 
@@ -854,6 +862,10 @@ async function* geminiNativeStreamWithThinking(
           const role = candidate.content?.role;
 
           if (parts && parts.length > 0) {
+            // Debug: log first chunk's structure to see if thought field exists
+            if (parts.some((p: any) => p.thought !== undefined)) {
+              console.log(`[Gemini Native] Thought part detected! Parts:`, JSON.stringify(parts.map((p: any) => ({ thought: p.thought, textLen: p.text?.length || 0 }))));
+            }
             for (const part of parts) {
               // Gemini 3.0 com includeThoughts nativa: 
               // - part.thought === true indica que part.text é o pensamento

@@ -479,35 +479,36 @@ if (message.metadata?.canApprove) {
 
 ## 📝 Checklist de Implementação
 
-### Fase 1 - ContextBuilder
-- [ ] Implementar `injectLearnedTheses()`
-- [ ] Implementar `injectWritingStyle()`
-- [ ] Integrar em `createBuilderForIntent()`
-- [ ] Testar com tese real
+### Fase 1 - ContextBuilder ✅
+- [x] Implementar `injectLearnedTheses()` → Inline em `PromptBuilder.ts:130-170`
+- [x] Implementar `injectWritingStyle()` → Inline em `PromptBuilder.ts:150-165`
+- [x] Integrar em `createBuilderForIntent()` → `buildContexts()`
+- [x] Testar com tese real → thesisRouter.test.ts
 
-### Fase 2 - UI Revisão
-- [ ] Criar `PendingTheses.tsx`
-- [ ] Criar `ThesisReviewDialog.tsx`
-- [ ] Criar `ThesisCard.tsx`
-- [ ] Criar endpoints tRPC (getPending, approve, reject, edit)
-- [ ] Testar fluxo completo
+### Fase 2 - UI Revisão ✅
+- [x] Criar `PendingTheses.tsx`
+- [x] Criar `ThesisReviewDialog.tsx` → Integrado em `ThesisCard.tsx`
+- [x] Criar `ThesisCard.tsx`
+- [x] Criar endpoints tRPC (getPending, approve, reject, edit)
+- [x] Testar fluxo completo
 
-### Fase 3 - Badge
-- [ ] Endpoint `getPendingCount`
-- [ ] Badge no sidebar item
+### Fase 3 - Badge ✅
+- [x] Endpoint `getPendingCount`
+- [x] Badge no sidebar item → `MemoriaJuridicaMenuItem.tsx`
 
-### Fase 4 - Comando /tese
-- [ ] Handler com subcomandos
-- [ ] Output formatado
-- [ ] Registrar no registry
+### Fase 4 - Comando /tese ✅
+- [x] Handler com subcomandos → `tese.handler.ts`
+- [x] Output formatado
+- [x] Registrar no registry
 
-### Fase 5 - Trigger /minutar
-- [ ] Metadata `canApprove` no response
-- [ ] Botões de aprovação no frontend
-- [ ] Endpoint `approveDraft`
-- [ ] Toast de confirmação
+### Fase 5 - Trigger /minutar ✅
+- [x] Metadata `canApprove` no response
+- [x] Botões de aprovação no frontend → `David.tsx:483-525`
+- [x] Endpoint `approveDraft` → `approvedDraftsRouter`
+- [x] Toast de confirmação
 
 ---
 
-**Última atualização:** 28/01/2026
-**Autor:** Análise automática do código
+**Última atualização:** 09/02/2026
+**Status:** ✅ Implementação Completa
+

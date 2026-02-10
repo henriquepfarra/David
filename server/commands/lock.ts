@@ -19,18 +19,19 @@ class CommandLock {
 
     /**
      * Attempts to acquire a lock for an orchestrated command.
-     * Only one orchestrated command per user at a time.
+     * Lock is per-conversation, allowing users to run commands in different conversations simultaneously.
      * 
-     * @returns true if lock acquired, false if user already has a command running
+     * @returns true if lock acquired, false if conversation already has a command running
      */
-    acquire(userId: string, command: string): boolean {
+    acquire(userId: string, command: string, conversationId?: string): boolean {
         this.cleanExpiredLocks()
 
-        const lockKey = `${userId}:orchestrated`
+        // Lock per conversation (not per user) to allow parallel commands in different chats
+        const lockKey = conversationId ? `${userId}:${conversationId}:orchestrated` : `${userId}:orchestrated`
         const existing = this.locks.get(lockKey)
 
         if (existing) {
-            // User already has a command running
+            // Conversation already has a command running
             return false
         }
 
@@ -43,11 +44,11 @@ class CommandLock {
     }
 
     /**
-     * Releases the lock for a user.
+     * Releases the lock for a user's conversation.
      * Should be called in finally block of command handlers.
      */
-    release(userId: string): void {
-        const lockKey = `${userId}:orchestrated`
+    release(userId: string, conversationId?: string): void {
+        const lockKey = conversationId ? `${userId}:${conversationId}:orchestrated` : `${userId}:orchestrated`
         this.locks.delete(lockKey)
     }
 

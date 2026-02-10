@@ -48,7 +48,7 @@ export const teseHandler: CommandHandler = async function* (ctx: CommandContext)
     // Acumulador de passos para o resultado final
     const completedSteps: StepResult[] = []
 
-    if (!commandLock.acquire(userId, '/tese')) {
+    if (!commandLock.acquire(userId, '/tese', conversationId)) {
         yield { type: 'command_error', error: '⏳ Comando em execução.' }
         return
     }
@@ -192,7 +192,7 @@ export const teseHandler: CommandHandler = async function* (ctx: CommandContext)
     } catch (error) {
         yield { type: 'command_error', error: `Erro: ${error}` }
     } finally {
-        commandLock.release(userId)
+        commandLock.release(userId, conversationId)
     }
 }
 

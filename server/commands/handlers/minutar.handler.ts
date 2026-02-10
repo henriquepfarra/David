@@ -20,8 +20,34 @@ import type { CommandHandler, CommandContext, CommandEvent, StepResult } from '.
 import { createMinutaBuilder } from '../../services/ContextBuilder'
 import { getRagService } from '../../services/RagService'
 import { getConversationMessages } from '../../db'
-import { invokeLLM } from '../../_core/llm'
+import { invokeLLM, invokeLLMStreamWithThinking } from '../../_core/llm'
+import type { StreamYield } from '../../_core/llm'
 import { getUserSettings } from '../../db'
+
+// ============================================
+// HELPER: LLM com Thinking Streaming
+// ============================================
+
+/**
+ * Chama LLM via streaming, emitindo thinking em tempo real via callback
+ * e retornando o conteúdo completo ao final.
+ * 
+ * Permite que o handler yield thinking_chunk events enquanto aguarda o resultado.
+ */
+async function invokeLLMWithThinkingStream(
+    params: Parameters<typeof invokeLLMStreamWithThinking>[0],
+    onThinking: (text: string) => void
+): Promise<string> {
+    let content = ''
+    for await (const chunk of invokeLLMStreamWithThinking(params)) {
+        if (chunk.type === 'thinking') {
+            onThinking(chunk.text)
+        } else {
+            content += chunk.text
+        }
+    }
+    return content
+}
 
 // ============================================
 // HELPER
@@ -143,7 +169,7 @@ export const minutarHandler: CommandHandler = async function* (ctx: CommandConte
     }
 
     // Acquire lock (prevent concurrent orchestrated commands)
-    if (!commandLock.acquire(userId, '/minutar')) {
+    if (!commandLock.acquire(userId, '/minutar', conversationId)) {
         yield {
             type: 'command_error',
             error: '⏳ Você já tem um comando em execução. Aguarde a conclusão.',
@@ -212,25 +238,25 @@ export const minutarHandler: CommandHandler = async function* (ctx: CommandConte
             content: m.content
         }))
 
-        // Call LLM for architecture
-        const arquiteturaResponse = await withRetry(async () => {
-            return await invokeLLM({
-                messages: [
-                    { role: 'system', content: STEP1_ARQUITETURA_PROMPT },
-                    ...recentHistory,
-                    { role: 'user', content: `Defina a estrutura para: ${veredito}` }
-                ],
-                apiKey: settings.llmApiKey!,
-                model: settings.llmModel || undefined,
-                provider: settings.llmProvider || undefined,
-            })
-        }, {
-            maxAttempts: 2,
-            onRetry: (info) => console.log(`[/minutar] Retry ${info.attempt}: ${info.error}`)
-        })
-
-        const arquiteturaContentRaw = arquiteturaResponse.choices[0]?.message?.content
-        const arquiteturaContent = extractContent(arquiteturaContentRaw)
+        // Call LLM for architecture (com thinking streaming)
+        let arquiteturaContent = ''
+        for await (const chunk of invokeLLMStreamWithThinking({
+            messages: [
+                { role: 'system', content: STEP1_ARQUITETURA_PROMPT },
+                ...recentHistory,
+                { role: 'user', content: `Defina a estrutura para: ${veredito}` }
+            ],
+            apiKey: settings.llmApiKey!,
+            model: settings.llmModel || undefined,
+            provider: settings.llmProvider || undefined,
+        })) {
+            if (chunk.type === 'thinking') {
+                yield { type: 'thinking_chunk', content: chunk.text }
+            } else {
+                arquiteturaContent += chunk.text
+            }
+        }
+        arquiteturaContent = extractContent(arquiteturaContent)
 
         // Parse structure (with fallback)
         let estrutura = {
@@ -326,24 +352,26 @@ export const minutarHandler: CommandHandler = async function* (ctx: CommandConte
 
         const contextPrompt = redacaoBuilder.build()
 
-        // Call LLM for drafting
-        const redacaoResponse = await withRetry(async () => {
-            return await invokeLLM({
-                messages: [
-                    { role: 'system', content: redacaoPrompt + '\n\n' + contextPrompt },
-                    ...recentHistory,
-                    { role: 'user', content: `Redija a minuta para: ${veredito}` }
-                ],
-                apiKey: settings.llmApiKey!,
-                model: settings.llmModel || undefined,
-                provider: settings.llmProvider || undefined,
-            })
-        }, {
-            maxAttempts: 2,
-            onRetry: (info) => console.log(`[/minutar] Retry ${info.attempt}: ${info.error}`)
-        })
-
-        const minutaRaw = redacaoResponse.choices[0]?.message?.content
+        // Call LLM for drafting (com thinking streaming + content streaming)
+        let minutaRaw = ''
+        for await (const chunk of invokeLLMStreamWithThinking({
+            messages: [
+                { role: 'system', content: redacaoPrompt + '\n\n' + contextPrompt },
+                ...recentHistory,
+                { role: 'user', content: `Redija a minuta para: ${veredito}` }
+            ],
+            apiKey: settings.llmApiKey!,
+            model: settings.llmModel || undefined,
+            provider: settings.llmProvider || undefined,
+        })) {
+            if (chunk.type === 'thinking') {
+                yield { type: 'thinking_chunk', content: chunk.text }
+            } else {
+                minutaRaw += chunk.text
+                // Stream content chunks em tempo real para o usuário ver a minuta sendo gerada
+                yield { type: 'content_chunk', content: chunk.text }
+            }
+        }
         let minuta = extractContent(minutaRaw)
 
         const step2Result: StepResult = {
@@ -381,22 +409,22 @@ export const minutarHandler: CommandHandler = async function* (ctx: CommandConte
             .replace('{{MINUTA}}', minuta)
             .replace('{{VEREDITO}}', veredito)
 
-        const checkoutResponse = await withRetry(async () => {
-            return await invokeLLM({
-                messages: [
-                    { role: 'system', content: checkoutPrompt },
-                    { role: 'user', content: 'Valide a minuta e corrija se necessário.' }
-                ],
-                apiKey: settings.llmApiKey!,
-                model: settings.llmModel || undefined,
-                provider: settings.llmProvider || undefined,
-            })
-        }, {
-            maxAttempts: 2,
-            onRetry: (info) => console.log(`[/minutar] Retry ${info.attempt}: ${info.error}`)
-        })
-
-        const finalMinutaRaw = checkoutResponse.choices[0]?.message?.content
+        let finalMinutaRaw = ''
+        for await (const chunk of invokeLLMStreamWithThinking({
+            messages: [
+                { role: 'system', content: checkoutPrompt },
+                { role: 'user', content: 'Valide a minuta e corrija se necessário.' }
+            ],
+            apiKey: settings.llmApiKey!,
+            model: settings.llmModel || undefined,
+            provider: settings.llmProvider || undefined,
+        })) {
+            if (chunk.type === 'thinking') {
+                yield { type: 'thinking_chunk', content: chunk.text }
+            } else {
+                finalMinutaRaw += chunk.text
+            }
+        }
         const finalMinuta = extractContent(finalMinutaRaw) || minuta
         const wasValidated = finalMinuta.includes('✅ VALIDADO')
         const wasCorrected = finalMinuta.includes('⚠️ CORRIGIDO')
@@ -452,7 +480,7 @@ export const minutarHandler: CommandHandler = async function* (ctx: CommandConte
         }
     } finally {
         // Always release lock
-        commandLock.release(userId)
+        commandLock.release(userId, conversationId)
     }
 }
 

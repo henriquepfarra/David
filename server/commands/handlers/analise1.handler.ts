@@ -58,7 +58,7 @@ export const analise1Handler: CommandHandler = async function* (ctx: CommandCont
     }
 
     // Acquire lock
-    if (!commandLock.acquire(userId, '/analise1')) {
+    if (!commandLock.acquire(userId, '/analise1', conversationId)) {
         yield {
             type: 'command_error',
             error: '⏳ Você já tem um comando em execução. Aguarde a conclusão.',
@@ -286,7 +286,7 @@ Execute o protocolo de pensamento estruturado (<thinking>) e depois as 6 etapas 
             error: `Erro ao executar triagem: ${error instanceof Error ? error.message : 'Erro desconhecido'}`,
         }
     } finally {
-        commandLock.release(userId)
+        commandLock.release(userId, conversationId)
     }
 }
 

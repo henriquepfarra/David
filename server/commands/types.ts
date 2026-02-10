@@ -104,12 +104,12 @@ export type CommandEvent =
     }
     | {
         type: 'thinking_chunk'
-        step: string
+        step?: string
         content: string
     }
     | {
         type: 'content_chunk'
-        step: string
+        step?: string
         content: string
     }
     | {

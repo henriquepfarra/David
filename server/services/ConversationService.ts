@@ -158,9 +158,14 @@ export class ConversationService {
           }
         }
 
-        // Se tem thinking (capturado diretamente ou extraído), formatar para exibição
-        if (thinkingOutput) {
-          return `<thinking>\n${thinkingOutput}\n</thinking>\n\n${finalOutput}`;
+        // ⚠️ IMPORTANTE: NÃO re-encapsular thinking nas tags!
+        // O frontend processa thinking separadamente via MessageList.tsx
+        // Se re-encapsulássemos, stripThinking() removeria tudo se finalOutput estiver vazio
+
+        // Se finalOutput está vazio mas temos thinking, retornar fallback
+        if (!finalOutput && thinkingOutput) {
+          console.warn(`[ConversationService] finalOutput vazio mas thinking existe - resposta incompleta`);
+          return '⚠️ O comando foi processado mas a resposta ficou incompleta. Por favor, tente novamente.';
         }
 
         return finalOutput || null;
@@ -183,7 +188,17 @@ export class ConversationService {
       if (error instanceof Error && error.name === 'CommandArgumentError') {
         return `⚠️ ${error.message}`;
       }
-      // Log other errors but continue to fallback
+      // ⚠️ Para outros erros em comandos do sistema, retornar mensagem de erro
+      // ao invés de engolir e cair no fallback (LLM regular), porque:
+      // 1. O comando foi reconhecido mas falhou durante execução
+      // 2. O fallback para LLM regular também pode falhar
+      // 3. O usuário deve saber que o comando falhou, não receber resposta vazia
+      if (content.startsWith('/')) {
+        const errorMsg = error instanceof Error ? error.message : 'Erro desconhecido';
+        console.error(`[ConversationService] Comando falhou com erro não tratado:`, errorMsg);
+        return `❌ Erro ao executar comando: ${errorMsg}`;
+      }
+      // Log other errors but continue to fallback (only for non-commands)
       logger.debug(
         `[ConversationService] CommandResolver error, trying saved prompts:`,
         error

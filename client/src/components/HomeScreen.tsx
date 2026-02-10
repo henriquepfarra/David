@@ -117,6 +117,11 @@ export function HomeScreen({
 
     // Handler para Enter sem Shift
     const handleKeyPress = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+        // Se menu de comandos está aberto, deixar o SlashCommandMenu lidar com o Enter
+        if (showSlashMenu && e.key === 'Enter') {
+            // Não enviar mensagem - SlashCommandMenu vai tratar isso via listener global
+            return;
+        }
         if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault();
             if (messageInput.trim() && !isStreaming && !isCreatingConversation) {

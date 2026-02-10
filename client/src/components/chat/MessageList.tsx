@@ -16,6 +16,7 @@ import { Check, Edit, ChevronDown } from "lucide-react";
 import { Streamdown } from "streamdown";
 import { ProcessBanner } from "./ProcessBanner";
 import { APP_LOGO } from "@/const";
+import { stripThinking, extractThinking } from "@/lib/StreamParser";
 
 interface Message {
     id: number;
@@ -72,7 +73,12 @@ function AssistantMessage({
     onApproveDraft: (messageId: number, content: string, status: "approved" | "rejected") => void;
     onEditDraft: (messageId: number, content: string) => void;
 }) {
-    const isDraft = isDraftMessage(message.content);
+    // Processar thinking: pode vir no campo dedicado OU embutido no content via tags <thinking>
+    const embeddedThinking = extractThinking(message.content);
+    const thinkingContent = message.thinking || embeddedThinking;
+    // Remover tags <thinking> do content para evitar erro de renderização React
+    const cleanContent = stripThinking(message.content);
+    const isDraft = isDraftMessage(cleanContent);
 
     return (
         <div className="flex flex-col items-start gap-2 max-w-4xl w-full mb-8 animate-in fade-in slide-in-from-bottom-2 group">
@@ -86,7 +92,7 @@ function AssistantMessage({
             </div>
 
             {/* Thinking Colapsável (se existir) */}
-            {message.thinking && (
+            {thinkingContent && (
                 <details className="pl-10 w-full group/thinking">
                     <summary className="flex items-center gap-2 cursor-pointer text-sm text-primary/80 hover:text-primary transition-colors select-none list-none">
                         <span className="text-primary">✦</span>
@@ -94,13 +100,13 @@ function AssistantMessage({
                         <ChevronDown className="h-4 w-4 transition-transform group-open/thinking:rotate-180" />
                     </summary>
                     <div className="mt-2 p-3 bg-muted/30 border border-border/50 rounded-lg text-sm text-muted-foreground/80 whitespace-pre-wrap font-mono text-[13px] leading-relaxed">
-                        {message.thinking}
+                        {thinkingContent}
                     </div>
                 </details>
             )}
 
             <div className="pl-10 w-full text-foreground leading-relaxed space-y-2 text-justify">
-                <Streamdown>{message.content}</Streamdown>
+                <Streamdown>{cleanContent}</Streamdown>
 
                 {/* Timestamp ou Botões de Ação (Minutas) */}
                 {!isDraft ? (
