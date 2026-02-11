@@ -1,8 +1,8 @@
 # Correções Pendentes - David MVP
 
-**Última atualização:** 2026-02-10
+**Última atualização:** 2026-02-11
 **Status:** Preparação para testes com usuários reais
-**Score Geral:** 7/10 - Pronto para beta restrito
+**Score Geral:** 7.5/10 - Pronto para beta restrito
 
 ---
 
@@ -10,9 +10,9 @@
 
 | Categoria | Score | Status |
 |-----------|-------|--------|
-| Segurança | 7/10 | Auth sólida, falta rate limiting |
-| Confiabilidade | 7.5/10 | Retry OK, faltam timeouts |
-| Estabilidade | 7/10 | Pool DB OK, streaming precisa cleanup |
+| Segurança | 7.5/10 | Auth sólida, CSP implementado, falta rate limiting |
+| Confiabilidade | 8/10 | Retry OK, Timeouts implementados |
+| Estabilidade | 8/10 | Pool DB OK, streaming memory leak corrigido |
 | Arquitetura | 6.5/10 | Separação clara, davidRouter grande |
 
 ---
@@ -89,7 +89,7 @@ for await (const yieldData of streamFn({...})) {
 ```
 
 **Arquivo:** `server/index.ts`
-**Status:** [ ] Pendente
+**Status:** [x] Concluído (Ver [`docs/RELATORIOS/2026-02-11_ESTABILIDADE.md`](../docs/RELATORIOS/2026-02-11_ESTABILIDADE.md))
 
 ---
 
@@ -115,7 +115,7 @@ try {
 ```
 
 **Arquivos:** `server/_core/llm.ts`, `server/services/*.ts`
-**Status:** [ ] Pendente
+**Status:** [x] Concluído (Ver [`docs/RELATORIOS/2026-02-11_ESTABILIDADE.md`](../docs/RELATORIOS/2026-02-11_ESTABILIDADE.md))
 
 ---
 
@@ -144,7 +144,7 @@ app.use(helmet.contentSecurityPolicy({
 ```
 
 **Arquivo:** `server/index.ts`
-**Status:** [ ] Pendente
+**Status:** [x] Concluído (Ver [`docs/RELATORIOS/2026-02-11_ESTABILIDADE.md`](../docs/RELATORIOS/2026-02-11_ESTABILIDADE.md))
 
 ---
 
@@ -398,9 +398,9 @@ async function cleanupAbandonedConversations() {
 
 ### Segurança
 - [ ] Rate limiting ativo em todos endpoints
-- [ ] Timeouts LLM configurados (30s)
-- [ ] Memory leak em streaming corrigido
-- [ ] CSP headers implementados
+- [x] Timeouts LLM configurados (30s)
+- [x] Memory leak em streaming corrigido
+- [x] CSP headers implementados
 - [ ] Validação de tamanho de upload
 - [ ] Validação de URLs (SSRF)
 - [ ] Circuit breaker em APIs externas
@@ -453,3 +453,6 @@ async function cleanupAbandonedConversations() {
 | 2026-02-10 | Filtro de modelos recomendados | ✅ Concluído |
 | 2026-02-10 | Toggle "mostrar todos" modelos | ✅ Concluído |
 | 2026-02-10 | Seed de súmulas no banco | ✅ Concluído |
+| 2026-02-11 | Memory Leak (Streaming) | ✅ Concluído |
+| 2026-02-11 | LLM Timeouts | ✅ Concluído |
+| 2026-02-11 | CSP Headers | ✅ Concluído |

@@ -11,6 +11,9 @@ import "dotenv/config";
 import * as Sentry from "@sentry/node";
 const sentryDsn = process.env.SENTRY_DSN;
 
+// Security Middleware
+import helmet from "helmet";
+
 console.log("🚀 Server process starting...");
 console.log(`🌍 NODE_ENV: ${process.env.NODE_ENV}`);
 
@@ -23,8 +26,8 @@ import { appRouter } from "../routers";
 import { createContext } from "./context";
 import { serveStatic } from "./vite";
 import cors from "cors";
-import { getConversationById, getConversationMessages, createMessage, getProcessForContext, getUserSettings, getUserKnowledgeBase, getProcessDocuments } from "../db";
-import { invokeLLMStreamWithThinking as streamFn } from "../_core/llm";
+import { getConversationById, getConversationMessages, createMessage, getProcessForContext, getUserSettings, getUserKnowledgeBase, getProcessDocuments, checkRateLimit, trackUsage } from "../db";
+import { invokeLLMStreamWithThinking as streamFn, resolveApiKeyForProvider } from "../_core/llm";
 import { sdk } from "./sdk";
 
 // Novos serviços refatorados
@@ -84,6 +87,19 @@ async function startServer() {
   app.use(express.json({ limit: "50mb" }));
   app.use(express.urlencoded({ limit: "50mb", extended: true }));
 
+  // Security Headers (CSP)
+  app.use(helmet.contentSecurityPolicy({
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "'unsafe-inline'"], // unsafe-inline often needed for React apps
+      styleSrc: ["'self'", "'unsafe-inline'"],  // unsafe-inline needed for some UI libs
+      imgSrc: ["'self'", "data:", "https:"],
+      connectSrc: ["'self'", "https://generativelanguage.googleapis.com", "https://*.sentry.io"], // Allow API and Sentry
+      objectSrc: ["'none'"],
+      upgradeInsecureRequests: [],
+    }
+  }));
+
   // Sentry request handler (must be first middleware)
   if (sentryDsn && process.env.NODE_ENV === "production") {
     Sentry.setupExpressErrorHandler(app);
@@ -125,19 +141,17 @@ async function startServer() {
       const moduleSlug = (settings as any)?.defaultModule || 'default';
       console.log(`[Stream-Module] Módulo ativo: ${moduleSlug}`);
 
-      // Validação: usuário DEVE configurar sua própria chave de API para o Cérebro
-      if (!settings?.llmApiKey) {
-        res.status(400).json({
-          error: "⚙️ Configuração necessária: Você precisa configurar sua Chave de API do Cérebro. Vá em Configurações → Chaves de API e adicione sua chave.",
-          code: "API_KEY_REQUIRED"
-        });
+      // Rate limiting
+      const rateCheck = await checkRateLimit(user.id);
+      if (!rateCheck.allowed) {
+        res.status(429).json({ error: rateCheck.reason, code: "RATE_LIMIT" });
         return;
       }
 
       const llmConfig = {
-        apiKey: settings.llmApiKey,
-        model: settings?.llmModel || undefined,
-        provider: settings?.llmProvider || undefined
+        apiKey: resolveApiKeyForProvider(settings?.llmProvider, settings?.llmApiKey),
+        model: settings?.llmModel || "gemini-3-flash-preview",
+        provider: settings?.llmProvider || "google"
       };
 
       const conversation = await getConversationById(conversationId);
@@ -502,15 +516,16 @@ async function startServer() {
                 }
               }
 
-              // TENTATIVA 2: Chave do Usuário (Fallback para arquivos antigos do Gemini)
-              if (!extractionSuccess && settings?.llmApiKey) {
+              // TENTATIVA 2: Chave do servidor (Fallback para arquivos antigos do Gemini)
+              if (!extractionSuccess) {
                 try {
-                  console.log(`[Stream] Tentando extrair com chave do usuário: ${fileUri}`);
-                  extractedText = await readContentFromUri(fileUri, settings.llmApiKey);
+                  const googleKey = resolveApiKeyForProvider('google', settings?.llmApiKey);
+                  console.log(`[Stream] Tentando extrair com chave do servidor: ${fileUri}`);
+                  extractedText = await readContentFromUri(fileUri, googleKey);
                   extractionSuccess = true;
-                  console.log("[Stream] Sucesso na extração com chave do usuário (fallback).");
+                  console.log("[Stream] Sucesso na extração com chave do servidor (fallback).");
                 } catch (userError) {
-                  console.error("[Stream] Falha também com chave do usuário.", userError);
+                  console.error("[Stream] Falha também com chave do servidor.", userError);
                 }
               }
 
@@ -581,10 +596,22 @@ async function startServer() {
           thinking: thinkingToSave || null, // Salvar thinking se existir
         });
 
+        // Rastrear uso (estimativa de tokens baseada em caracteres)
+        const estimatedInputTokens = Math.ceil(JSON.stringify(llmMessages).length / 4);
+        const estimatedOutputTokens = Math.ceil(fullResponse.length / 4);
+        trackUsage(user.id, llmConfig.provider, llmConfig.model, estimatedInputTokens, estimatedOutputTokens).catch(err =>
+          console.error("[Stream] Erro ao rastrear uso:", err)
+        );
+
         // Enviar done com thinking para o frontend poder exibir
         res.write(`data: ${JSON.stringify({ type: "done", content: contentToSave, thinking: thinkingToSave })}\n\n`);
         res.end();
       } catch (error: any) {
+        if (error.name === 'AbortError' || error.message === 'Aborted') {
+          console.log(`[Stream] Stream abortado pelo cliente ou timeout`);
+          res.end();
+          return;
+        }
         console.error("Stream error:", error);
         // Report LLM errors to Sentry
         if (sentryDsn) {
@@ -599,6 +626,7 @@ async function startServer() {
     } catch (error) {
       console.error("Endpoint error:", error);
       // Report endpoint errors to Sentry
+
       if (sentryDsn) {
         Sentry.captureException(error, {
           tags: { type: "stream_endpoint" },

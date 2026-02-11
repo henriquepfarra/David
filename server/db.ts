@@ -3,7 +3,8 @@ import { drizzle, MySql2Database } from "drizzle-orm/mysql2";
 import { createPool } from "mysql2/promise";
 import {
   InsertUser, users,
-  InsertProcess, InsertDraft, InsertJurisprudence, InsertUserSettings, InsertKnowledgeBase
+  InsertProcess, InsertDraft, InsertJurisprudence, InsertUserSettings, InsertKnowledgeBase,
+  usageTracking,
 } from "../drizzle/schema";
 import * as schema from "../drizzle/schema";
 import { ENV } from './_core/env';
@@ -1087,4 +1088,103 @@ export async function deleteProcessDocument(id: number, userId: number) {
     );
 
   return { success: true };
+}
+
+// ============================================
+// USAGE TRACKING (Rate Limiting & Custos)
+// ============================================
+
+const DAILY_REQUEST_LIMIT = 200;
+const DAILY_TOKEN_LIMIT = 1_000_000; // 1M tokens/dia
+
+function getTodayDate(): string {
+  return new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+}
+
+export async function trackUsage(
+  userId: number,
+  provider: string,
+  model: string,
+  inputTokens: number,
+  outputTokens: number
+) {
+  const db = await getDb();
+  if (!db) return;
+  const today = getTodayDate();
+
+  // Tentar atualizar registro existente do dia
+  const existing = await db.query.usageTracking.findFirst({
+    where: and(
+      eq(usageTracking.userId, userId),
+      eq(usageTracking.date, today),
+      eq(usageTracking.provider, provider),
+      eq(usageTracking.model, model),
+    ),
+  });
+
+  if (existing) {
+    await db
+      .update(usageTracking)
+      .set({
+        inputTokens: existing.inputTokens + inputTokens,
+        outputTokens: existing.outputTokens + outputTokens,
+        requestCount: existing.requestCount + 1,
+      })
+      .where(eq(usageTracking.id, existing.id));
+  } else {
+    await db.insert(usageTracking).values({
+      userId,
+      provider,
+      model,
+      inputTokens,
+      outputTokens,
+      requestCount: 1,
+      date: today,
+    });
+  }
+}
+
+export async function getUserDailyUsage(userId: number, date?: string) {
+  const db = await getDb();
+  if (!db) return { inputTokens: 0, outputTokens: 0, requestCount: 0, byModel: [], date: date || getTodayDate() };
+  const targetDate = date || getTodayDate();
+
+  const rows = await db.query.usageTracking.findMany({
+    where: and(
+      eq(usageTracking.userId, userId),
+      eq(usageTracking.date, targetDate),
+    ),
+  });
+
+  const totals = rows.reduce(
+    (acc, row) => ({
+      inputTokens: acc.inputTokens + row.inputTokens,
+      outputTokens: acc.outputTokens + row.outputTokens,
+      requestCount: acc.requestCount + row.requestCount,
+    }),
+    { inputTokens: 0, outputTokens: 0, requestCount: 0 }
+  );
+
+  return { ...totals, byModel: rows, date: targetDate };
+}
+
+export async function checkRateLimit(userId: number): Promise<{ allowed: boolean; reason?: string }> {
+  const usage = await getUserDailyUsage(userId);
+
+  if (usage.requestCount >= DAILY_REQUEST_LIMIT) {
+    return {
+      allowed: false,
+      reason: `Você atingiu o limite diário de ${DAILY_REQUEST_LIMIT} requisições. Tente novamente amanhã.`,
+    };
+  }
+
+  const totalTokens = usage.inputTokens + usage.outputTokens;
+  if (totalTokens >= DAILY_TOKEN_LIMIT) {
+    return {
+      allowed: false,
+      reason: `Você atingiu o limite diário de tokens. Tente novamente amanhã.`,
+    };
+  }
+
+  return { allowed: true };
 }

@@ -15,20 +15,20 @@ export interface LLMModel {
  */
 const RECOMMENDED_MODELS: Record<string, string[]> = {
   google: [
+    "gemini-3-pro-preview",
+    "gemini-3-flash-preview",
     "gemini-2.5-pro",
     "gemini-2.5-flash",
-    "gemini-2.0-flash",
-    "gemini-2.0-flash-lite"
   ],
   openai: [
+    "gpt-5.2",
+    "gpt-5-mini",
     "gpt-4o",
     "gpt-4o-mini",
-    "o1",
-    "o1-mini"
   ],
   anthropic: [
-    "claude-sonnet-4-20250514",
-    "claude-3-5-haiku-20241022"
+    "claude-sonnet-4-5-20250929",
+    "claude-haiku-4-5-20251001",
   ],
   groq: [
     "llama-3.3-70b-versatile",

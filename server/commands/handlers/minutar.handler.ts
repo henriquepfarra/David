@@ -20,7 +20,7 @@ import type { CommandHandler, CommandContext, CommandEvent, StepResult } from '.
 import { createMinutaBuilder } from '../../services/ContextBuilder'
 import { getRagService } from '../../services/RagService'
 import { getConversationMessages } from '../../db'
-import { invokeLLM, invokeLLMStreamWithThinking } from '../../_core/llm'
+import { invokeLLM, invokeLLMStreamWithThinking, resolveApiKeyForProvider } from '../../_core/llm'
 import type { StreamYield } from '../../_core/llm'
 import { getUserSettings } from '../../db'
 
@@ -178,15 +178,8 @@ export const minutarHandler: CommandHandler = async function* (ctx: CommandConte
     }
 
     try {
-        // Get user settings for API key
+        // Get user settings
         const settings = await getUserSettings(userIdNum)
-        if (!settings?.llmApiKey) {
-            yield {
-                type: 'command_error',
-                error: '⚠️ Chave de API não configurada. Acesse as Configurações para adicionar.',
-            }
-            return
-        }
 
         // Start command
         yield {
@@ -246,9 +239,9 @@ export const minutarHandler: CommandHandler = async function* (ctx: CommandConte
                 ...recentHistory,
                 { role: 'user', content: `Defina a estrutura para: ${veredito}` }
             ],
-            apiKey: settings.llmApiKey!,
-            model: settings.llmModel || undefined,
-            provider: settings.llmProvider || undefined,
+            apiKey: resolveApiKeyForProvider(settings?.llmProvider, settings?.llmApiKey),
+            model: settings?.llmModel || "gemini-3-flash-preview",
+            provider: settings?.llmProvider || "google",
         })) {
             if (chunk.type === 'thinking') {
                 yield { type: 'thinking_chunk', content: chunk.text }
@@ -360,9 +353,9 @@ export const minutarHandler: CommandHandler = async function* (ctx: CommandConte
                 ...recentHistory,
                 { role: 'user', content: `Redija a minuta para: ${veredito}` }
             ],
-            apiKey: settings.llmApiKey!,
-            model: settings.llmModel || undefined,
-            provider: settings.llmProvider || undefined,
+            apiKey: resolveApiKeyForProvider(settings?.llmProvider, settings?.llmApiKey),
+            model: settings?.llmModel || "gemini-3-flash-preview",
+            provider: settings?.llmProvider || "google",
         })) {
             if (chunk.type === 'thinking') {
                 yield { type: 'thinking_chunk', content: chunk.text }
@@ -415,9 +408,9 @@ export const minutarHandler: CommandHandler = async function* (ctx: CommandConte
                 { role: 'system', content: checkoutPrompt },
                 { role: 'user', content: 'Valide a minuta e corrija se necessário.' }
             ],
-            apiKey: settings.llmApiKey!,
-            model: settings.llmModel || undefined,
-            provider: settings.llmProvider || undefined,
+            apiKey: resolveApiKeyForProvider(settings?.llmProvider, settings?.llmApiKey),
+            model: settings?.llmModel || "gemini-3-flash-preview",
+            provider: settings?.llmProvider || "google",
         })) {
             if (chunk.type === 'thinking') {
                 yield { type: 'thinking_chunk', content: chunk.text }

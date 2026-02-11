@@ -1,13 +1,14 @@
 import { COOKIE_NAME } from "@shared/const";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
-import { protectedProcedure, publicProcedure, router } from "./_core/trpc";
+import { protectedProcedure, publicProcedure, adminProcedure, router } from "./_core/trpc";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import * as db from "./db";
 
 import { fetchDriveContentCached } from "./driveHelper";
 import { listAvailableModels } from "./llmModels";
+import { resolveApiKeyForProvider } from "./_core/llm";
 import { davidRouter } from "./davidRouter";
 import { processDocumentsRouter } from "./processDocumentsRouter";
 import { thesisRouter } from "./routers/thesisRouter"; // ← NOVO: Router de Active Learning
@@ -137,17 +138,11 @@ export const appRouter = router({
 
         // Buscar configurações do usuário
         const settings = await db.getUserSettings(ctx.user.id);
-        if (!settings?.llmApiKey) {
-          throw new TRPCError({
-            code: "BAD_REQUEST",
-            message: "⚙️ Configure sua Chave de API em Configurações para extrair dados de PDFs."
-          });
-        }
 
         const llmConfig = {
-          apiKey: settings.llmApiKey,
-          model: settings?.llmModel || undefined,
-          provider: settings?.llmProvider || undefined
+          apiKey: resolveApiKeyForProvider(settings?.llmProvider, settings?.llmApiKey),
+          model: settings?.llmModel || "gemini-3-flash-preview",
+          provider: settings?.llmProvider || "google"
         };
 
         console.log('[extractFromPDF] Texto recebido (primeiros 500 chars):', input.text?.substring(0, 500));
@@ -187,26 +182,6 @@ export const appRouter = router({
         const settings = await db.getUserSettings(ctx.user.id);
         const isGoogleProvider = !settings?.llmProvider || settings.llmProvider === 'google';
 
-        // Validação Inteligente:
-        // - Se for Google Gemini, precisamos da chave do usuário (llmApiKey)
-        // - Se for outro, precisamos da chave do sistema (readerApiKey ou ENV)
-
-        if (isGoogleProvider) {
-          if (!settings?.llmApiKey) {
-            throw new TRPCError({
-              code: "BAD_REQUEST",
-              message: "⚙️ Para usar o Gemini, configure sua Chave de API do Cérebro (Configurações)."
-            });
-          }
-        } else {
-          if (!settings?.readerApiKey && !ENV.geminiApiKey) {
-            throw new TRPCError({
-              code: "BAD_REQUEST",
-              message: "⚙️ Erro de configuração do sistema (Falta chave de leitura)."
-            });
-          }
-        }
-
         try {
           // Apenas fazer upload para Google (rápido - ~2s)
           const { uploadPdfForMultipleQueries } = await import("./_core/fileApi");
@@ -214,20 +189,18 @@ export const appRouter = router({
 
           console.log(`[uploadPdfQuick] Iniciando upload: ${input.filename}`);
 
-          // Lógica de Chave API (Fix v3):
-          // 1. Se o usuário usa Google (Gemini) no chat, TEMOS que usar a mesma chave dele (llmApiKey)
-          //    pois o Gemini exige que o arquivo e a geração usem a mesma chave.
-          // 2. Caso contrário (OpenAI, etc), usamos a chave do sistema (readerApiKey)
-
+          // Para upload de PDF, sempre usar chave Google (File API é exclusiva do Gemini)
+          // Se o usuário usa Google como provider, usar a mesma chave para consistência
           const isGoogleProvider = !settings?.llmProvider || settings.llmProvider === 'google';
-          let apiKeyToUse = settings?.readerApiKey || ENV.geminiApiKey; // Default: Sistema
+          let apiKeyToUse: string;
 
-          if (isGoogleProvider && settings?.llmApiKey) {
-            apiKeyToUse = settings.llmApiKey;
-            console.log(`[uploadPdfQuick] Usando chave do usuário (provider: google)`);
+          if (isGoogleProvider) {
+            apiKeyToUse = resolveApiKeyForProvider('google', settings?.llmApiKey);
           } else {
-            console.log(`[uploadPdfQuick] Usando chave do sistema (provider: ${settings?.llmProvider || 'n/a'})`);
+            // Provider não-Google: usar chave do sistema para File API
+            apiKeyToUse = settings?.readerApiKey || ENV.geminiApiKey;
           }
+          console.log(`[uploadPdfQuick] Provider: ${settings?.llmProvider || 'google'}, usando chave ${isGoogleProvider ? 'do provider' : 'do sistema'}`);
 
           const result = await uploadPdfForMultipleQueries(
             buffer,
@@ -262,21 +235,13 @@ export const appRouter = router({
       .mutation(async ({ ctx, input }) => {
         const { extractProcessData, extractProcessDataFromImages } = await import("./processExtractor");
 
-        // Buscar configurações customizadas do usuário (API Key)
+        // Buscar configurações customizadas do usuário
         const settings = await db.getUserSettings(ctx.user.id);
 
-        // Validação: usuário DEVE configurar sua própria chave de API para o Cérebro
-        if (!settings?.llmApiKey) {
-          throw new TRPCError({
-            code: "BAD_REQUEST",
-            message: "⚙️ Configuração necessária: Você precisa configurar sua Chave de API do Cérebro. Vá em Configurações → Chaves de API e adicione sua chave."
-          });
-        }
-
         const llmConfig = {
-          apiKey: settings.llmApiKey,
-          model: settings?.llmModel || undefined,
-          provider: settings?.llmProvider || undefined
+          apiKey: resolveApiKeyForProvider(settings?.llmProvider, settings?.llmApiKey),
+          model: settings?.llmModel || "gemini-3-flash-preview",
+          provider: settings?.llmProvider || "google"
         };
 
         let textToAnalyze = input.text;
@@ -493,11 +458,39 @@ Retorne APENAS essas informações, de forma objetiva. Ignore o restante do docu
           keyToUse = settings?.llmApiKey || "";
         }
 
-        if (!keyToUse) return [];
+        // Fallback para chave do servidor
+        if (!keyToUse) {
+          try {
+            keyToUse = resolveApiKeyForProvider(input.provider, null);
+          } catch {
+            return [];
+          }
+        }
 
         const models = await listAvailableModels(input.provider, keyToUse, input.onlyRecommended);
         return models;
       }),
+
+    selectModel: protectedProcedure
+      .input(z.object({
+        curatedModelId: z.string(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const { CURATED_MODELS } = await import("../shared/curatedModels");
+        const selected = CURATED_MODELS.find(m => m.id === input.curatedModelId);
+        if (!selected) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "Modelo inválido" });
+        }
+        await db.upsertUserSettings(ctx.user.id, {
+          llmProvider: selected.provider,
+          llmModel: selected.model,
+        });
+        return { success: true, provider: selected.provider, model: selected.model };
+      }),
+
+    getUsage: protectedProcedure.query(async ({ ctx }) => {
+      return db.getUserDailyUsage(ctx.user.id);
+    }),
   }),
 
   // Base de Conhecimento
@@ -543,6 +536,68 @@ Retorne APENAS essas informações, de forma objetiva. Ignore o restante do docu
       .mutation(async ({ ctx, input }) => {
         await db.deleteKnowledgeBase(input.id, ctx.user.id);
         return { success: true };
+      }),
+  }),
+
+  // Admin - Monitoramento de custos
+  admin: router({
+    getCostReport: adminProcedure
+      .input(z.object({
+        date: z.string().optional(), // YYYY-MM-DD, default hoje
+      }).optional())
+      .query(async ({ input }) => {
+        const { usageTracking } = await import("../drizzle/schema");
+        const { CURATED_MODELS } = await import("../shared/curatedModels");
+        const { eq } = await import("drizzle-orm");
+
+        const dbInstance = await db.getDb();
+        if (!dbInstance) return { date: '', totalCost: 0, totalRequests: 0, byModel: {}, topUsers: [] };
+        const targetDate = input?.date || new Date().toISOString().split('T')[0];
+
+        const rows = await dbInstance.query.usageTracking.findMany({
+          where: eq(usageTracking.date, targetDate),
+        });
+
+        // Agregar por provider/modelo
+        const byModel: Record<string, { inputTokens: number; outputTokens: number; requestCount: number; estimatedCost: number }> = {};
+        const byUser: Record<number, { inputTokens: number; outputTokens: number; requestCount: number; estimatedCost: number }> = {};
+
+        for (const row of rows) {
+          const curated = CURATED_MODELS.find(m => m.model === row.model);
+          const cost = curated
+            ? (row.inputTokens * curated.inputPricePer1M / 1_000_000) + (row.outputTokens * curated.outputPricePer1M / 1_000_000)
+            : 0;
+
+          const key = `${row.provider}/${row.model}`;
+          if (!byModel[key]) byModel[key] = { inputTokens: 0, outputTokens: 0, requestCount: 0, estimatedCost: 0 };
+          byModel[key].inputTokens += row.inputTokens;
+          byModel[key].outputTokens += row.outputTokens;
+          byModel[key].requestCount += row.requestCount;
+          byModel[key].estimatedCost += cost;
+
+          if (!byUser[row.userId]) byUser[row.userId] = { inputTokens: 0, outputTokens: 0, requestCount: 0, estimatedCost: 0 };
+          byUser[row.userId].inputTokens += row.inputTokens;
+          byUser[row.userId].outputTokens += row.outputTokens;
+          byUser[row.userId].requestCount += row.requestCount;
+          byUser[row.userId].estimatedCost += cost;
+        }
+
+        const totalCost = Object.values(byModel).reduce((sum, m) => sum + m.estimatedCost, 0);
+        const totalRequests = Object.values(byModel).reduce((sum, m) => sum + m.requestCount, 0);
+
+        // Top 10 usuários por custo
+        const topUsers = Object.entries(byUser)
+          .sort(([, a], [, b]) => b.estimatedCost - a.estimatedCost)
+          .slice(0, 10)
+          .map(([userId, data]) => ({ userId: Number(userId), ...data }));
+
+        return {
+          date: targetDate,
+          totalCost: Math.round(totalCost * 10000) / 10000,
+          totalRequests,
+          byModel,
+          topUsers,
+        };
       }),
   }),
 });

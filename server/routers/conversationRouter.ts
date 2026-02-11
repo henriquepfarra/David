@@ -21,7 +21,7 @@ import {
     findConversationsByProcessNumber,
     getUserSettings,
 } from "../db";
-import { invokeLLM } from "../_core/llm";
+import { invokeLLM, resolveApiKeyForProvider } from "../_core/llm";
 
 export const conversationRouter = router({
     // Criar nova conversa
@@ -139,12 +139,6 @@ export const conversationRouter = router({
 
             // Buscar configurações de LLM do usuário
             const settings = await getUserSettings(ctx.user.id);
-            if (!settings?.llmApiKey) {
-                // Sem API key, usar primeiras palavras
-                const words = firstUserMessage.content.split(" ").slice(0, 5).join(" ");
-                await updateConversationTitle(input.conversationId, words.length > 50 ? words.substring(0, 47) + "..." : words);
-                return { title: words, source: "truncate" };
-            }
 
             try {
                 const response = await invokeLLM({
@@ -155,9 +149,9 @@ export const conversationRouter = router({
                         },
                         { role: "user", content: firstUserMessage.content.substring(0, 500) }
                     ],
-                    apiKey: settings.llmApiKey,
-                    model: settings.llmModel || undefined,
-                    provider: settings.llmProvider || undefined
+                    apiKey: resolveApiKeyForProvider(settings?.llmProvider, settings?.llmApiKey),
+                    model: settings?.llmModel || "gemini-3-flash-preview",
+                    provider: settings?.llmProvider || "google"
                 });
 
                 const title = typeof response.choices[0]?.message?.content === 'string'
@@ -297,7 +291,7 @@ export const conversationRouter = router({
                     // Extrair metadados com LLM
                     const metadata = await extractProcessMetadata(
                         input.extractedText,
-                        settings?.llmApiKey || undefined
+                        resolveApiKeyForProvider(settings?.llmProvider, settings?.llmApiKey)
                     );
 
                     if (metadata.processNumber) {

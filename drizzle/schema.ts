@@ -1,4 +1,4 @@
-import { int, mysqlEnum, mysqlTable, text, timestamp, varchar, longtext, index, json } from "drizzle-orm/mysql-core";
+import { int, mysqlEnum, mysqlTable, text, timestamp, varchar, longtext, index, json, date, bigint } from "drizzle-orm/mysql-core";
 
 /**
  * Core user table backing auth flow.
@@ -98,7 +98,7 @@ export const userSettings = mysqlTable("userSettings", {
   // LLM para raciocínio/geração
   llmApiKey: text("llmApiKey"),
   llmProvider: varchar("llmProvider", { length: 50 }).default("google"),
-  llmModel: varchar("llmModel", { length: 100 }).default("gemini-2.5-flash"),
+  llmModel: varchar("llmModel", { length: 100 }).default("gemini-3-flash-preview"),
   // File API para leitura de PDF (Google Gemini)
   readerApiKey: text("readerApiKey"), // Chave Gemini para File API
   readerModel: varchar("readerModel", { length: 100 }).default("gemini-2.0-flash"),
@@ -330,3 +330,23 @@ export const learnedTheses = mysqlTable("learnedTheses", {
 
 export type LearnedThesis = typeof learnedTheses.$inferSelect;
 export type InsertLearnedThesis = typeof learnedTheses.$inferInsert;
+
+// Rastreamento de uso de API (rate limiting e custos)
+export const usageTracking = mysqlTable("usageTracking", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(),
+  provider: varchar("provider", { length: 50 }).notNull(), // google, openai, anthropic
+  model: varchar("model", { length: 100 }).notNull(),
+  inputTokens: bigint("inputTokens", { mode: "number" }).default(0).notNull(),
+  outputTokens: bigint("outputTokens", { mode: "number" }).default(0).notNull(),
+  requestCount: int("requestCount").default(0).notNull(),
+  date: date("date", { mode: "string" }).notNull(), // YYYY-MM-DD (agregado por dia)
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+}, (table) => ({
+  userDateIdx: index("usageTracking_userId_date_idx").on(table.userId, table.date),
+  dateIdx: index("usageTracking_date_idx").on(table.date),
+}));
+
+export type UsageTracking = typeof usageTracking.$inferSelect;
+export type InsertUsageTracking = typeof usageTracking.$inferInsert;

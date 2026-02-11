@@ -1,5 +1,33 @@
 import { ENV } from "./env";
 
+/**
+ * Resolve a chave de API para um provider.
+ * Prioridade: chave do usuário (power user) → chave do servidor (ENV).
+ */
+export function resolveApiKeyForProvider(
+  provider: string | null | undefined,
+  userApiKey?: string | null
+): string {
+  if (userApiKey && userApiKey.trim().length > 0) {
+    return userApiKey;
+  }
+
+  const p = (provider || "google").toLowerCase();
+  switch (p) {
+    case "google":
+      if (!ENV.geminiApiKey) throw new Error("Server GEMINI_API_KEY not configured");
+      return ENV.geminiApiKey;
+    case "openai":
+      if (!ENV.openaiApiKey) throw new Error("Server OPENAI_API_KEY not configured");
+      return ENV.openaiApiKey;
+    case "anthropic":
+      if (!ENV.anthropicApiKey) throw new Error("Server ANTHROPIC_API_KEY not configured");
+      return ENV.anthropicApiKey;
+    default:
+      throw new Error(`No server API key configured for provider: ${provider}`);
+  }
+}
+
 export type Role = "system" | "user" | "assistant" | "tool" | "function";
 
 export type TextContent = {
@@ -359,21 +387,29 @@ export async function invokeLLM(params: InvokeParams): Promise<InvokeResult> {
   }
 
   try {
-    const response = await fetch(resolveApiUrl(provider), {
-      method: "POST",
-      headers,
-      body: JSON.stringify(payload),
-    });
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 30000); // 30s timeout
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error(`[invokeLLM] API Error: ${response.status} ${response.statusText}`, errorText);
-      throw new Error(
-        `LLM invoke failed: ${response.status} ${response.statusText} – ${errorText}`
-      );
+    try {
+      const response = await fetch(resolveApiUrl(provider), {
+        method: "POST",
+        headers,
+        body: JSON.stringify(payload),
+        signal: controller.signal,
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`[invokeLLM] API Error: ${response.status} ${response.statusText}`, errorText);
+        throw new Error(
+          `LLM invoke failed: ${response.status} ${response.statusText} – ${errorText}`
+        );
+      }
+
+      return (await response.json()) as InvokeResult;
+    } finally {
+      clearTimeout(timeout);
     }
-
-    return (await response.json()) as InvokeResult;
   } catch (error: any) {
     console.error(`[invokeLLM] Network/Fetch Error:`, error);
     if (error.cause) console.error(`[invokeLLM] Cause:`, error.cause);
@@ -467,11 +503,20 @@ export async function* invokeLLMStream(params: InvokeParams): AsyncGenerator<str
     headers["authorization"] = `Bearer ${apiKey}`;
   }
 
-  const response = await fetch(resolveApiUrl(provider), {
-    method: "POST",
-    headers,
-    body: JSON.stringify(payload),
-  });
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 30000); // 30s connect timeout
+
+  let response;
+  try {
+    response = await fetch(resolveApiUrl(provider), {
+      method: "POST",
+      headers,
+      body: JSON.stringify(payload),
+      signal: controller.signal,
+    });
+  } finally {
+    clearTimeout(timeout);
+  }
 
   if (!response.ok) {
     const errorText = await response.text();
@@ -608,11 +653,20 @@ export async function* invokeLLMStreamWithThinking(
     headers["authorization"] = `Bearer ${apiKey}`;
   }
 
-  const response = await fetch(resolveApiUrl(provider), {
-    method: "POST",
-    headers,
-    body: JSON.stringify(payload),
-  });
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 30000); // 30s connect timeout
+
+  let response;
+  try {
+    response = await fetch(resolveApiUrl(provider), {
+      method: "POST",
+      headers,
+      body: JSON.stringify(payload),
+      signal: controller.signal,
+    });
+  } finally {
+    clearTimeout(timeout);
+  }
 
   if (!response.ok) {
     const errorText = await response.text();
@@ -798,13 +852,22 @@ async function* geminiNativeStreamWithThinking(
 
   console.log(`[Gemini Native] Starting stream with model: ${model}${fileUri ? ' (with PDF file)' : ''}`);
 
-  const response = await fetch(url, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(payload),
-  });
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 30000); // 30s connect timeout
+
+  let response;
+  try {
+    response = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+      signal: controller.signal,
+    });
+  } finally {
+    clearTimeout(timeout); // Clear timeout after connection established
+  }
 
   if (!response.ok) {
     const errorText = await response.text();

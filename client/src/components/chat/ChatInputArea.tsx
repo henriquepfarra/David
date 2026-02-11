@@ -22,12 +22,15 @@ import {
     Gavel,
     Mic,
     Wand2,
-    Bot,
     Zap,
+    ChevronDown,
+    Check,
 } from "lucide-react";
 import { AttachedFilesBadge, UploadProgress } from "@/components/chat";
 import { SlashCommandMenu } from "./SlashCommandMenu";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { trpc } from "@/lib/trpc";
+import { CURATED_MODELS, findCuratedModelByApiModel } from "@shared/curatedModels";
 import type { UploadState } from "./UploadProgress";
 
 interface AttachedFile {
@@ -101,6 +104,9 @@ interface ChatInputAreaProps {
 
     // Settings
     llmModel?: string | null;
+    llmProvider?: string | null;
+    onSelectModel?: (curatedModelId: string) => void;
+    isSelectingModel?: boolean;
 }
 
 export function ChatInputArea({
@@ -143,6 +149,9 @@ export function ChatInputArea({
     onEnhancePrompt,
     isEnhancing,
     llmModel,
+    llmProvider,
+    onSelectModel,
+    isSelectingModel,
 }: ChatInputAreaProps) {
     const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -378,16 +387,70 @@ export function ChatInputArea({
 
                 {/* Controles do Input (Modelo + Magic) */}
                 <div className="absolute top-0 right-0 flex items-center gap-1">
-                    {/* Indicador de Modelo */}
-                    <div
-                        className="hidden sm:flex items-center gap-1.5 px-2 py-1 bg-primary/5 hover:bg-primary/10 transition-colors rounded-md border border-primary/10 cursor-help select-none mr-1"
-                        title={`Modelo: ${llmModel || 'Padrão'}`}
-                    >
-                        <Bot className="w-3.5 h-3.5 text-primary/70" />
-                        <span className="text-[10px] font-bold text-muted-foreground/80 uppercase tracking-tight">
-                            {llmModel?.replace(/-/g, " ").toUpperCase() || "GEMINI 2.0 FLASH"}
-                        </span>
-                    </div>
+                    {/* Seletor de Modelo */}
+                    <Popover>
+                        <PopoverTrigger asChild>
+                            <button
+                                className="flex items-center gap-1.5 px-2 py-1 bg-primary/5 hover:bg-primary/10 transition-colors rounded-md border border-primary/10 cursor-pointer select-none mr-1"
+                                title="Trocar modelo de IA"
+                            >
+                                <span className={`w-2 h-2 rounded-full flex-shrink-0 ${findCuratedModelByApiModel(llmModel || '')?.color || 'bg-blue-500'}`} />
+                                <span className="text-[10px] font-bold text-muted-foreground/80 uppercase tracking-tight max-w-[120px] truncate">
+                                    {findCuratedModelByApiModel(llmModel || '')?.shortLabel
+                                        || llmModel?.replace(/-/g, " ").toUpperCase()
+                                        || "GEMINI 3 FLASH"}
+                                </span>
+                                <ChevronDown className="w-3 h-3 text-muted-foreground/50 flex-shrink-0" />
+                            </button>
+                        </PopoverTrigger>
+                        <PopoverContent
+                            className="w-72 p-2"
+                            align="end"
+                            side="top"
+                            sideOffset={8}
+                        >
+                            <div className="space-y-1">
+                                <p className="text-xs font-semibold text-muted-foreground px-2 py-1">Rápidos</p>
+                                {CURATED_MODELS.filter(m => m.tier === 'fast').map((m) => {
+                                    const isActive = m.model === llmModel || (!llmModel && m.id === "gemini-flash");
+                                    return (
+                                        <button
+                                            key={m.id}
+                                            onClick={() => onSelectModel?.(m.id)}
+                                            disabled={isSelectingModel}
+                                            className={`w-full flex items-center gap-3 px-2 py-2 rounded-md text-left transition-colors text-sm ${isActive ? 'bg-primary/10 text-primary' : 'hover:bg-accent'}`}
+                                        >
+                                            <span className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${m.color}`} />
+                                            <div className="flex-1 min-w-0">
+                                                <div className="font-medium text-sm">{m.label}</div>
+                                                <div className="text-[10px] text-muted-foreground">{m.description}</div>
+                                            </div>
+                                            {isActive && <Check className="w-4 h-4 flex-shrink-0 text-primary" />}
+                                        </button>
+                                    );
+                                })}
+                                <p className="text-xs font-semibold text-muted-foreground px-2 py-1 pt-2 border-t">Pro</p>
+                                {CURATED_MODELS.filter(m => m.tier === 'pro').map((m) => {
+                                    const isActive = m.model === llmModel;
+                                    return (
+                                        <button
+                                            key={m.id}
+                                            onClick={() => onSelectModel?.(m.id)}
+                                            disabled={isSelectingModel}
+                                            className={`w-full flex items-center gap-3 px-2 py-2 rounded-md text-left transition-colors text-sm ${isActive ? 'bg-primary/10 text-primary' : 'hover:bg-accent'}`}
+                                        >
+                                            <span className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${m.color}`} />
+                                            <div className="flex-1 min-w-0">
+                                                <div className="font-medium text-sm">{m.label}</div>
+                                                <div className="text-[10px] text-muted-foreground">{m.description}</div>
+                                            </div>
+                                            {isActive && <Check className="w-4 h-4 flex-shrink-0 text-primary" />}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </PopoverContent>
+                    </Popover>
 
                     <Button
                         variant="ghost"

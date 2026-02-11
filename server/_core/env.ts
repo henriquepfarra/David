@@ -17,8 +17,11 @@ const envSchema = z.object({
   // Google Gemini API (for File API and LLM)
   GEMINI_API_KEY: z.string().optional(),
 
-  // OpenAI API (para embeddings - text-embedding-3-small)
+  // OpenAI API (para embeddings e LLM)
   OPENAI_API_KEY: z.string().optional(),
+
+  // Anthropic API (para Claude como LLM)
+  ANTHROPIC_API_KEY: z.string().optional(),
 
   // Sentry Error Monitoring
   SENTRY_DSN: z.string().optional(),
@@ -52,6 +55,9 @@ export const ENV = {
   // Google Gemini API (for File API and LLM - can be overridden by user settings)
   geminiApiKey: env.GEMINI_API_KEY ?? "",
 
-  // OpenAI API (para embeddings - chave do servidor, não do usuário)
+  // OpenAI API (para embeddings e LLM)
   openaiApiKey: env.OPENAI_API_KEY ?? "",
+
+  // Anthropic API (para Claude como LLM)
+  anthropicApiKey: env.ANTHROPIC_API_KEY ?? "",
 };

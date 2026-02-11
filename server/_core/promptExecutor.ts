@@ -2,7 +2,7 @@ import { getDb } from "../db";
 import { savedPrompts, userSettings } from "../../drizzle/schema";
 import { eq } from "drizzle-orm";
 import { getProcessContext } from "./processContext";
-import { invokeLLM } from "./llm";
+import { invokeLLM, resolveApiKeyForProvider } from "./llm";
 import {
   CORE_IDENTITY,
   CORE_TONE,
@@ -100,17 +100,12 @@ IMPORTANTE: Este é um PROTOCOLO DE ANÁLISE, não uma solicitação de minuta. 
         where: eq(userSettings.userId, input.userId)
     });
 
-    // Validação: usuário DEVE configurar sua própria chave de API para o Cérebro
-    if (!settings?.llmApiKey) {
-        throw new Error("⚙️ Configuração necessária: Você precisa configurar sua Chave de API do Cérebro. Vá em Configurações → Chaves de API e adicione sua chave.");
-    }
-
     try {
         const response = await invokeLLM({
             messages: [{ role: "system", content: finalSystemPrompt }],
-            apiKey: settings.llmApiKey,
-            model: settings?.llmModel || undefined,
-            provider: (settings?.llmProvider as any) || undefined
+            apiKey: resolveApiKeyForProvider(settings?.llmProvider as string | undefined, settings?.llmApiKey as string | undefined),
+            model: settings?.llmModel || "gemini-3-flash-preview",
+            provider: (settings?.llmProvider as any) || "google"
         });
 
         const content = response.choices[0]?.message?.content;

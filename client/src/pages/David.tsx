@@ -309,6 +309,17 @@ export default function David() {
     }
   );
   const settings = trpc.settings.get.useQuery();
+  const trpcUtils = trpc.useUtils();
+
+  const selectModelMutation = trpc.settings.selectModel.useMutation({
+    onSuccess: () => {
+      trpcUtils.settings.get.invalidate();
+      toast.success("Modelo alterado!");
+    },
+    onError: (error) => {
+      toast.error("Erro ao trocar modelo: " + error.message);
+    },
+  });
 
   // 🔧 INTEGRADO: useDavidMutations hook substitui todas as mutations inline
   const {
@@ -995,6 +1006,9 @@ export default function David() {
                   isEnhancing={enhancePromptMutation.isPending}
                   // Settings
                   llmModel={settings.data?.llmModel}
+                  llmProvider={settings.data?.llmProvider}
+                  onSelectModel={(curatedModelId) => selectModelMutation.mutate({ curatedModelId })}
+                  isSelectingModel={selectModelMutation.isPending}
                 />
 
                 {/* Footer Texto */}

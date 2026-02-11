@@ -69,13 +69,6 @@ export const analise1Handler: CommandHandler = async function* (ctx: CommandCont
     try {
         // Get user settings
         const settings = await getUserSettings(userIdNum)
-        if (!settings?.llmApiKey) {
-            yield {
-                type: 'command_error',
-                error: '⚠️ Chave de API não configurada. Acesse as Configurações para adicionar.',
-            }
-            return
-        }
 
         // Start command
         yield {
@@ -110,7 +103,7 @@ export const analise1Handler: CommandHandler = async function* (ctx: CommandCont
         }))
 
         // fileUri já vem do contexto (validado acima)
-        const isGoogleProvider = !settings.llmProvider || settings.llmProvider.toLowerCase() === 'google'
+        const isGoogleProvider = !settings?.llmProvider || settings.llmProvider.toLowerCase() === 'google'
 
         // ============================================
         // EXTRAÇÃO CROSS-PROVIDER DE PDF
@@ -122,7 +115,7 @@ export const analise1Handler: CommandHandler = async function* (ctx: CommandCont
         let pdfTextContext = ''
 
         if (!isGoogleProvider && fileUri) {
-            console.log(`[analise1] Provider ${settings.llmProvider} não suporta fileUri. Extraindo texto...`)
+            console.log(`[analise1] Provider ${settings?.llmProvider} não suporta fileUri. Extraindo texto...`)
 
             try {
                 const { readContentFromUri } = await import('../../_core/fileApi')
@@ -203,7 +196,7 @@ O PDF anexado contém a petição inicial que deve ser analisada.
         // - invokeLLMStreamWithThinking delega para API nativa do Gemini que SUPORTA PDF
         // Para providers não-Google, passamos undefined no fileUri (já extraímos o texto acima)
 
-        const { invokeLLMStreamWithThinking } = await import('../../_core/llm')
+        const { invokeLLMStreamWithThinking, resolveApiKeyForProvider } = await import('../../_core/llm')
 
         let analysisContent = ''
         let thinkingContent = ''
@@ -221,9 +214,9 @@ O arquivo PDF anexado contém a petição inicial para análise.
 Execute o protocolo de pensamento estruturado (<thinking>) e depois as 6 etapas da triagem inicial.`
                 }
             ],
-            apiKey: settings.llmApiKey!,
-            model: settings.llmModel || undefined,
-            provider: settings.llmProvider || undefined,
+            apiKey: resolveApiKeyForProvider(settings?.llmProvider, settings?.llmApiKey),
+            model: settings?.llmModel || "gemini-3-flash-preview",
+            provider: settings?.llmProvider || "google",
             // Só passa fileUri se for Google (outros providers recebem o texto extraído no prompt)
             fileUri: isGoogleProvider ? fileUri : undefined,
         })) {

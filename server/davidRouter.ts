@@ -39,7 +39,7 @@ import {
   getUserSettings,
 } from "./db";
 import { IntentService } from "./services/IntentService";
-import { invokeLLM, invokeLLMStream, transcribeAudio } from "./_core/llm";
+import { invokeLLM, invokeLLMStream, transcribeAudio, resolveApiKeyForProvider } from "./_core/llm";
 import { ENV } from "./_core/env";
 import { observable } from "@trpc/server/observable";
 import { extractThesisFromDraft } from "./thesisExtractor";
@@ -283,12 +283,6 @@ export const davidRouter = router({
 
       // Buscar configurações de LLM do usuário
       const settings = await getUserSettings(ctx.user.id);
-      if (!settings?.llmApiKey) {
-        // Sem API key, usar primeiras palavras
-        const words = firstUserMessage.content.split(" ").slice(0, 5).join(" ");
-        await updateConversationTitle(input.conversationId, words.length > 50 ? words.substring(0, 47) + "..." : words);
-        return { title: words, source: "truncate" };
-      }
 
       try {
         const response = await invokeLLM({
@@ -299,9 +293,9 @@ export const davidRouter = router({
             },
             { role: "user", content: firstUserMessage.content.substring(0, 500) }
           ],
-          apiKey: settings.llmApiKey,
-          model: settings.llmModel || undefined,
-          provider: settings.llmProvider || undefined
+          apiKey: resolveApiKeyForProvider(settings?.llmProvider, settings?.llmApiKey),
+          model: settings?.llmModel || "gemini-3-flash-preview",
+          provider: settings?.llmProvider || "google"
         });
 
         const title = typeof response.choices[0]?.message?.content === 'string'
@@ -482,11 +476,8 @@ export const davidRouter = router({
       const messageService = getMessageService();
       const promptBuilder = getPromptBuilder();
 
-      // 0. Validar API Key do usuário
+      // 0. Buscar configurações do usuário
       const settings = await getUserSettings(ctx.user.id);
-      if (!settings?.llmApiKey) {
-        throw new Error("⚙️ Configure sua Chave de API em Configurações para usar o chat.");
-      }
 
       // 1. Validar acesso à conversa
       const conversation = await conversationService.validateAccess({
@@ -579,9 +570,9 @@ export const davidRouter = router({
       // 9. Invocar LLM
       const response = await invokeLLM({
         messages: llmMessages,
-        apiKey: settings.llmApiKey,
-        model: settings.llmModel || undefined,
-        provider: settings.llmProvider || undefined,
+        apiKey: resolveApiKeyForProvider(settings?.llmProvider, settings?.llmApiKey),
+        model: settings?.llmModel || "gemini-3-flash-preview",
+        provider: settings?.llmProvider || "google",
       });
 
       const assistantMessage =

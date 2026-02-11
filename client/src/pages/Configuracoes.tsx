@@ -332,15 +332,12 @@ export default function Configuracoes() {
         </div>
 
         <Tabs defaultValue="personalizacao" className="w-full">
-          <TabsList className="grid w-full grid-cols-2 mb-8">
+          <TabsList className="grid w-full grid-cols-1 mb-8">
             <TabsTrigger value="personalizacao" className="flex items-center gap-2">
               <Brain className="h-4 w-4" />
               Personalização do Assistente
             </TabsTrigger>
-            <TabsTrigger value="api-keys" className="flex items-center gap-2">
-              <Key className="h-4 w-4" />
-              Chaves de API
-            </TabsTrigger>
+            {/* Aba Chaves de API oculta - mantida para power users futuros */}
           </TabsList>
 
           {/* Aba Personalização do Assistente */}
