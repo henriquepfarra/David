@@ -48,9 +48,10 @@ export default function Configuracoes() {
   const [llmModel, setLlmModel] = useState("");
   const [readerApiKey, setReaderApiKey] = useState("");
   const [readerModel, setReaderModel] = useState("gemini-2.0-flash-lite");
-  const [availableModels, setAvailableModels] = useState<Array<{ id: string; name: string }>>([]);
+  const [availableModels, setAvailableModels] = useState<Array<{ id: string; name: string; isRecommended?: boolean }>>([]);
   const [isLoadingModels, setIsLoadingModels] = useState(false);
   const [modelsError, setModelsError] = useState("");
+  const [showAllModels, setShowAllModels] = useState(false);
 
   // Track original values for "has changes" detection
   const [originalPrompt, setOriginalPrompt] = useState("");
@@ -149,7 +150,7 @@ export default function Configuracoes() {
     }
   }, [settings]);
 
-  const loadModels = async (provider: string, apiKey: string, silent = false) => {
+  const loadModels = async (provider: string, apiKey: string, silent = false, showAll?: boolean) => {
     // Permitir carregar se tiver chave no banco (isLlmConfigured) mesmo sem apiKey digitada
     const hasStoredKey = !!settings?.llmApiKey;
 
@@ -160,10 +161,14 @@ export default function Configuracoes() {
     setIsLoadingModels(true);
     setModelsError("");
 
+    // Usar parâmetro passado ou estado atual
+    const onlyRecommended = showAll !== undefined ? !showAll : !showAllModels;
+
     try {
       const models = await utils.client.settings.listModels.query({
         provider,
         apiKey: apiKey || undefined, // undefined faz backend usar stored key
+        onlyRecommended,
       });
 
       setAvailableModels(models);
@@ -680,21 +685,39 @@ Deixe vazio se não tiver preferências específicas.`}
                     <div className="space-y-2">
                       <div className="flex justify-between items-center">
                         <Label htmlFor="model" className="text-xs text-muted-foreground">Modelo de Raciocínio</Label>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={handleLoadModels}
-                          disabled={isLoadingModels || (!isLlmConfigured && !llmApiKey)}
-                          className="h-6 text-xs"
-                        >
-                          {isLoadingModels ? (
-                            <Loader2 className="mr-1 h-3 w-3 animate-spin" />
-                          ) : (
-                            <RefreshCw className="mr-1 h-3 w-3" />
-                          )}
-                          Atualizar Lista
-                        </Button>
+                        <div className="flex items-center gap-3">
+                          <label className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={showAllModels}
+                              onChange={(e) => {
+                                const newValue = e.target.checked;
+                                setShowAllModels(newValue);
+                                // Recarregar modelos com novo filtro (passa valor diretamente)
+                                if (isLlmConfigured || llmApiKey) {
+                                  loadModels(llmProvider, llmApiKey, true, newValue);
+                                }
+                              }}
+                              className="w-3 h-3 rounded border-gray-300"
+                            />
+                            Mostrar todos
+                          </label>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={handleLoadModels}
+                            disabled={isLoadingModels || (!isLlmConfigured && !llmApiKey)}
+                            className="h-6 text-xs"
+                          >
+                            {isLoadingModels ? (
+                              <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                            ) : (
+                              <RefreshCw className="mr-1 h-3 w-3" />
+                            )}
+                            Atualizar
+                          </Button>
+                        </div>
                       </div>
 
                       {modelsError ? (

@@ -170,8 +170,25 @@ export function SlashCommandMenu({
 
                     // Strict check: Only auto-select if:
                     // 1. User manually navigated (selectedIndex > 0), OR
-                    // 2. Just typed '/' with no filter, OR
-                    // 3. The selected command's trigger actually MATCHES exactly what was typed
+                    // 2. Just typed '/' with no filter (auto-select first is ok), OR
+                    // 3. The selected command's trigger starts with EXACTLY what was typed (prefix match)
+                    //
+                    // CRITICAL FIX: If input has spaces (arguments), DO NOT auto-select anything!
+                    // This prevents selecting '/consultar' when typing '/minutar args'
+                    const hasArguments = currentFilter.includes(' ');
+
+                    if (hasArguments) {
+                        // User is typing arguments - let the event bubble to ChatInputArea
+                        return;
+                    }
+
+                    // PREVENT STALE SELECTION: If filter is empty and user hasn't navigated, 
+                    // DO NOT auto-select. This prevents selecting '/consultar' (index 0) 
+                    // when typing fast and filter hasn't updated yet.
+                    if (currentFilter.length === 0 && currentSelectedIndex === 0) {
+                        return;
+                    }
+
                     const filterWithSlash = '/' + currentFilter.toLowerCase();
 
                     // Verify the selected command's trigger starts with exactly what the user typed
@@ -182,7 +199,7 @@ export function SlashCommandMenu({
 
                     const isPlausibleMatch = selected && (
                         currentSelectedIndex > 0 || // User manually selected
-                        currentFilter.length === 0 || // Just typed '/', auto-select first is ok
+                        (currentFilter.length === 0 && !hasArguments) || // Just typed '/', auto-select first is ok
                         isExactOrPrefixMatch // Filter matches the trigger prefix
                     );
 

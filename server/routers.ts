@@ -482,6 +482,7 @@ Retorne APENAS essas informações, de forma objetiva. Ignore o restante do docu
       .input(z.object({
         provider: z.string(),
         apiKey: z.string().optional(),
+        onlyRecommended: z.boolean().optional().default(true),
       }))
       .query(async ({ ctx, input }) => {
         let keyToUse = input.apiKey;
@@ -494,7 +495,7 @@ Retorne APENAS essas informações, de forma objetiva. Ignore o restante do docu
 
         if (!keyToUse) return [];
 
-        const models = await listAvailableModels(input.provider, keyToUse);
+        const models = await listAvailableModels(input.provider, keyToUse, input.onlyRecommended);
         return models;
       }),
   }),

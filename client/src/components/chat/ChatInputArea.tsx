@@ -180,15 +180,32 @@ export function ChatInputArea({
     }, [messageInput]);
 
     const handleKeyPress = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+        // Use currentTarget.value directly to avoid React state lag on fast typing
+        const currentValue = e.currentTarget.value;
+        const hasArguments = currentValue.includes(' ');
+
+        // Calculate filter from DOM to check for lag
+        const localFilter = currentValue.startsWith('/') ? currentValue.slice(1) : '';
+
+        // If local DOM has filter text but React state filter is empty, we have a lag.
+        // In this case, SlashCommandMenu (which uses state) will ignore the Enter (due to our empty check fix),
+        // so we must force send here to avoid a dead click.
+        const isReactLagging = localFilter.length > 0 && slashFilter.length === 0;
+
         // Se menu de comandos está aberto, não processar Enter aqui (SlashCommandMenu cuida)
-        // EXCETO se já houver espaço (argumentos), nesse caso o menu deve fechar/ignorar e o Enter deve enviar
-        const shouldLetMenuHandle = showSlashMenu && !messageInput.includes(' ');
+        // EXCETO se:
+        // 1. Já houver espaço (argumentos)
+        // 2. React estiver com lag (filtro local tem texto mas estado está vazio)
+        const shouldLetMenuHandle = showSlashMenu && !hasArguments && !isReactLagging;
 
         if (shouldLetMenuHandle && e.key === "Enter") {
             return; // SlashCommandMenu já tratou isso via listener global
         }
         if (e.key === "Enter" && !e.shiftKey) {
             e.preventDefault();
+            // CRITICAL FIX: Stop event from bubbling to document listeners (SlashCommandMenu)
+            // This prevents the menu from intercepting Enter if it's still closing (race condition)
+            e.nativeEvent.stopImmediatePropagation();
             onSendMessage();
         }
     };

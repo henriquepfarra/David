@@ -7,31 +7,85 @@ export interface LLMModel {
   name: string;
   description?: string;
   supportsVision?: boolean;
+  isRecommended?: boolean;
 }
+
+/**
+ * Modelos recomendados por provider (testados e estáveis)
+ */
+const RECOMMENDED_MODELS: Record<string, string[]> = {
+  google: [
+    "gemini-2.5-pro",
+    "gemini-2.5-flash",
+    "gemini-2.0-flash",
+    "gemini-2.0-flash-lite"
+  ],
+  openai: [
+    "gpt-4o",
+    "gpt-4o-mini",
+    "o1",
+    "o1-mini"
+  ],
+  anthropic: [
+    "claude-sonnet-4-20250514",
+    "claude-3-5-haiku-20241022"
+  ],
+  groq: [
+    "llama-3.3-70b-versatile",
+    "llama-3.1-8b-instant",
+    "mixtral-8x7b-32768"
+  ],
+  deepseek: [
+    "deepseek-chat",
+    "deepseek-reasoner"
+  ]
+};
 
 /**
  * Lista modelos disponíveis do provedor especificado
  */
 export async function listAvailableModels(
   provider: string,
-  apiKey: string
+  apiKey: string,
+  onlyRecommended: boolean = true
 ): Promise<LLMModel[]> {
   try {
+    let models: LLMModel[];
     switch (provider) {
       case "google":
-        return await listGoogleModels(apiKey);
+        models = await listGoogleModels(apiKey);
+        break;
       case "openai":
-        return await listOpenAIModels(apiKey);
+        models = await listOpenAIModels(apiKey);
+        break;
       case "anthropic":
-        return await listAnthropicModels(apiKey);
+        models = await listAnthropicModels(apiKey);
+        break;
       case "groq":
-        return await listGroqModels(apiKey);
+        models = await listGroqModels(apiKey);
+        break;
       case "deepseek":
-        // DeepSeek API is OpenAI compatible
-        return await listDeepSeekModels(apiKey);
+        models = await listDeepSeekModels(apiKey);
+        break;
       default:
-        return getFallbackModels(provider);
+        models = getFallbackModels(provider);
     }
+
+    // Marcar modelos recomendados
+    const recommended = RECOMMENDED_MODELS[provider] || [];
+    models = models.map(m => ({
+      ...m,
+      isRecommended: recommended.some(r => m.id.includes(r) || r.includes(m.id))
+    }));
+
+    // Se onlyRecommended, filtrar apenas recomendados (mas garantir pelo menos os fallbacks)
+    if (onlyRecommended) {
+      const filtered = models.filter(m => m.isRecommended);
+      return filtered.length > 0 ? filtered : models.slice(0, 5);
+    }
+
+    // Ordenar: recomendados primeiro
+    return models.sort((a, b) => (b.isRecommended ? 1 : 0) - (a.isRecommended ? 1 : 0));
   } catch (error) {
     console.error(`Erro ao listar modelos de ${provider}:`, error);
     return getFallbackModels(provider);
