@@ -88,20 +88,26 @@ async function startServer() {
   app.use(express.urlencoded({ limit: "50mb", extended: true }));
 
   // Security Headers (CSP)
+  const isProduction = process.env.NODE_ENV === "production";
   app.use(helmet.contentSecurityPolicy({
     directives: {
       defaultSrc: ["'self'"],
       scriptSrc: ["'self'", "'unsafe-inline'"], // unsafe-inline often needed for React apps
       styleSrc: ["'self'", "'unsafe-inline'"],  // unsafe-inline needed for some UI libs
       imgSrc: ["'self'", "data:", "https:"],
-      connectSrc: ["'self'", "https://generativelanguage.googleapis.com", "https://*.sentry.io"], // Allow API and Sentry
+      connectSrc: [
+        "'self'",
+        "https://generativelanguage.googleapis.com",
+        "https://*.sentry.io",
+        ...(isProduction ? [] : ["ws:", "wss:"]) // Allow WebSocket for HMR in dev
+      ],
       objectSrc: ["'none'"],
-      upgradeInsecureRequests: [],
+      upgradeInsecureRequests: isProduction ? [] : null, // Only upgrade to HTTPS in production
     }
   }));
 
   // Sentry request handler (must be first middleware)
-  if (sentryDsn && process.env.NODE_ENV === "production") {
+  if (sentryDsn && isProduction) {
     Sentry.setupExpressErrorHandler(app);
   }
 
