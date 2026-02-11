@@ -55,7 +55,30 @@ async function runMigration() {
         }
     }
 
-    console.log("✅ Migration concluída com sucesso!\n");
+    console.log("4️⃣ Adicionando colunas na tabela users...");
+    try {
+        await db.execute(sql`ALTER TABLE users ADD COLUMN loginMethod varchar(64)`);
+        console.log("   ✅ Coluna loginMethod adicionada!");
+    } catch (error: any) {
+        if (error.message?.includes('Duplicate column')) {
+            console.log("   ⚠️  Coluna loginMethod já existe");
+        } else {
+            console.log("   ❌ Erro ao adicionar loginMethod:", error.message);
+        }
+    }
+
+    try {
+        await db.execute(sql`ALTER TABLE users ADD COLUMN lastSignedIn timestamp NOT NULL DEFAULT (now())`);
+        console.log("   ✅ Coluna lastSignedIn adicionada!");
+    } catch (error: any) {
+        if (error.message?.includes('Duplicate column')) {
+            console.log("   ⚠️  Coluna lastSignedIn já existe");
+        } else {
+            console.log("   ❌ Erro ao adicionar lastSignedIn:", error.message);
+        }
+    }
+
+    console.log("\n✅ Migration concluída com sucesso!\n");
     process.exit(0);
 }
 

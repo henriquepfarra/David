@@ -18,11 +18,12 @@ export async function getDb() {
     try {
       const connectionPool = createPool({
         uri: process.env.DATABASE_URL,
-        connectionLimit: 10,
+        connectionLimit: 20, // Increased for concurrency
         queueLimit: 0,
         enableKeepAlive: true,
         keepAliveInitialDelay: 0,
-        waitForConnections: true
+        waitForConnections: true,
+        connectTimeout: 20000, // 20s timeout
       });
       _db = drizzle(connectionPool, { mode: "default", schema });
       logger.info("[Database] ✅ Connected to MySQL successfully");

@@ -7,30 +7,9 @@ if (!globalThis.crypto) {
 // Load environment variables first
 import "dotenv/config";
 
-// Initialize Sentry BEFORE any other imports (must be first!)
+// Sentry initialized via --import ./dist/instrument.js
 import * as Sentry from "@sentry/node";
-
 const sentryDsn = process.env.SENTRY_DSN;
-if (sentryDsn) {
-  Sentry.init({
-    dsn: sentryDsn,
-    environment: process.env.NODE_ENV || "development",
-    // Only send errors in production
-    enabled: process.env.NODE_ENV === "production",
-    // Sample rate for performance monitoring
-    tracesSampleRate: 0.1,
-    // Don't send PII
-    beforeSend(event) {
-      // Remove sensitive headers
-      if (event.request?.headers) {
-        delete event.request.headers.cookie;
-        delete event.request.headers.authorization;
-      }
-      return event;
-    },
-  });
-  console.log("🛡️ Sentry initialized for error monitoring");
-}
 
 console.log("🚀 Server process starting...");
 console.log(`🌍 NODE_ENV: ${process.env.NODE_ENV}`);
