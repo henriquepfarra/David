@@ -43,6 +43,13 @@
       "when": 1770850633504,
       "tag": "0005_wakeful_tag",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "5",
+      "when": 1770901907113,
+      "tag": "0006_deep_paibok",
+      "breakpoints": true
     }
   ]
 }

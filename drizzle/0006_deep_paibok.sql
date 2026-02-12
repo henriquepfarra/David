@@ -1,0 +1,1 @@
+ALTER TABLE `users` ADD `plan` enum('tester','free','pro') DEFAULT 'tester' NOT NULL;

@@ -23,6 +23,12 @@ RUN pnpm install --frozen-lockfile
 # Copiar resto do código
 COPY . .
 
+# Build args
+ARG VITE_APP_TITLE
+ARG VITE_APP_LOGO
+ARG VITE_ANALYTICS_ENDPOINT
+ARG VITE_ANALYTICS_WEBSITE_ID
+
 # Build da aplicação
 RUN pnpm run build
 

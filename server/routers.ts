@@ -489,7 +489,26 @@ Retorne APENAS essas informações, de forma objetiva. Ignore o restante do docu
       }),
 
     getUsage: protectedProcedure.query(async ({ ctx }) => {
-      return db.getUserDailyUsage(ctx.user.id);
+      const usage = await db.getUserDailyUsage(ctx.user.id);
+      const plan = ctx.user.plan || "tester";
+      const role = ctx.user.role || "user";
+
+      const { getPlanLimits, TOKENS_PER_CREDIT } = await import("./rateLimiter");
+      const limits = getPlanLimits(plan, role);
+
+      const totalTokens = usage.inputTokens + usage.outputTokens;
+      const creditsUsed = Math.ceil(totalTokens / TOKENS_PER_CREDIT);
+      const creditsTotal = Math.ceil(limits.dailyTokens / TOKENS_PER_CREDIT);
+
+      return {
+        ...usage,
+        plan,
+        role,
+        planLabel: limits.label,
+        creditsUsed,
+        creditsTotal,
+        percentage: creditsTotal > 0 ? Math.min(Math.round((creditsUsed / creditsTotal) * 100), 100) : 0,
+      };
     }),
   }),
 

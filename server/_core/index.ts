@@ -147,17 +147,31 @@ async function startServer() {
       const moduleSlug = (settings as any)?.defaultModule || 'default';
       console.log(`[Stream-Module] Módulo ativo: ${moduleSlug}`);
 
-      // Rate limiting
-      const rateCheck = await checkRateLimit(user.id);
+      // Rate limiting (quota diária + burst protection por plano)
+      const userPlan = (user as any).plan || "tester";
+      const userRole = (user as any).role || "user";
+      const rateCheck = await checkRateLimit(user.id, userPlan, userRole);
       if (!rateCheck.allowed) {
-        res.status(429).json({ error: rateCheck.reason, code: "RATE_LIMIT" });
+        res.status(429).json({ error: rateCheck.reason, code: "RATE_LIMIT", plan: userPlan });
+        return;
+      }
+
+      const provider = settings?.llmProvider || "google";
+
+      // Verificar se o provider é permitido no plano
+      const { isProviderAllowed } = await import("../rateLimiter");
+      if (!isProviderAllowed(userPlan, userRole, provider)) {
+        res.status(403).json({
+          error: `O provedor ${provider} não está disponível no plano ${rateCheck.limits.label}. Provedores disponíveis: ${rateCheck.limits.allowedProviders.join(", ")}`,
+          code: "PROVIDER_NOT_ALLOWED"
+        });
         return;
       }
 
       const llmConfig = {
-        apiKey: resolveApiKeyForProvider(settings?.llmProvider, settings?.llmApiKey),
+        apiKey: resolveApiKeyForProvider(provider, settings?.llmApiKey),
         model: settings?.llmModel || "gemini-3-flash-preview",
-        provider: settings?.llmProvider || "google"
+        provider
       };
 
       const conversation = await getConversationById(conversationId);

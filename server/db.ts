@@ -121,6 +121,7 @@ export async function getUserByOpenId(openId: string) {
         email: "dev@local.test",
         loginMethod: "local",
         role: "admin",
+        plan: "tester",
         createdAt: new Date(),
         updatedAt: new Date(),
         lastSignedIn: new Date()
@@ -1094,8 +1095,7 @@ export async function deleteProcessDocument(id: number, userId: number) {
 // USAGE TRACKING (Rate Limiting & Custos)
 // ============================================
 
-const DAILY_REQUEST_LIMIT = 200;
-const DAILY_TOKEN_LIMIT = 1_000_000; // 1M tokens/dia
+import { checkRateLimitWithPlan, isProviderAllowed, type RateLimitResult } from "./rateLimiter";
 
 function getTodayDate(): string {
   return new Date().toISOString().split('T')[0]; // YYYY-MM-DD
@@ -1168,23 +1168,19 @@ export async function getUserDailyUsage(userId: number, date?: string) {
   return { ...totals, byModel: rows, date: targetDate };
 }
 
-export async function checkRateLimit(userId: number): Promise<{ allowed: boolean; reason?: string }> {
-  const usage = await getUserDailyUsage(userId);
-
-  if (usage.requestCount >= DAILY_REQUEST_LIMIT) {
-    return {
-      allowed: false,
-      reason: `Você atingiu o limite diário de ${DAILY_REQUEST_LIMIT} requisições. Tente novamente amanhã.`,
-    };
-  }
-
-  const totalTokens = usage.inputTokens + usage.outputTokens;
-  if (totalTokens >= DAILY_TOKEN_LIMIT) {
-    return {
-      allowed: false,
-      reason: `Você atingiu o limite diário de tokens. Tente novamente amanhã.`,
-    };
-  }
-
-  return { allowed: true };
+/**
+ * Verifica rate limit usando o plano do usuário.
+ * Combina burst protection (in-memory) + quota diária (banco).
+ */
+export async function checkRateLimit(
+  userId: number,
+  plan: string = "tester",
+  role?: string
+): Promise<RateLimitResult> {
+  return checkRateLimitWithPlan(userId, plan, role, getUserDailyUsage);
 }
+
+/**
+ * Verifica se o provider é permitido no plano do usuário.
+ */
+export { isProviderAllowed } from "./rateLimiter";

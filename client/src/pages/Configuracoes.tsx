@@ -15,7 +15,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { trpc } from "@/lib/trpc";
-import { FileText, Loader2, Save, Upload, Edit, Trash2, RefreshCw, Key, Brain, BookOpen, Database, Check, Search, Scale } from "lucide-react";
+import { FileText, Loader2, Save, Upload, Edit, Trash2, RefreshCw, Key, Brain, BookOpen, Database, Check, Search, Scale, Zap } from "lucide-react";
+import { Progress } from "@/components/ui/progress";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { DEFAULT_DAVID_SYSTEM_PROMPT } from "@shared/defaultPrompts";
@@ -65,6 +66,18 @@ export default function Configuracoes() {
 
   const { data: settings, isLoading: settingsLoading } = trpc.settings.get.useQuery();
   const { data: knowledgeDocs, isLoading: docsLoading } = trpc.knowledgeBase.listUserDocs.useQuery();
+
+  // Uso diário (créditos)
+  const { data: usageData, error: usageError } = trpc.settings.getUsage.useQuery(undefined, {
+    refetchInterval: 60_000, // Atualiza a cada 1 min
+    retry: false,
+  });
+
+  useEffect(() => {
+    if (usageError) {
+      console.error("[Configuracoes] Erro ao carregar uso:", usageError.message);
+    }
+  }, [usageError]);
 
   // Módulos especializados
   const { data: modulesList } = trpc.modules.list.useQuery();
@@ -330,6 +343,42 @@ export default function Configuracoes() {
             Gerencie as configurações do sistema e da base de conhecimento
           </p>
         </div>
+
+        {/* Widget de Uso - Créditos */}
+        {usageData && (
+          <Card className="mb-6">
+            <CardContent className="py-4">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <Zap className="h-4 w-4 text-primary" />
+                  <span className="font-medium text-sm">Plano: {usageData.planLabel}</span>
+                </div>
+                {usageData.role === "admin" ? (
+                  <Badge variant="secondary" className="text-xs">Ilimitado</Badge>
+                ) : (
+                  <span className="text-xs text-muted-foreground">
+                    Renova diariamente
+                  </span>
+                )}
+              </div>
+              {usageData.role === "admin" ? (
+                <p className="text-sm text-muted-foreground">
+                  {usageData.creditsUsed} créditos usados hoje
+                </p>
+              ) : (
+                <div className="space-y-1.5">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">
+                      {usageData.creditsUsed} de {usageData.creditsTotal} créditos usados hoje
+                    </span>
+                    <span className="font-medium">{usageData.percentage}%</span>
+                  </div>
+                  <Progress value={usageData.percentage} className="h-2" />
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
 
         <Tabs defaultValue="personalizacao" className="w-full">
           <TabsList className="grid w-full grid-cols-1 mb-8">
