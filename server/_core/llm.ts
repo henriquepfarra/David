@@ -1,18 +1,38 @@
 import { ENV } from "./env";
+import CircuitBreaker from "opossum";
+
+// Proteção contra falhas em cascata (Circuit Breaker)
+const breakerOptions = {
+  timeout: 30000 + 1000, // 31s (pouco maior que o timeout do fetch para não conflitar)
+  errorThresholdPercentage: 50,
+  resetTimeout: 30000,
+};
+
+const llmCircuitBreaker = new CircuitBreaker(async (url: string, init: RequestInit) => {
+  return fetch(url, init);
+}, breakerOptions);
+
+llmCircuitBreaker.on('open', () => console.warn('[CircuitBreaker] 🔴 Circuito ABERTO. Falhas detectadas na API externa.'));
+llmCircuitBreaker.on('halfOpen', () => console.log('[CircuitBreaker] 🟡 Circuito MEIO-ABERTO. Testando recuperação...'));
+llmCircuitBreaker.on('close', () => console.log('[CircuitBreaker] 🟢 Circuito FECHADO. Operação normalizada.'));
+
 
 /**
  * Resolve a chave de API para um provider.
- * Prioridade: chave do usuário (power user) → chave do servidor (ENV).
+ * Prioridade: chave do usuário (se compatível com o provider) → chave do servidor (ENV).
+ * A userApiKey legada é sempre uma chave Google, então só é usada para o provider Google.
  */
 export function resolveApiKeyForProvider(
   provider: string | null | undefined,
   userApiKey?: string | null
 ): string {
-  if (userApiKey && userApiKey.trim().length > 0) {
+  const p = (provider || "google").toLowerCase();
+
+  // Só usar chave do usuário se for provider Google (campo legado llmApiKey era sempre Google)
+  if (p === "google" && userApiKey && userApiKey.trim().length > 0) {
     return userApiKey;
   }
 
-  const p = (provider || "google").toLowerCase();
   switch (p) {
     case "google":
       if (!ENV.geminiApiKey) throw new Error("Server GEMINI_API_KEY not configured");
@@ -242,6 +262,158 @@ const normalizeToolChoice = (
   return toolChoice;
 };
 
+/**
+ * Formata payload para a API nativa da Anthropic Messages.
+ * Extrai role "system" para parâmetro top-level `system`.
+ */
+function formatPayloadForAnthropic(
+  messages: Message[],
+  model: string,
+  maxTokens: number,
+  stream: boolean
+): Record<string, unknown> {
+  const normalized = messages.map(normalizeMessage);
+  const systemMessages = normalized.filter((m) => m.role === "system");
+  const nonSystemMessages = normalized.filter((m) => m.role !== "system");
+
+  const systemText = systemMessages
+    .map((m) => (typeof m.content === "string" ? m.content : JSON.stringify(m.content)))
+    .join("\n\n");
+
+  const payload: Record<string, unknown> = {
+    model,
+    messages: nonSystemMessages,
+    max_tokens: maxTokens,
+  };
+
+  if (systemText) {
+    payload.system = systemText;
+  }
+
+  if (stream) {
+    payload.stream = true;
+  }
+
+  return payload;
+}
+
+/**
+ * Converte resposta da Anthropic Messages API para InvokeResult (OpenAI-like).
+ */
+function anthropicResponseToInvokeResult(body: any): InvokeResult {
+  const textContent = (body.content || [])
+    .filter((b: any) => b.type === "text")
+    .map((b: any) => b.text)
+    .join("");
+
+  return {
+    id: body.id || "",
+    created: 0,
+    model: body.model || "",
+    choices: [
+      {
+        index: 0,
+        message: {
+          role: "assistant",
+          content: textContent,
+        },
+        finish_reason: body.stop_reason || "end_turn",
+      },
+    ],
+    usage: body.usage
+      ? {
+          prompt_tokens: body.usage.input_tokens || 0,
+          completion_tokens: body.usage.output_tokens || 0,
+          total_tokens: (body.usage.input_tokens || 0) + (body.usage.output_tokens || 0),
+        }
+      : undefined,
+  };
+}
+
+/**
+ * Parseia SSE da Anthropic Messages API e yield o texto.
+ */
+async function* parseAnthropicStream(
+  reader: ReadableStreamDefaultReader<Uint8Array>
+): AsyncGenerator<string, void, unknown> {
+  const decoder = new TextDecoder();
+  let buffer = "";
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split("\n");
+      buffer = lines.pop() || "";
+
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed || !trimmed.startsWith("data: ")) continue;
+
+        const dataStr = trimmed.slice(6);
+        if (dataStr === "[DONE]") continue;
+
+        try {
+          const event = JSON.parse(dataStr);
+          if (event.type === "content_block_delta" && event.delta?.type === "text_delta") {
+            yield event.delta.text;
+          }
+        } catch {
+          // skip malformed chunks
+        }
+      }
+    }
+  } finally {
+    reader.releaseLock();
+  }
+}
+
+/**
+ * Parseia SSE da Anthropic Messages API com suporte a thinking.
+ */
+async function* parseAnthropicStreamWithThinking(
+  reader: ReadableStreamDefaultReader<Uint8Array>
+): AsyncGenerator<StreamYield, void, unknown> {
+  const decoder = new TextDecoder();
+  let buffer = "";
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split("\n");
+      buffer = lines.pop() || "";
+
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed || !trimmed.startsWith("data: ")) continue;
+
+        const dataStr = trimmed.slice(6);
+        if (dataStr === "[DONE]") continue;
+
+        try {
+          const event = JSON.parse(dataStr);
+          if (event.type === "content_block_delta") {
+            if (event.delta?.type === "thinking_delta" && event.delta.thinking) {
+              yield { type: "thinking", text: event.delta.thinking };
+            } else if (event.delta?.type === "text_delta" && event.delta.text) {
+              yield { type: "content", text: event.delta.text };
+            }
+          }
+        } catch {
+          // skip malformed chunks
+        }
+      }
+    }
+  } finally {
+    reader.releaseLock();
+  }
+}
+
 const VALID_PROVIDERS = ["openai", "google", "groq", "deepseek", "anthropic"] as const;
 type ValidProvider = typeof VALID_PROVIDERS[number];
 
@@ -338,65 +510,74 @@ export async function invokeLLM(params: InvokeParams): Promise<InvokeResult> {
     provider
   } = params;
 
-  const payload: Record<string, unknown> = {
-    model: model || "gemini-2.5-flash",
-    messages: messages.map(normalizeMessage),
-  };
+  const normalizedProvider = provider?.toLowerCase() || "google";
+  const effectiveModel = model || "gemini-2.5-flash";
 
-  if (tools && tools.length > 0) {
-    payload.tools = tools;
+  // Anthropic usa formato nativo (system separado)
+  let payload: Record<string, unknown>;
+
+  if (normalizedProvider === "anthropic") {
+    payload = formatPayloadForAnthropic(messages, effectiveModel, 32768, false);
+  } else {
+    payload = {
+      model: effectiveModel,
+      messages: messages.map(normalizeMessage),
+    };
+
+    if (tools && tools.length > 0) {
+      payload.tools = tools;
+    }
+
+    const normalizedToolChoice = normalizeToolChoice(
+      toolChoice || tool_choice,
+      tools
+    );
+    if (normalizedToolChoice) {
+      payload.tool_choice = normalizedToolChoice;
+    }
+
+    if (normalizedProvider === "openai") {
+      payload.max_completion_tokens = 32768;
+    } else {
+      payload.max_tokens = 32768;
+    }
+
+    const normalizedResponseFormat = normalizeResponseFormat({
+      responseFormat,
+      response_format,
+      outputSchema,
+      output_schema,
+    });
+
+    if (normalizedResponseFormat) {
+      payload.response_format = normalizedResponseFormat;
+    }
   }
 
-  const normalizedToolChoice = normalizeToolChoice(
-    toolChoice || tool_choice,
-    tools
-  );
-  if (normalizedToolChoice) {
-    payload.tool_choice = normalizedToolChoice;
-  }
+  console.log(`[invokeLLM] Connecting to ${resolveApiUrl(normalizedProvider)} with model ${effectiveModel}...`);
 
-  payload.max_tokens = 32768
-
-
-  const normalizedResponseFormat = normalizeResponseFormat({
-    responseFormat,
-    response_format,
-    outputSchema,
-    output_schema,
-  });
-
-  if (normalizedResponseFormat) {
-    payload.response_format = normalizedResponseFormat;
-  }
-
-  console.log(`[invokeLLM] Connecting to ${resolveApiUrl(provider)} with model ${payload.model}...`);
-
-  // Build headers based on provider (Anthropic uses different auth)
   const headers: Record<string, string> = {
     "content-type": "application/json",
   };
 
-  if (provider === "anthropic") {
-    // Anthropic requires x-api-key header, not Bearer token
+  if (normalizedProvider === "anthropic") {
     headers["x-api-key"] = apiKey || "";
     headers["anthropic-version"] = "2023-06-01";
   } else {
-    // OpenAI, Google, Groq, DeepSeek use Bearer token
-    // IMPORTANTE: apiKey é obrigatória - sem fallback para ENV
     headers["authorization"] = `Bearer ${apiKey}`;
   }
 
   try {
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 30000); // 30s timeout
+    const timeout = setTimeout(() => controller.abort(), 30000);
 
     try {
-      const response = await fetch(resolveApiUrl(provider), {
+      const response = await llmCircuitBreaker.fire(resolveApiUrl(normalizedProvider), {
         method: "POST",
         headers,
         body: JSON.stringify(payload),
         signal: controller.signal,
-      });
+      }) as Response;
 
       if (!response.ok) {
         const errorText = await response.text();
@@ -406,7 +587,14 @@ export async function invokeLLM(params: InvokeParams): Promise<InvokeResult> {
         );
       }
 
-      return (await response.json()) as InvokeResult;
+      const body = await response.json();
+
+      // Anthropic retorna formato diferente - converter para InvokeResult
+      if (normalizedProvider === "anthropic") {
+        return anthropicResponseToInvokeResult(body);
+      }
+
+      return body as InvokeResult;
     } finally {
       clearTimeout(timeout);
     }
@@ -458,62 +646,72 @@ export async function* invokeLLMStream(params: InvokeParams): AsyncGenerator<str
     provider
   } = params;
 
-  const payload: Record<string, unknown> = {
-    model: model || "gemini-2.5-flash",
-    messages: messages.map(normalizeMessage),
-    stream: true,
-  };
+  const normalizedProvider = provider?.toLowerCase() || "google";
+  const effectiveModel = model || "gemini-2.5-flash";
 
-  if (tools && tools.length > 0) {
-    payload.tools = tools;
+  let payload: Record<string, unknown>;
+
+  if (normalizedProvider === "anthropic") {
+    payload = formatPayloadForAnthropic(messages, effectiveModel, 32768, true);
+  } else {
+    payload = {
+      model: effectiveModel,
+      messages: messages.map(normalizeMessage),
+      stream: true,
+    };
+
+    if (tools && tools.length > 0) {
+      payload.tools = tools;
+    }
+
+    const normalizedToolChoice = normalizeToolChoice(
+      toolChoice || tool_choice,
+      tools
+    );
+    if (normalizedToolChoice) {
+      payload.tool_choice = normalizedToolChoice;
+    }
+
+    if (normalizedProvider === "openai") {
+      payload.max_completion_tokens = 32768;
+    } else {
+      payload.max_tokens = 32768;
+    }
+
+    const normalizedResponseFormat = normalizeResponseFormat({
+      responseFormat,
+      response_format,
+      outputSchema,
+      output_schema,
+    });
+
+    if (normalizedResponseFormat) {
+      payload.response_format = normalizedResponseFormat;
+    }
   }
 
-  const normalizedToolChoice = normalizeToolChoice(
-    toolChoice || tool_choice,
-    tools
-  );
-  if (normalizedToolChoice) {
-    payload.tool_choice = normalizedToolChoice;
-  }
-
-  payload.max_tokens = 32768;
-
-
-  const normalizedResponseFormat = normalizeResponseFormat({
-    responseFormat,
-    response_format,
-    outputSchema,
-    output_schema,
-  });
-
-  if (normalizedResponseFormat) {
-    payload.response_format = normalizedResponseFormat;
-  }
-
-  // Build headers based on provider (Anthropic uses different auth)
   const headers: Record<string, string> = {
     "content-type": "application/json",
   };
 
-  if (provider === "anthropic") {
+  if (normalizedProvider === "anthropic") {
     headers["x-api-key"] = apiKey || "";
     headers["anthropic-version"] = "2023-06-01";
   } else {
-    // IMPORTANTE: apiKey é obrigatória - sem fallback para ENV
     headers["authorization"] = `Bearer ${apiKey}`;
   }
 
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 30000); // 30s connect timeout
+  const timeout = setTimeout(() => controller.abort(), 30000);
 
   let response;
   try {
-    response = await fetch(resolveApiUrl(provider), {
+    response = await llmCircuitBreaker.fire(resolveApiUrl(normalizedProvider), {
       method: "POST",
       headers,
       body: JSON.stringify(payload),
       signal: controller.signal,
-    });
+    }) as Response;
   } finally {
     clearTimeout(timeout);
   }
@@ -527,6 +725,12 @@ export async function* invokeLLMStream(params: InvokeParams): AsyncGenerator<str
 
   if (!response.body) {
     throw new Error("Response body is null");
+  }
+
+  // Anthropic tem formato SSE diferente
+  if (normalizedProvider === "anthropic") {
+    yield* parseAnthropicStream(response.body.getReader());
+    return;
   }
 
   const reader = response.body.getReader();
@@ -608,9 +812,51 @@ export async function* invokeLLMStreamWithThinking(
     return;
   }
 
-  // === OUTROS PROVIDERS: USAR API OPENAI-COMPATIBLE ===
+  // === ANTHROPIC: USAR PARSER NATIVO ===
+  if (normalizedProvider === "anthropic") {
+    const effectiveModel = model || "gemini-2.5-flash";
+    const payload = formatPayloadForAnthropic(messages, effectiveModel, 32768, true);
+
+    const headers: Record<string, string> = {
+      "content-type": "application/json",
+      "x-api-key": apiKey || "",
+      "anthropic-version": "2023-06-01",
+    };
+
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 30000);
+
+    let response;
+    try {
+      response = await llmCircuitBreaker.fire(resolveApiUrl(normalizedProvider), {
+        method: "POST",
+        headers,
+        body: JSON.stringify(payload),
+        signal: controller.signal,
+      }) as Response;
+    } finally {
+      clearTimeout(timeout);
+    }
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(
+        `LLM stream failed: ${response.status} ${response.statusText} – ${errorText}`
+      );
+    }
+
+    if (!response.body) {
+      throw new Error("Response body is null");
+    }
+
+    yield* parseAnthropicStreamWithThinking(response.body.getReader());
+    return;
+  }
+
+  // === OUTROS PROVIDERS (OpenAI, etc): USAR API OPENAI-COMPATIBLE ===
+  const effectiveModel = model || "gemini-2.5-flash";
   const payload: Record<string, unknown> = {
-    model: model || "gemini-2.5-flash",
+    model: effectiveModel,
     messages: messages.map(normalizeMessage),
     stream: true,
   };
@@ -627,7 +873,11 @@ export async function* invokeLLMStreamWithThinking(
     payload.tool_choice = normalizedToolChoice;
   }
 
-  payload.max_tokens = 32768;
+  if (normalizedProvider === "openai") {
+    payload.max_completion_tokens = 32768;
+  } else {
+    payload.max_tokens = 32768;
+  }
 
   const normalizedResponseFormat = normalizeResponseFormat({
     responseFormat,
@@ -640,30 +890,22 @@ export async function* invokeLLMStreamWithThinking(
     payload.response_format = normalizedResponseFormat;
   }
 
-  // Build headers based on provider
   const headers: Record<string, string> = {
     "content-type": "application/json",
+    "authorization": `Bearer ${apiKey}`,
   };
 
-  if (provider === "anthropic") {
-    headers["x-api-key"] = apiKey || "";
-    headers["anthropic-version"] = "2023-06-01";
-  } else {
-    // IMPORTANTE: apiKey é obrigatória - sem fallback para ENV
-    headers["authorization"] = `Bearer ${apiKey}`;
-  }
-
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 30000); // 30s connect timeout
+  const timeout = setTimeout(() => controller.abort(), 30000);
 
   let response;
   try {
-    response = await fetch(resolveApiUrl(provider), {
+    response = await llmCircuitBreaker.fire(resolveApiUrl(normalizedProvider), {
       method: "POST",
       headers,
       body: JSON.stringify(payload),
       signal: controller.signal,
-    });
+    }) as Response;
   } finally {
     clearTimeout(timeout);
   }
@@ -682,8 +924,6 @@ export async function* invokeLLMStreamWithThinking(
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
   let buffer = "";
-  let inThinkingTag = false;
-  let thinkingBuffer = "";
 
   try {
     while (true) {
@@ -702,8 +942,6 @@ export async function* invokeLLMStreamWithThinking(
         try {
           const json = JSON.parse(trimmed.slice(6)) as StreamChunk;
 
-          // === EXTRAIR THINKING ===
-
           // 1. Gemini thinking fields
           const geminiThinking = json.thought || json.thinkingContent;
           if (geminiThinking) {
@@ -718,37 +956,9 @@ export async function* invokeLLMStreamWithThinking(
             continue;
           }
 
-          // 3. Claude <thinking> tags no content
+          // 3. Content normal
           const content = json.choices[0]?.delta?.content;
-          if (content && normalizedProvider === "anthropic") {
-            // Processar tags <thinking>
-            for (let i = 0; i < content.length; i++) {
-              const remaining = content.slice(i);
-
-              if (!inThinkingTag && remaining.startsWith("<thinking>")) {
-                inThinkingTag = true;
-                i += 9; // Pular "<thinking>"
-                continue;
-              }
-
-              if (inThinkingTag && remaining.startsWith("</thinking>")) {
-                inThinkingTag = false;
-                if (thinkingBuffer) {
-                  yield { type: "thinking", text: thinkingBuffer };
-                  thinkingBuffer = "";
-                }
-                i += 10; // Pular "</thinking>"
-                continue;
-              }
-
-              if (inThinkingTag) {
-                thinkingBuffer += content[i];
-              } else {
-                yield { type: "content", text: content[i] };
-              }
-            }
-          } else if (content) {
-            // Provider sem thinking especial - tudo é content
+          if (content) {
             yield { type: "content", text: content };
           }
 
@@ -757,12 +967,6 @@ export async function* invokeLLMStreamWithThinking(
         }
       }
     }
-
-    // Flush remaining thinking buffer
-    if (thinkingBuffer) {
-      yield { type: "thinking", text: thinkingBuffer };
-    }
-
   } finally {
     reader.releaseLock();
   }

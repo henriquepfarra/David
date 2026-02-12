@@ -314,7 +314,6 @@ export default function David() {
   const selectModelMutation = trpc.settings.selectModel.useMutation({
     onSuccess: () => {
       trpcUtils.settings.get.invalidate();
-      toast.success("Modelo alterado!");
     },
     onError: (error) => {
       toast.error("Erro ao trocar modelo: " + error.message);
@@ -797,6 +796,10 @@ export default function David() {
               isCreatingConversation={createConversationMutation.isPending}
               isStreaming={isStreaming}
               showMicButton={FEATURES.AUDIO_TRANSCRIPTION}
+              llmModel={settings.data?.llmModel}
+              llmProvider={settings.data?.llmProvider}
+              onSelectModel={(curatedModelId) => selectModelMutation.mutate({ curatedModelId })}
+              isSelectingModel={selectModelMutation.isPending}
             />
           )}
 

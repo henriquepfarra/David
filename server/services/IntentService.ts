@@ -13,7 +13,7 @@
  * O IntentService SÓ CLASSIFICA, nunca responde ao usuário.
  */
 
-import { invokeLLM } from "../_core/llm";
+import { invokeLLM, resolveApiKeyForProvider } from "../_core/llm";
 
 // ============================================
 // TIPOS
@@ -372,15 +372,17 @@ async function classifyWithLLMConcrete(
 async function callFlashClassifier(
     systemPrompt: string,
     userMessage: string,
-    apiKey: string
+    _apiKey?: string
 ): Promise<string> {
+    // Sempre usa chave do servidor para Google (classificador interno)
+    const googleKey = resolveApiKeyForProvider("google");
     const result = await invokeLLM({
         messages: [
             { role: "system", content: systemPrompt },
             { role: "user", content: userMessage },
         ],
-        apiKey,
-        model: "gemini-2.0-flash",
+        apiKey: googleKey,
+        model: "gemini-2.5-flash-lite",
         provider: "google",
     });
 

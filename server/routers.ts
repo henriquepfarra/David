@@ -175,7 +175,7 @@ export const appRouter = router({
     uploadPdfQuick: protectedProcedure
       .input(z.object({
         filename: z.string(),
-        fileData: z.string(), // Base64
+        fileData: z.string().max(83_886_080, "Arquivo excedeu o limite de 60MB"), // ~80MB Base64 = ~60MB arquivo
         fileType: z.string(), // pdf
       }))
       .mutation(async ({ ctx, input }) => {
@@ -229,7 +229,7 @@ export const appRouter = router({
         text: z.string(),
         images: z.array(z.string()).optional(),
         filename: z.string().optional(),
-        fileData: z.string().optional(), // Base64 do arquivo
+        fileData: z.string().max(83_886_080, "Arquivo excedeu o limite de 60MB").optional(), // ~80MB Base64 = ~60MB arquivo
         fileType: z.string().optional(), // pdf, docx, etc
       }))
       .mutation(async ({ ctx, input }) => {
@@ -380,7 +380,7 @@ Retorne APENAS essas informações, de forma objetiva. Ignore o restante do docu
         content: z.string(),
         decisionDate: z.date().optional(),
         keywords: z.string().optional(),
-        url: z.string().optional(),
+        url: z.string().url().refine(val => val.startsWith("http://") || val.startsWith("https://"), { message: "URL deve ser segura (http/https)" }).optional(),
         isFavorite: z.number().optional(),
       }))
       .mutation(async ({ ctx, input }) => {
@@ -397,7 +397,7 @@ Retorne APENAS essas informações, de forma objetiva. Ignore o restante do docu
         content: z.string().optional(),
         decisionDate: z.date().optional(),
         keywords: z.string().optional(),
-        url: z.string().optional(),
+        url: z.string().url().refine(val => val.startsWith("http://") || val.startsWith("https://"), { message: "URL deve ser segura (http/https)" }).optional(),
         isFavorite: z.number().optional(),
       }))
       .mutation(async ({ ctx, input }) => {
