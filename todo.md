@@ -19,6 +19,7 @@
   - Captura de erros 5xx no backend
   - Remoção de dados sensíveis antes do envio
 - [x] **Documentação**: `docs/reports/BETA_READINESS.md` com roadmap e guia de escalabilidade
+- [x] **README.md**: Root consolidado com modelos Next-Gen (Gemini 3, GPT-5.2) e planos BYOK
 
 ### Estabilização MVP (Janeiro/2026)
 - [x] **Loop of Death corrigido**: Hook `useConversationId` como fonte única de verdade
