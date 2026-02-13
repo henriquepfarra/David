@@ -1,14 +1,15 @@
 # 🧠 Plano de Aprendizado Contínuo v3.0
 
 **Data:** 28/01/2026
-**Status:** Em Implementação
-**Prioridade:** 🔴 CRÍTICA
+**Última atualização:** 13/02/2026
+**Status:** ✅ Backend completo, Frontend UI de revisão pendente
+**Prioridade:** 🟡 MÉDIA (falta apenas UI de revisão no frontend)
 
 ---
 
 ## 📊 Estado Atual (Auditoria)
 
-### ✅ Backend Pronto (90%)
+### ✅ Backend Pronto (95%)
 
 | Componente | Status | Arquivo |
 |------------|--------|---------|
@@ -21,15 +22,22 @@
 | Schema (learnedTheses) | ✅ Completo | `drizzle/schema.ts:287` |
 | Schema (approvedDrafts) | ✅ Completo | `drizzle/schema.ts:265` |
 
-### ❌ Não Implementado
+### ✅ Implementado (Fev/2026)
+
+| Componente | Status | Detalhes |
+|------------|--------|---------|
+| **ContextBuilder / PromptBuilder** | ✅ Concluído | Injeção de teses e estilo no prompt via `PromptBuilder.ts` |
+| **Comando /tese** | ✅ Concluído | Handler com subcomandos em `tese.handler.ts` |
+| **Badge de Pendentes** | ✅ Concluído | Sidebar com contador via `getPendingCount` |
+| **Integração Motor B** | ✅ Concluído | Estilo injetado no /minutar |
+| **Auto-trigger extração** | ✅ Concluído | Extração automática na aprovação de minuta |
+| **Threshold RAG** | ✅ Concluído | Padronizado para 0.5 |
+
+### ❌ Pendente (Frontend)
 
 | Componente | Prioridade | Descrição |
 |------------|------------|-----------|
-| **ContextBuilder.injectTheses()** | ALTA | Injetar teses aprendidas no prompt |
-| **UI Revisão de Teses** | ALTA | Frontend para aprovar/rejeitar teses pendentes |
-| **Comando /tese** | MÉDIA | Listar, buscar, marcar obsoleta |
-| **Badge de Pendentes** | MÉDIA | Sidebar com contador |
-| **Integração Motor B** | ALTA | Injetar estilo no /minutar |
+| **UI Revisão de Teses** | ALTA | Frontend integrado para aprovar/rejeitar teses na página MemoriaDavid |
 
 ---
 
@@ -509,6 +517,6 @@ if (message.metadata?.canApprove) {
 
 ---
 
-**Última atualização:** 09/02/2026
-**Status:** ✅ Implementação Completa
+**Última atualização:** 13/02/2026
+**Status:** ✅ Backend completo | ❌ UI de revisão de teses pendente (ver PENDENCIAS.md)
 

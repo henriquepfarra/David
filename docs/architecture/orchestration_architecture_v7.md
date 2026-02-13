@@ -1,8 +1,10 @@
 # 🧠 Arquitetura v7.1: Sistema de Orquestração Híbrida
 
+**Última atualização:** 13/02/2026
+
 ## Visão Geral
 
-O David passará a ter um **fluxo de decisão bifurcado** para otimizar custo, latência e qualidade das respostas.
+O David possui um **fluxo de decisão bifurcado** para otimizar custo, latência e qualidade das respostas.
 
 ---
 
@@ -33,11 +35,12 @@ O David passará a ter um **fluxo de decisão bifurcado** para otimizar custo, l
 ├─────────────────────────────────────────────────────────────────────────┤
 │                                                                         │
 │  ┌─────────────────────┐                                                │
-│  │   ORQUESTRADOR      │  Gemini Flash                                  │
+│  │   ORQUESTRADOR      │  gemini-2.5-flash-lite (fixo)                  │
 │  │   (IntentService)   │  ─────────────────────────────────────────     │
 │  │                     │  • Recebe: mensagem + contexto                 │
 │  │   🎯 SÓ CLASSIFICA  │  • Devolve: { intent, path, motors[] }         │
 │  │   ❌ NÃO RESPONDE   │  • Latência: ~200ms                            │
+│  │                     │  • API key: resolve via sistema (Google)       │
 │  └──────────┬──────────┘                                                │
 │             │                                                           │
 │             ▼                                                           │
@@ -46,15 +49,17 @@ O David passará a ter um **fluxo de decisão bifurcado** para otimizar custo, l
 │  │                     │  ─────────────────────────────────────────     │
 │  │   🔧 MONTA PROMPT   │  • Recebe: intent + motors[]                   │
 │  │                     │  • Injeta: RAG + Motores + Processo            │
+│  │                     │  • Motor B: learned theses (dual embeddings)   │
 │  └──────────┬──────────┘                                                │
 │             │                                                           │
 │             ▼                                                           │
 │  ┌─────────────────────┐                                                │
-│  │   LLM PRINCIPAL     │  Configurado pelo usuário                      │
-│  │   (O Cérebro)       │  (Gemini Pro, GPT-4, Claude, etc)              │
+│  │   LLM PRINCIPAL     │  Selecionado pelo usuário (3 providers)       │
+│  │   (O Cérebro)       │  Padrão: gemini-3-flash-preview               │
 │  │                     │  ─────────────────────────────────────────     │
-│  │   ✅ SEMPRE RESPONDE │  • Recebe: prompt montado                      │
-│  │                     │  • Devolve: resposta ao usuário                │
+│  │   ✅ SEMPRE RESPONDE │  • Providers: Google, OpenAI, Anthropic       │
+│  │                     │  • Recebe: prompt montado                      │
+│  │                     │  • Circuit breaker: opossum (50% / 30s)       │
 │  └─────────────────────┘                                                │
 │                                                                         │
 └─────────────────────────────────────────────────────────────────────────┘

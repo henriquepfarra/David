@@ -1,8 +1,9 @@
 # 🎯 Roadmap MVP: David em < 1 Mês
 
 **Data de Criação**: 18/01/2026
+**Última atualização**: 13/02/2026
 **Prazo**: < 1 mês para primeiros usuários
-**Status**: 🚧 Em Execução
+**Status**: 🟢 Semanas 1-2 concluídas, Semanas 3-4 em andamento
 
 ---
 
@@ -30,11 +31,13 @@
 
 | Área | Status | Detalhes |
 |------|--------|----------|
-| **UI/Layout** | 80-85% | Polish faltando (empty states, loading) |
-| **Features Jurídicas** | Backend ✅ / Frontend 60% | Teses pendentes, análise de petições |
-| **Refatoração** | Em pausa | David.tsx: 2.278 linhas (meta <500) |
-| **Testes** | 616 passando | Cobertura ~13% |
-| **Bug Crítico** | 🔴 Loop of Death | Bloqueia upload de PDF |
+| **UI/Layout** | 90% | Redesign Settings concluído, user dropdown atualizado |
+| **Features Jurídicas** | Backend ✅ / Frontend 70% | Comando /tese implementado, teses pendentes faltam UI |
+| **Multi-Provider LLM** | ✅ Concluído | Google, OpenAI, Anthropic com seletor de modelo |
+| **Sistema de Planos** | ✅ Concluído | tester/free/pro/avançado com créditos diários |
+| **Segurança** | ✅ Concluído | CSP, circuit breaker, rate limiting, SSRF prevention |
+| **Refatoração** | Em pausa | Configuracoes.tsx: 901→79 linhas (refatorado) |
+| **Bug Crítico** | ✅ Resolvido | Loop of Death corrigido |
 
 ---
 
@@ -82,14 +85,17 @@ setSelectedConversationId → re-render → polling detecta mudança → LOOP
 
 **Objetivo**: Completar aprendizado ativo + melhorar integração de contexto
 
-#### 2A. Sistema de Teses (Aprendizado Ativo) — ESSENCIAL
+#### 2A. Sistema de Teses (Aprendizado Ativo) — PARCIALMENTE CONCLUÍDO
 
-| # | Tarefa | Arquivos | Backend |
-|---|--------|----------|---------|
-| 2A.1 | UI de revisão de teses pendentes | `PendingTheses.tsx` — CRIAR | ✅ Existe |
-| 2A.2 | Dialog approve/reject/edit | `ThesisReviewDialog.tsx` — CRIAR | ✅ Existe |
-| 2A.3 | Badge de pendentes no sidebar | `DashboardLayout.tsx` | ✅ Existe |
-| 2A.4 | Tab "Pendentes" na Memória | `MemoriaDavid.tsx` | ✅ Existe |
+| # | Tarefa | Arquivos | Status |
+|---|--------|----------|--------|
+| 2A.0 | Comando /tese (ensino manual) | `server/commands/handlers/tese.handler.ts` | ✅ Concluído |
+| 2A.0b | Threshold RAG padronizado 0.5 | `server/services/RagService.ts` | ✅ Concluído |
+| 2A.0c | Auto-trigger extração na aprovação | `server/commands/handlers/minutar.handler.ts` | ✅ Concluído |
+| 2A.1 | UI de revisão de teses pendentes | `PendingTheses.tsx` — CRIAR | ❌ Pendente |
+| 2A.2 | Dialog approve/reject/edit | `ThesisReviewDialog.tsx` — CRIAR | ❌ Pendente |
+| 2A.3 | Badge de pendentes no sidebar | `DashboardLayout.tsx` | ❌ Pendente |
+| 2A.4 | Tab "Pendentes" na Memória | `MemoriaDavid.tsx` | ❌ Pendente |
 
 **Endpoints disponíveis** (thesisRouter.ts):
 - `getPendingCount` — Contagem para badge
@@ -167,12 +173,12 @@ Tese ativa influencia futuras respostas
 
 | Item | Motivo | Quando Fazer |
 |------|--------|--------------|
-| Refatorar god functions do backend | Funciona, não bloqueia | Pós-MVP |
+| Refatorar davidRouter.ts (god object) | Funciona, não bloqueia (712 linhas) | Pós-MVP |
 | Extrair MessageList/ChatArea (Fase 5-6) | Nice-to-have | Pós-MVP |
 | Aumentar cobertura de testes para 70% | Importante mas não urgente | Pós-MVP |
 | Dark mode | Feature, não necessidade | Pós-feedback |
 | i18n | Só precisa português | Se expandir |
-| UI de Knowledge Base | Usuário não gerencia | Se necessário |
+| Logging estruturado (Pino/Winston) | console.log funciona para beta | Pós-feedback |
 
 ---
 
@@ -293,11 +299,15 @@ client/src/
 | Métrica | Inicial | Meta | Atual |
 |---------|---------|------|-------|
 | David.tsx linhas | 2.924 | <1500 | **1.820** (-38%) |
+| Configuracoes.tsx linhas | 901 | <100 | **79** (-91%) ✅ |
 | useState hooks | 46 | <20 | **29** (-37%) |
 | useEffect hooks | 14 | <8 | **12** |
 | Bugs críticos | 2 | 0 | **0** ✅ |
 | Semana 1 | - | Completa | ✅ **100%** |
-| Features jurídicas completas | 60% | 90% | 60% |
+| Features jurídicas completas | 60% | 90% | 70% |
+| Segurança implementada | 0% | 100% | **100%** ✅ |
+| Multi-Provider LLM | 0% | 100% | **100%** ✅ |
+| Sistema de Planos | 0% | 100% | **100%** ✅ |
 | Usuários testaram | 0 | 3+ | 0 |
 
 ---
@@ -324,14 +334,32 @@ client/src/
 
 ## 🚀 Próximos Passos Imediatos
 
-1. **AGORA**: Finalizar correção do Loop of Death
-   - Verificar se David.tsx já usa `useConversationId`
-   - Remover código legado de polling/sincronização
-   - Atualizar DashboardLayout.tsx
+1. **UI de Revisão de Teses** (Semana 2 - pendente)
+   - Integrar PendingTheses na página MemoriaDavid
+   - Adicionar dialog de edição/aprovação/rejeição
+   - Badge no sidebar com contador de pendentes
 
-2. **Após Loop corrigido**: Testar upload de PDF end-to-end
+2. **Polish de UI/UX** (Semana 3)
+   - Empty states para chat vazio, prompts vazios
+   - Loading states consistentes
+   - Responsividade mobile
 
-3. **Então**: Seguir para tarefas da Semana 2
+3. **Testes com Usuários** (Semana 4)
+   - Deploy para ambiente de teste
+   - Sessões com 2-3 usuários
+
+---
+
+## Conquistas Extras (Fev/2026 - fora do escopo original)
+
+Implementações que aceleraram o roadmap além do planejado:
+
+- ✅ **Multi-Provider LLM**: 3 provedores (Google, OpenAI, Anthropic) com seletor na UI
+- ✅ **Sistema de Planos e Créditos**: 5 planos com rate limiting e burst protection
+- ✅ **Segurança Completa**: CSP, circuit breaker, SSRF prevention, upload limits
+- ✅ **Redesign Settings**: Sidebar com 5 seções, plano avançado BYOK
+- ✅ **Auto-Migration**: drizzle-kit push no startup
+- ✅ **Comando /tese**: Ensino manual de teses implementado
 
 ---
 

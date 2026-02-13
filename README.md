@@ -10,13 +10,15 @@ O **David** é um assistente jurídico de última geração projetado para eleva
 ### 🧠 Inteligência Artificial (Next-Gen)
 O David é construído sobre os modelos de fundação mais avançados disponíveis, garantindo raciocínio lógico superior e capacidade de processamento massivo de contexto.
 
-* **Google (Gemini 3)**
-    * **Gemini 3 Pro Preview**: Raciocínio jurídico complexo, multimodalidade nativa e janelas de contexto infinitas.
-    * **Gemini 3 Flash Preview**: Velocidade extrema para triagem e análises em tempo real.
+* **Google (Gemini 3)** - Provider padrão
+    * **Gemini 3 Flash Preview**: Modelo padrão. Velocidade extrema para triagem e análises em tempo real.
+    * **Gemini 3 Pro Preview**: Raciocínio jurídico complexo, multimodalidade nativa e janelas de contexto massivas.
 * **OpenAI (GPT-5)**
     * **GPT-5.2**: Capacidade de agência, planejamento e estruturação lógica superior.
+    * **GPT-5 Mini**: Modelo leve e econômico para tarefas rápidas.
 * **Anthropic (Claude 4.5)**
-    * **Claude 4.5 / 3.5 Sonnet**: A referència em redação jurídica natural, nuance e aderência a instruções complexas.
+    * **Claude 4.5 Sonnet**: A referência em redação jurídica natural, nuance e aderência a instruções complexas.
+    * **Claude 4.5 Haiku**: Rápido com boa qualidade de redação.
 
 ### 🧩 Arquitetura Híbrida
 * **RAG Híbrido**: Combina busca vetorial (semântica) com busca textual (keywords) para encontrar jurisprudência exata.
@@ -35,6 +37,7 @@ O David oferece flexibilidade para diferentes perfis de uso, desde testadores in
 ### 1. Planos Geridos (Padrão)
 *Ideal para a maioria dos usuários. Simplicidade e previsibilidade.*
 * **Níveis**: Tester / Free / Pro.
+* **Sistema de créditos**: 1 crédito = 1.000 tokens. Quotas diárias por plano.
 * **Como funciona**: O sistema gerencia e custeia o acesso aos modelos de IA (Gemini, GPT, Claude). O usuário paga apenas a assinatura do plano.
 * **Benefício**: Zero configuração técnica. Acesso imediato aos melhores modelos.
 
@@ -50,10 +53,12 @@ O David oferece flexibilidade para diferentes perfis de uso, desde testadores in
 
 O projeto é construído com tecnologias modernas voltadas para performance e tipagem segura.
 
-* **Frontend**: React, TailwindCSS, Lucide Icons.
-* **Backend**: Node.js, tRPC (Type-safe API).
-* **Banco de Dados**: MySQL (via Drizzle ORM).
-* **Infraestrutura**: Containerizado (Docker), pronto para Railway/AWS.
+* **Frontend**: React 19, TailwindCSS, Radix UI, Lucide Icons.
+* **Backend**: Node.js, Express, tRPC (Type-safe API).
+* **Banco de Dados**: MySQL (via Drizzle ORM com auto-migration).
+* **Segurança**: Helmet.js (CSP), Circuit Breaker (opossum), Rate Limiting com planos.
+* **Monitoramento**: Sentry (frontend + backend).
+* **Infraestrutura**: Containerizado (Docker), deploy em Railway.
 
 ---
 
@@ -81,13 +86,14 @@ A documentação detalhada técnica e de negócio encontra-se na pasta [`/docs`]
 
 4. **Banco de Dados**
    ```bash
-   pnpm run db:push  # Cria as tabelas
-   pnpm run seed     # Popula dados iniciais
+   pnpm run db:push  # Cria as tabelas (também executa automaticamente no start)
+   pnpm run seed     # Popula dados iniciais (súmulas, enunciados)
    ```
 
 5. **Inicie o servidor**
    ```bash
-   pnpm run dev
+   pnpm run dev      # Desenvolvimento (servidor + cliente com hot reload)
+   pnpm run start    # Produção (auto-migration + servidor)
    ```
 
 ---

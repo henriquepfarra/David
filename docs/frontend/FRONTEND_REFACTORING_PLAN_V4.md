@@ -1,7 +1,8 @@
 # Plano de Refatoração do Frontend: David.tsx (v4)
 
 **Criado**: 17/01/2026
-**Status**: Aprovado para execução
+**Última atualização**: 13/02/2026
+**Status**: Fases 0-3 concluídas. Redesign Settings concluído separadamente.
 **Branch base**: `refactor/prompts-integration`
 
 ---
@@ -10,11 +11,14 @@
 
 | Métrica | Inicial | Atual | Meta | Gap |
 |---------|---------|-------|------|-----|
-| **Linhas David.tsx** | 2924 | 2278 | <500 | -1778 |
+| **Linhas David.tsx** | 2924 | ~1820 | <500 | -1320 |
+| **Linhas Configuracoes.tsx** | 901 | 79 | <100 | ✅ Concluído |
 | **useState** | 46 | 29 | <10 | -19 |
 | **useEffect** | 11 | 12 | <5 | -7 |
 
-**Progresso atual**: 22% de redução (Fases 0-3 concluídas)
+**Progresso atual**: 38% de redução em David.tsx (Fases 0-3). Configuracoes.tsx 91% de redução.
+
+> **Nota (Fev/2026):** Configuracoes.tsx foi refatorado em 6 componentes Settings (sidebar, MinhaConta, Uso, Cobrança, Personalização, Avançado) + novos componentes: ProviderIcons, ChatInputArea com model selector. Estes não faziam parte do plano original mas contribuíram para a meta geral de redução.
 
 ---
 

@@ -1,19 +1,20 @@
 # Beta Readiness - David Ghostwriter
 
 **Data de Criação**: 27/01/2026
+**Última atualização**: 13/02/2026
 **Status**: Em Produção (Railway)
 
 ---
 
 ## Resumo Executivo
 
-Este documento detalha as melhorias implementadas para preparar o David para uso em produção (beta), incluindo segurança de API keys, monitoramento de erros e recomendações para escalabilidade futura.
+Este documento detalha as melhorias implementadas para preparar o David para uso em produção (beta), incluindo segurança de API keys, monitoramento de erros, sistema de planos e créditos, multi-provider LLM e recomendações para escalabilidade futura.
 
 ---
 
 ## Trabalho Concluído
 
-### 1. Segurança de API Keys
+### 1. Segurança de API Keys (Jan/2026)
 
 **Problema identificado**: O sistema usava a chave do desenvolvedor (ENV.geminiApiKey) como fallback quando o usuário não tinha chave configurada, causando custos não planejados.
 
@@ -21,35 +22,18 @@ Este documento detalha as melhorias implementadas para preparar o David para uso
 
 | Funcionalidade | Antes | Depois |
 |----------------|-------|--------|
-| Chat LLM (sendMessage) | Fallback para ENV.geminiApiKey | Requer chave do usuário |
+| Chat LLM (sendMessage) | Fallback para ENV.geminiApiKey | Requer chave do usuário ou plano |
 | Extração de Teses | Fallback para ENV.geminiApiKey | Requer chave do usuário |
 | Extração de PDF | Fallback para ENV.geminiApiKey | Requer chave do usuário |
 | Geração de Títulos | Chave do usuário | Chave do sistema (baixo custo, UX) |
 | Enhance Prompt | Sem chave definida | Chave do sistema (baixo custo, UX) |
 | Transcrição de Áudio | Disponível | Desabilitado para beta |
 
-**Arquivos modificados**:
-- `server/_core/llm.ts` - Removido fallback perigoso
-- `server/titleGenerator.ts` - Usa explicitamente ENV.geminiApiKey
-- `server/services/enhancePrompt.ts` - Usa explicitamente ENV.geminiApiKey
-- `server/routers/davidRouter.ts` - Validação de API key obrigatória
-- `server/thesisExtractor.ts` - Requer apiKey como parâmetro
-
-**Feature Flag adicionada**:
-```typescript
-// shared/const.ts
-export const FEATURES = {
-  AUDIO_TRANSCRIPTION: false, // Desabilitado para beta
-};
-```
-
 **Commit**: `4bb4a42` - fix(security): enforce user API key for LLM calls, add beta feature flags
 
 ---
 
-### 2. Monitoramento de Erros (Sentry)
-
-**Problema identificado**: Sem visibilidade de erros em produção.
+### 2. Monitoramento de Erros - Sentry (Jan/2026)
 
 **Solução implementada**: Integração completa com Sentry para frontend e backend.
 
@@ -58,25 +42,103 @@ export const FEATURES = {
 - ErrorBoundary React para capturar erros não tratados
 - Captura de erros tRPC (queries e mutations)
 - Filtragem de erros de autenticação (não envia para Sentry)
-- Remoção de cookies antes do envio (privacidade)
 
-#### Backend (`server/_core/index.ts`)
-- Sentry inicializado antes de outros imports
+#### Backend (`server/instrument.ts` + `server/_core/index.ts`)
+- Sentry inicializado via `--import ./dist/instrument.js`
 - Captura de erros em streaming LLM
 - Captura de erros 5xx no error handler global
 - Remoção de headers sensíveis (cookie, authorization)
-- Habilitado apenas em produção
 
-**Variáveis de ambiente**:
-```bash
-# Backend (Node.js)
-SENTRY_DSN="https://..."
+**Commit**: `d3e92d8` - fix: sentry instrumentation and db connection tuning
 
-# Frontend (Vite - prefixo VITE_ obrigatório)
-VITE_SENTRY_DSN="https://..."
-```
+---
 
-**Commit**: `6cc1304` - feat(monitoring): add Sentry error tracking for frontend and backend
+### 3. Estabilidade e Segurança (11/02/2026)
+
+Correções de estabilidade e segurança de alta prioridade:
+
+| Item | Problema | Solução | Arquivo |
+|------|----------|---------|---------|
+| Memory Leak | Conexões streaming zumbis | `res.on('close')` + flag de controle | `server/_core/index.ts` |
+| LLM Timeouts | Requisições travadas | AbortController 30s | `server/_core/llm.ts` |
+| CSP Headers | Vulnerável a XSS | Helmet.js com diretivas | `server/_core/index.ts` |
+| Circuit Breaker | Cascata de falhas | opossum (50% threshold, 30s reset) | `server/_core/llm.ts` |
+| SSRF Prevention | URLs internas acessíveis | Validação http/https only | `server/routers.ts` |
+| Upload Limit | DoS por upload grande | Max 60MB (83MB base64) | `server/routers.ts` |
+
+**Relatórios detalhados**:
+- [2026-02-11_ESTABILIDADE.md](../RELATORIOS/2026-02-11_ESTABILIDADE.md)
+- [2026-02-11_SEGURANCA_ALTA.md](../RELATORIOS/2026-02-11_SEGURANCA_ALTA.md)
+
+---
+
+### 4. Rate Limiting + Sistema de Planos (12/02/2026)
+
+**Implementação completa** com 2 camadas de proteção:
+
+#### Camada 1: Burst Protection (in-memory)
+- Limite de requests por minuto por usuário (anti-flood)
+- Baseado em plano do usuário
+
+#### Camada 2: Quota Diária (banco de dados)
+- Créditos diários (1 crédito = 1.000 tokens input+output)
+- Tracking por `usageTracking` table, reset diário
+
+#### Planos implementados
+
+| Plano | Req/min | Créditos/dia | Providers Permitidos |
+|-------|---------|-------------|---------------------|
+| **tester** | 10 | 250 | Google, OpenAI, Anthropic |
+| **free** | 5 | 100 | Google apenas |
+| **pro** | 20 | 2.000 | Google, OpenAI, Anthropic |
+| **avançado** | 20 | ilimitado (API própria) | Google, OpenAI, Anthropic |
+| **admin** | 60 | ilimitado | Todos |
+
+**Arquivos**: `server/rateLimiter.ts`, `server/db.ts`, `drizzle/schema.ts` (campo `plan`)
+
+**Commit**: `18916b8` - feat: credit-based usage system with plan tiers and UI widget
+
+---
+
+### 5. Multi-Provider LLM (12/02/2026)
+
+Suporte a 3 provedores de LLM com seletor na UI:
+
+| Provider | Modelos Rápidos | Modelos Pro |
+|----------|----------------|-------------|
+| **Google** | Gemini 3 Flash (padrão) | Gemini 3 Pro |
+| **Anthropic** | Claude 4.5 Haiku | Claude 4.5 Sonnet |
+| **OpenAI** | GPT-5 Mini | GPT-5.2 |
+
+**Modelo padrão**: `gemini-3-flash-preview` (fallback em todo o sistema)
+
+**Arquivos**: `shared/curatedModels.ts`, `server/llmModels.ts`, `server/_core/llm.ts`
+
+**Commit**: `d24f5bc` - feat: multi-provider LLM support, model selector UI, and Anthropic native API
+
+---
+
+### 6. Redesign Settings (13/02/2026)
+
+Página de configurações redesenhada com sidebar e 5 seções:
+
+| Seção | Componente | Descrição |
+|-------|-----------|-----------|
+| Minha Conta | `SettingsMinhaConta.tsx` | Perfil, sessão, logout |
+| Uso | `SettingsUso.tsx` | Créditos consumidos, progresso do plano |
+| Cobrança | `SettingsCobranca.tsx` | Plano atual (upgrade futuro) |
+| Personalização | `SettingsPersonalizacao.tsx` | Prompt customizado, Base de Conhecimento |
+| Avançado | `SettingsAvancado.tsx` | BYOK - chave API própria |
+
+**Commit**: `79b54cb` - feat: redesign settings page with sidebar navigation and 'avancado' plan
+
+---
+
+### 7. Auto-Migration no Startup (12/02/2026)
+
+Drizzle-kit push executa automaticamente no `pnpm start`, garantindo que migrações são aplicadas a cada deploy no Railway.
+
+**Commit**: `f49f502` - ci: auto-run drizzle-kit push on server start
 
 ---
 
@@ -84,24 +146,7 @@ VITE_SENTRY_DSN="https://..."
 
 ### Prioridade Alta
 
-#### 1. Rate Limiting por Usuário
-**Quando implementar**: Quando houver abuso ou custos elevados
-
-```typescript
-// Sugestão de implementação
-import rateLimit from 'express-rate-limit';
-
-const apiLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutos
-  max: 100, // 100 requests por janela
-  keyGenerator: (req) => req.user?.id || req.ip,
-  message: { error: 'Muitas requisições. Tente novamente em alguns minutos.' }
-});
-
-app.use('/api/', apiLimiter);
-```
-
-#### 2. Health Check Endpoint
+#### 1. Health Check Endpoint
 **Quando implementar**: Para monitoramento de uptime
 
 ```typescript
@@ -110,12 +155,12 @@ app.get('/api/health', (req, res) => {
     status: 'healthy',
     timestamp: new Date().toISOString(),
     version: process.env.npm_package_version,
-    database: 'connected', // verificar conexão
+    database: 'connected',
   });
 });
 ```
 
-#### 3. Backup de Banco de Dados
+#### 2. Backup de Banco de Dados
 **Quando implementar**: Imediatamente em produção
 
 - Railway oferece backups automáticos para MySQL
@@ -126,81 +171,39 @@ app.get('/api/health', (req, res) => {
 
 ### Prioridade Média
 
-#### 4. Logs Estruturados
+#### 3. Logs Estruturados
 **Quando implementar**: Para debugging em produção
+- Sugestão: Winston ou Pino com níveis e formatação JSON
+- Substituir `console.log` por logger estruturado
 
-```typescript
-// Sugestão: usar winston ou pino
-import pino from 'pino';
-
-const logger = pino({
-  level: process.env.LOG_LEVEL || 'info',
-  transport: process.env.NODE_ENV === 'production'
-    ? undefined
-    : { target: 'pino-pretty' }
-});
-
-// Uso
-logger.info({ userId, action: 'message_sent' }, 'User sent message');
-```
-
-#### 5. Métricas de Uso
-**Quando implementar**: Para entender padrões de uso
-
-Métricas sugeridas:
-- Mensagens por usuário/dia
-- Tokens consumidos por usuário
-- Tempo de resposta médio
-- Taxa de erro por endpoint
-- Uso de features (teses, análise, etc.)
-
-#### 6. Testes E2E Automatizados
+#### 4. Testes E2E Automatizados
 **Quando implementar**: Antes de grandes releases
-
-Framework sugerido: Playwright (já instalado)
-
-Cenários críticos:
-- Login → Chat → Enviar mensagem
-- Upload de PDF → Análise
-- Configurar chave API → Usar chat
+- Framework sugerido: Playwright (já instalado)
+- Cenários: Login → Chat → Enviar mensagem, Upload PDF → Análise
 
 ---
 
 ### Prioridade Baixa (Escala)
 
-#### 7. Cache de Respostas
+#### 5. Cache de Respostas
 **Quando implementar**: Se latência for problema
+- Redis para cache de títulos gerados, prompts enhanced, etc.
 
-```typescript
-// Redis para cache de respostas frequentes
-import Redis from 'ioredis';
-
-const redis = new Redis(process.env.REDIS_URL);
-
-// Cache de títulos gerados, prompts enhanced, etc.
-const cacheKey = `title:${hash(message)}`;
-const cached = await redis.get(cacheKey);
-if (cached) return JSON.parse(cached);
-```
-
-#### 8. CDN para Assets Estáticos
+#### 6. CDN para Assets Estáticos
 **Quando implementar**: Se tiver muitos usuários globais
+- Cloudflare (gratuito) ou AWS CloudFront
 
-- Cloudflare (gratuito)
-- AWS CloudFront
-- Vercel Edge
-
-#### 9. Separação de Serviços
+#### 7. Separação de Serviços
 **Quando implementar**: Se precisar escalar componentes independentemente
 
 ```
 Arquitetura atual (monolito):
 ┌─────────────────────────────┐
 │ Express Server              │
-│ ├─ API Routes               │
-│ ├─ tRPC                     │
-│ ├─ Streaming LLM            │
-│ └─ Static Files             │
+│ ├─ API Routes (tRPC)        │
+│ ├─ Streaming LLM (SSE)     │
+│ ├─ Rate Limiter             │
+│ └─ Static Files (Vite)     │
 └─────────────────────────────┘
 
 Arquitetura futura (se necessário):
@@ -218,15 +221,16 @@ Arquitetura futura (se necessário):
 - Monolito no Railway
 - MySQL único
 - Sentry para erros
+- Rate limiting + planos
 - **Custo estimado**: ~$20-50/mês
 
 ### Fase 2: 50-500 Usuários
 Adicionar:
-- [ ] Rate limiting
+- [x] Rate limiting ✅ (Implementado Fev/2026)
 - [ ] Health checks
 - [ ] Logs estruturados
 - [ ] Backup automático
-- [ ] Métricas básicas
+- [ ] Métricas avançadas (APM)
 - **Custo estimado**: ~$100-200/mês
 
 ### Fase 3: 500-5000 Usuários
@@ -263,25 +267,31 @@ Considerar:
 DATABASE_URL="mysql://..."
 JWT_SECRET="..." # mínimo 32 caracteres
 
-# Sentry (recomendado)
-SENTRY_DSN="https://..."
-VITE_SENTRY_DSN="https://..."
-
-# LLM (sistema - para features de baixo custo)
-GEMINI_API_KEY="AIza..."
-```
-
-### Variáveis de ambiente opcionais:
-```bash
 # OAuth
 GOOGLE_CLIENT_ID="..."
 GOOGLE_CLIENT_SECRET="..."
 
+# Sentry
+SENTRY_DSN="https://..."
+VITE_SENTRY_DSN="https://..."
+
+# LLM - Chaves do sistema (para planos geridos)
+GEMINI_API_KEY="AIza..."
+OPENAI_API_KEY="sk-..."
+ANTHROPIC_API_KEY="sk-ant-..."
+```
+
+### Variáveis de ambiente opcionais:
+```bash
 # Config
 PORT=3001
 NODE_ENV=production
 ALLOWED_ORIGINS="https://seu-dominio.com"
 ```
+
+### Notas de deploy:
+- Migrações de banco são aplicadas automaticamente via `drizzle-kit push` no startup
+- O script `start` em `package.json` já inclui: `drizzle-kit push && node dist/index.js`
 
 ---
 
@@ -291,8 +301,9 @@ ALLOWED_ORIGINS="https://seu-dominio.com"
 - [Railway Dashboard](https://railway.app)
 - [Google AI Studio](https://aistudio.google.com/app/apikey) - Obter GEMINI_API_KEY
 - [docs/reports/MVP_ROADMAP.md](./MVP_ROADMAP.md) - Roadmap de funcionalidades
+- [docs/PENDENCIAS.md](../PENDENCIAS.md) - Correções e implementações pendentes
 
 ---
 
 **Documento mantido por**: Equipe David
-**Última atualização**: 27/01/2026
+**Última atualização**: 13/02/2026
