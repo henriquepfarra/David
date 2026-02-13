@@ -513,20 +513,7 @@ function DashboardLayoutContent({
             )}
           </SidebarContent>
 
-          <SidebarFooter className="p-3 space-y-2">
-            {/* Settings */}
-            {!isCollapsed && (
-              <Button
-                variant="ghost"
-                className="w-full justify-start gap-2 h-9"
-                onClick={() => setLocation("/configuracoes")}
-              >
-                <Settings className="h-4 w-4" />
-                Configurações
-              </Button>
-            )}
-
-            {/* User */}
+          <SidebarFooter className="p-3">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button className="flex items-center gap-3 rounded-lg px-1 py-1 hover:bg-accent/50 transition-colors w-full text-left group-data-[collapsible=icon]:justify-center focus:outline-none focus-visible:ring-2 focus-visible:ring-ring">
@@ -545,69 +532,74 @@ function DashboardLayoutContent({
                   </div>
                 </button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuContent align="start" side="top" className="w-72 p-0">
+                {/* Email header */}
+                <div className="px-4 py-3 border-b">
+                  <p className="text-sm font-medium truncate">{user?.email || "-"}</p>
+                </div>
+
                 {/* Resumo do plano + créditos */}
                 {usageData && (
-                  <>
-                    <DropdownMenuLabel className="font-normal">
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs text-muted-foreground">Plano atual</span>
-                          <Badge variant="secondary" className="text-[10px] h-5">
-                            {usageData.planLabel}
-                          </Badge>
+                  <div className="px-4 py-3 space-y-2.5 border-b">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-muted-foreground">Plano atual</span>
+                      <Badge variant="secondary" className="text-xs">
+                        {usageData.planLabel}
+                      </Badge>
+                    </div>
+                    {usageData.role === "admin" ? (
+                      <p className="text-sm text-muted-foreground">{usageData.creditsUsed} créditos usados hoje</p>
+                    ) : (
+                      <div className="space-y-1.5">
+                        <div className="flex justify-between text-sm">
+                          <span className="text-muted-foreground">{usageData.creditsUsed} de {usageData.creditsTotal} créditos</span>
                         </div>
-                        {usageData.role === "admin" ? (
-                          <p className="text-xs text-muted-foreground">{usageData.creditsUsed} créditos usados hoje</p>
-                        ) : (
-                          <div className="space-y-1">
-                            <div className="flex justify-between text-xs">
-                              <span className="text-muted-foreground">{usageData.creditsUsed}/{usageData.creditsTotal} créditos</span>
-                              <span className="font-medium">{usageData.percentage}%</span>
-                            </div>
-                            <Progress value={usageData.percentage} className="h-1.5" />
-                          </div>
-                        )}
+                        <Progress value={usageData.percentage} className="h-2" />
                       </div>
-                    </DropdownMenuLabel>
-                    <DropdownMenuSeparator />
-                  </>
+                    )}
+                  </div>
                 )}
 
-                <DropdownMenuItem
-                  onClick={() => setLocation("/configuracoes")}
-                  className="cursor-pointer"
-                >
-                  <Settings className="mr-2 h-4 w-4" />
-                  <span>Configurações</span>
-                </DropdownMenuItem>
+                <div className="py-1.5">
+                  <DropdownMenuItem
+                    onClick={() => setLocation("/configuracoes")}
+                    className="cursor-pointer px-4 py-2.5 text-sm"
+                  >
+                    <Settings className="mr-3 h-4 w-4" />
+                    Configurações
+                  </DropdownMenuItem>
+                </div>
 
-                <DropdownMenuSeparator />
+                <DropdownMenuSeparator className="my-0" />
 
-                <DropdownMenuItem asChild>
-                  <a href="/privacidade" target="_blank" rel="noreferrer" className="cursor-pointer">
-                    <Shield className="mr-2 h-4 w-4" />
-                    <span>Política de Privacidade</span>
-                    <ExternalLink className="ml-auto h-3 w-3 text-muted-foreground" />
-                  </a>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <a href="/termos" target="_blank" rel="noreferrer" className="cursor-pointer">
-                    <FileText className="mr-2 h-4 w-4" />
-                    <span>Termos de Uso</span>
-                    <ExternalLink className="ml-auto h-3 w-3 text-muted-foreground" />
-                  </a>
-                </DropdownMenuItem>
+                <div className="py-1.5">
+                  <DropdownMenuItem asChild className="px-4 py-2.5 text-sm">
+                    <a href="/privacidade" target="_blank" rel="noreferrer" className="cursor-pointer">
+                      <Shield className="mr-3 h-4 w-4" />
+                      Política de Privacidade
+                      <ExternalLink className="ml-auto h-3 w-3 text-muted-foreground" />
+                    </a>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild className="px-4 py-2.5 text-sm">
+                    <a href="/termos" target="_blank" rel="noreferrer" className="cursor-pointer">
+                      <FileText className="mr-3 h-4 w-4" />
+                      Termos de Uso
+                      <ExternalLink className="ml-auto h-3 w-3 text-muted-foreground" />
+                    </a>
+                  </DropdownMenuItem>
+                </div>
 
-                <DropdownMenuSeparator />
+                <DropdownMenuSeparator className="my-0" />
 
-                <DropdownMenuItem
-                  onClick={logout}
-                  className="cursor-pointer text-destructive focus:text-destructive"
-                >
-                  <LogOut className="mr-2 h-4 w-4" />
-                  <span>Sair</span>
-                </DropdownMenuItem>
+                <div className="py-1.5">
+                  <DropdownMenuItem
+                    onClick={logout}
+                    className="cursor-pointer px-4 py-2.5 text-sm"
+                  >
+                    <LogOut className="mr-3 h-4 w-4" />
+                    Sair
+                  </DropdownMenuItem>
+                </div>
               </DropdownMenuContent>
             </DropdownMenu>
           </SidebarFooter>
