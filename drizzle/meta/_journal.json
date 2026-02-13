@@ -50,6 +50,13 @@
       "when": 1770901907113,
       "tag": "0006_deep_paibok",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "5",
+      "when": 1770918473149,
+      "tag": "0007_classy_medusa",
+      "breakpoints": true
     }
   ]
 }

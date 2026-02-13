@@ -17,8 +17,8 @@ export const users = mysqlTable("users", {
   email: varchar("email", { length: 320 }),
   loginMethod: varchar("loginMethod", { length: 64 }),
   role: mysqlEnum("role", ["user", "admin"]).default("user").notNull(),
-  /** Plano do usuário: tester (beta gratuito), free (futuro), pro (futuro) */
-  plan: mysqlEnum("plan", ["tester", "free", "pro"]).default("tester").notNull(),
+  /** Plano do usuário: tester (beta), free, pro, avancado (API própria) */
+  plan: mysqlEnum("plan", ["tester", "free", "pro", "avancado"]).default("tester").notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
   lastSignedIn: timestamp("lastSignedIn").defaultNow().notNull(),

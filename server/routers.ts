@@ -508,6 +508,9 @@ Retorne APENAS essas informações, de forma objetiva. Ignore o restante do docu
         creditsUsed,
         creditsTotal,
         percentage: creditsTotal > 0 ? Math.min(Math.round((creditsUsed / creditsTotal) * 100), 100) : 0,
+        dailyRequests: limits.dailyRequests,
+        requestsPerMinute: limits.requestsPerMinute,
+        allowedProviders: limits.allowedProviders,
       };
     }),
   }),

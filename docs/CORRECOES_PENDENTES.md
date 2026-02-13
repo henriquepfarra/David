@@ -45,6 +45,7 @@
 | tester | 10 | 250 | Google, OpenAI, Anthropic |
 | free | 5 | 100 | Google |
 | pro | 20 | 2.000 | Google, OpenAI, Anthropic |
+| avancado | 20 | ilimitado (API própria) | Todos |
 | admin | 60 | ilimitado | Todos |
 
 **Arquivos:**
@@ -435,7 +436,14 @@ async function cleanupAbandonedConversations() {
 **Frontend:**
 - [client/src/pages/David.tsx](client/src/pages/David.tsx) - Chat UI
 - [client/src/pages/Intelligence/PendingTheses.tsx](client/src/pages/Intelligence/PendingTheses.tsx) - Revisão de teses
-- [client/src/pages/Configuracoes.tsx](client/src/pages/Configuracoes.tsx) - Settings
+- [client/src/pages/Configuracoes.tsx](client/src/pages/Configuracoes.tsx) - Settings (orquestrador)
+- [client/src/pages/settings/](client/src/pages/settings/) - Componentes de configurações
+  - `SettingsSidebar.tsx` - Navegação lateral (desktop + mobile Sheet)
+  - `SettingsMinhaConta.tsx` - Perfil, sessão, logout
+  - `SettingsUso.tsx` - Créditos e plano
+  - `SettingsCobranca.tsx` - Placeholder para cobrança futura
+  - `SettingsPersonalizacao.tsx` - Prompt customizado + Base de Conhecimento
+  - `SettingsAvancado.tsx` - Chave API própria (plano avançado)
 
 **Database:**
 - [drizzle/schema.ts](drizzle/schema.ts) - Definição de tabelas
@@ -461,3 +469,5 @@ async function cleanupAbandonedConversations() {
 | 2026-02-12 | Campo `plan` na tabela users | ✅ Concluído |
 | 2026-02-12 | Widget de créditos (Configurações) | ✅ Concluído |
 | 2026-02-12 | Sistema de créditos (1 cr = 1K tokens) | ✅ Concluído |
+| 2026-02-12 | Plano "avançado" (API própria, sem limites) | ✅ Concluído |
+| 2026-02-12 | Redesign Settings (sidebar + 5 seções) | ✅ Concluído |

@@ -1,0 +1,1 @@
+ALTER TABLE `users` MODIFY COLUMN `plan` enum('tester','free','pro','avancado') NOT NULL DEFAULT 'tester';

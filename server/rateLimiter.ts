@@ -48,6 +48,13 @@ export const PLAN_LIMITS: Record<string, PlanLimits> = {
     requestsPerMinute: 20,
     allowedProviders: ["google", "openai", "anthropic"],
   },
+  avancado: {
+    label: "Avançado (API Própria)",
+    dailyRequests: 999_999,
+    dailyTokens: 999_999_999, // sem limite prático (user paga)
+    requestsPerMinute: 20,
+    allowedProviders: ["google", "openai", "anthropic", "groq", "deepseek"],
+  },
 };
 
 /** Admin tem limites efetivamente ilimitados */
