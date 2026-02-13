@@ -5,6 +5,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
@@ -27,15 +28,18 @@ import { APP_LOGO, APP_TITLE, getLoginUrl } from "@/const";
 import { useIsMobile } from "@/hooks/useMobile";
 import {
   LogOut, PanelLeft, Plus, Search, Settings, MessageSquare, Pin, MoreVertical,
-  Pencil, Trash2, FolderOpen, Menu, ChevronLeft, ChevronRight, CheckSquare, X, SquarePen, GraduationCap
+  Pencil, Trash2, FolderOpen, Menu, ChevronLeft, ChevronRight, CheckSquare, X, SquarePen, GraduationCap,
+  ExternalLink, Zap, Shield, FileText
 } from "lucide-react";
 import { CSSProperties, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { DashboardLayoutSkeleton } from './DashboardLayoutSkeleton';
 import { MemoriaJuridicaMenuItem } from './MemoriaJuridicaMenuItem';
 import { EspecializacaoMenuItem } from './EspecializacaoMenuItem';
+import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
+import { Progress } from "./ui/progress";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "./ui/dialog";
 import { Checkbox } from "./ui/checkbox";
 import { trpc } from "@/lib/trpc";
@@ -141,6 +145,12 @@ function DashboardLayoutContent({
   const sidebarRef = useRef<HTMLDivElement>(null);
   const isMobile = useIsMobile();
   const [searchQuery, setSearchQuery] = useState("");
+
+  // Usage data for user menu
+  const { data: usageData } = trpc.settings.getUsage.useQuery(undefined, {
+    refetchInterval: 60_000,
+    retry: false,
+  });
 
   // Fetch conversations for sidebar
   const { data: conversations, refetch: refetchConversations } = trpc.david.listConversations.useQuery();
@@ -535,19 +545,62 @@ function DashboardLayoutContent({
                   </div>
                 </button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-48">
-                {isCollapsed && (
+              <DropdownMenuContent align="end" className="w-56">
+                {/* Resumo do plano + créditos */}
+                {usageData && (
                   <>
-                    <DropdownMenuItem
-                      onClick={() => setLocation("/configuracoes")}
-                      className="cursor-pointer"
-                    >
-                      <Settings className="mr-2 h-4 w-4" />
-                      <span>Configurações</span>
-                    </DropdownMenuItem>
+                    <DropdownMenuLabel className="font-normal">
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs text-muted-foreground">Plano atual</span>
+                          <Badge variant="secondary" className="text-[10px] h-5">
+                            {usageData.planLabel}
+                          </Badge>
+                        </div>
+                        {usageData.role === "admin" ? (
+                          <p className="text-xs text-muted-foreground">{usageData.creditsUsed} créditos usados hoje</p>
+                        ) : (
+                          <div className="space-y-1">
+                            <div className="flex justify-between text-xs">
+                              <span className="text-muted-foreground">{usageData.creditsUsed}/{usageData.creditsTotal} créditos</span>
+                              <span className="font-medium">{usageData.percentage}%</span>
+                            </div>
+                            <Progress value={usageData.percentage} className="h-1.5" />
+                          </div>
+                        )}
+                      </div>
+                    </DropdownMenuLabel>
                     <DropdownMenuSeparator />
                   </>
                 )}
+
+                <DropdownMenuItem
+                  onClick={() => setLocation("/configuracoes")}
+                  className="cursor-pointer"
+                >
+                  <Settings className="mr-2 h-4 w-4" />
+                  <span>Configurações</span>
+                </DropdownMenuItem>
+
+                <DropdownMenuSeparator />
+
+                <DropdownMenuItem asChild>
+                  <a href="/privacidade" target="_blank" rel="noreferrer" className="cursor-pointer">
+                    <Shield className="mr-2 h-4 w-4" />
+                    <span>Política de Privacidade</span>
+                    <ExternalLink className="ml-auto h-3 w-3 text-muted-foreground" />
+                  </a>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <a href="/termos" target="_blank" rel="noreferrer" className="cursor-pointer">
+                    <FileText className="mr-2 h-4 w-4" />
+                    <span>Termos de Uso</span>
+                    <ExternalLink className="ml-auto h-3 w-3 text-muted-foreground" />
+                  </a>
+                </DropdownMenuItem>
+
+                <DropdownMenuSeparator />
+
                 <DropdownMenuItem
                   onClick={logout}
                   className="cursor-pointer text-destructive focus:text-destructive"
