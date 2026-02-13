@@ -5,30 +5,56 @@
 
 ---
 
+## Mapa de Execucao
+
+### Fase 1 — Funcionalidade que falta (bloqueia ciclo de aprendizado)
+
+| # | Item | Esforco | Impacto |
+|---|------|---------|---------|
+| ~~1~~ | ~~UI de Revisao de Teses~~ | ~~Medio~~ | ~~Alto~~ ✅ Concluido |
+| 3 | Modulos Incompletos (remover ou implementar) | Baixo | Medio - evita confusao no UI |
+
+### Fase 2 — Polish para usuarios reais
+
+| # | Item | Esforco | Impacto |
+|---|------|---------|---------|
+| 10 | Empty States | Baixo | Medio - UX profissional |
+| 11 | Loading States | Baixo | Medio - UX profissional |
+| 12 | Responsividade Mobile | Medio | Medio - acessibilidade |
+
+### Fase 3 — Saude operacional
+
+| # | Item | Esforco | Impacto |
+|---|------|---------|---------|
+| 6 | Cleanup de Conversas | Baixo | Medio - banco nao cresce sem controle |
+| 5 | Embedding Storage | Medio | Medio - escalabilidade |
+| 4 | Refatorar davidRouter.ts | Alto | Medio - manutenibilidade |
+
+### Fase 4 — Infraestrutura (quando escalar)
+
+| # | Item | Esforco | Impacto |
+|---|------|---------|---------|
+| 7 | Structured Logging | Medio | Baixo - debugging em producao |
+| 8 | Cobertura de Testes | Alto | Medio - confianca em deploys |
+| 9 | Cache Invalidation | Baixo | Baixo - edge case |
+| 2 | Handler Analise Peticoes | Medio | Baixo - feature nova |
+
+---
+
 ## Funcionalidade
 
-### 1. UI de Revisao de Teses (Prioridade Alta)
+### 1. ~~UI de Revisao de Teses~~ ✅ CONCLUIDO (13/02/2026)
 
-Frontend para aprovar/rejeitar teses extraidas automaticamente.
+Pagina unificada `/intelligence` com 3 abas:
+- **Caixa de Entrada** — Aprovar/editar/rejeitar teses pendentes (`PendingTheses.tsx`)
+- **Teses Ativas** — Listar, editar, deletar teses ativas (`KnowledgeLibrary.tsx`)
+- **Minutas Aprovadas** — Listar, visualizar, deletar minutas (`ApprovedDrafts.tsx`)
 
-**Backend pronto** - endpoints em `server/routers/thesisRouter.ts`:
-- `getPendingCount` - Contagem para badge
-- `getPendingTheses` - Lista para revisao
-- `approveThesis` - Aprovar tese
-- `editThesis` - Editar antes de aprovar
-- `rejectThesis` - Rejeitar tese
+**Endpoints no `thesisRouter.ts`:** getPendingCount, getPendingTheses, approveThesis, editThesis, rejectThesis, getActiveTheses, updateActiveThesis, deleteThesis, listApprovedDrafts, deleteApprovedDraft, getThesisStats, getThesisById
 
-**O que falta no frontend:**
-- [ ] Integrar PendingTheses na pagina MemoriaDavid
-- [ ] Dialog de edicao/aprovacao/rejeicao
-- [ ] Badge no sidebar com contador de pendentes
-- [ ] Feedback visual apos aprovacao/rejeicao
+**Badge no sidebar:** `MemoriaJuridicaMenuItem.tsx` com contador de pendentes
 
-**Componentes existentes** (parciais):
-- `client/src/pages/Intelligence/PendingTheses.tsx`
-- `client/src/pages/Intelligence/ThesisCard.tsx`
-
-**Ref:** `docs/architecture/CONTINUOUS_LEARNING_PLAN_V3.md`
+**Pagina MemoriaDavid removida** — Funcionalidade consolidada em Intelligence
 
 ---
 
@@ -159,3 +185,5 @@ Para referencia, os seguintes itens ja foram resolvidos e estao documentados em 
 - Validacao de URLs / SSRF (A3) - Fev/2026
 - Limite de Upload (A4) - Fev/2026
 - Loop de Aprendizado de Teses (M1) - **Ja funciona via PromptBuilder.ts** (linhas 130-167)
+- UI de Revisao de Teses (#1) - **Unificado em /intelligence** com 3 tabs (Fev/2026)
+- Pagina MemoriaDavid removida - **Consolidada em Intelligence** (Fev/2026)

@@ -9,6 +9,10 @@
  * - editThesis: Edita + promove para ACTIVE
  * - rejectThesis: Marca como REJECTED
  * - getThesisStats: Métricas para StatsWidget
+ * - deleteThesis: Deletar tese (com ownership check)
+ * - updateActiveThesis: Editar tese ativa (com ownership check)
+ * - listApprovedDrafts: Listar minutas aprovadas
+ * - deleteApprovedDraft: Deletar minuta (com ownership check)
  */
 
 import { z } from "zod";
@@ -274,5 +278,123 @@ export const thesisRouter = router({
                 reviewedBy: thesis.reviewedBy,
                 rejectionReason: thesis.rejectionReason,
             };
+        }),
+
+    /**
+     * Endpoint 9: deleteThesis (Deletar tese com ownership check)
+     */
+    deleteThesis: protectedProcedure
+        .input(z.object({ thesisId: z.number() }))
+        .mutation(async ({ ctx, input }) => {
+            const db = await getDb();
+            if (!db) throw new Error("Database não disponível");
+
+            const result = await db
+                .select({ id: learnedTheses.id })
+                .from(learnedTheses)
+                .where(
+                    and(
+                        eq(learnedTheses.id, input.thesisId),
+                        eq(learnedTheses.userId, ctx.user.id)
+                    )
+                )
+                .limit(1);
+
+            if (result.length === 0) throw new Error("Tese não encontrada");
+
+            await db
+                .delete(learnedTheses)
+                .where(eq(learnedTheses.id, input.thesisId));
+            return { success: true };
+        }),
+
+    /**
+     * Endpoint 10: updateActiveThesis (Editar tese ativa com ownership check)
+     */
+    updateActiveThesis: protectedProcedure
+        .input(
+            z.object({
+                thesisId: z.number(),
+                legalThesis: z.string().optional(),
+                legalFoundations: z.string().optional(),
+                keywords: z.string().optional(),
+                writingStyleSample: z.string().optional(),
+            })
+        )
+        .mutation(async ({ ctx, input }) => {
+            const db = await getDb();
+            if (!db) throw new Error("Database não disponível");
+
+            const result = await db
+                .select({ id: learnedTheses.id })
+                .from(learnedTheses)
+                .where(
+                    and(
+                        eq(learnedTheses.id, input.thesisId),
+                        eq(learnedTheses.userId, ctx.user.id)
+                    )
+                )
+                .limit(1);
+
+            if (result.length === 0) throw new Error("Tese não encontrada");
+
+            const { thesisId, ...updateData } = input;
+            await db
+                .update(learnedTheses)
+                .set(updateData)
+                .where(eq(learnedTheses.id, thesisId));
+            return { success: true };
+        }),
+
+    /**
+     * Endpoint 11: listApprovedDrafts (Listar minutas aprovadas)
+     */
+    listApprovedDrafts: protectedProcedure.query(async ({ ctx }) => {
+        const db = await getDb();
+        if (!db) return [];
+
+        const drafts = await db
+            .select()
+            .from(approvedDrafts)
+            .where(eq(approvedDrafts.userId, ctx.user.id))
+            .orderBy(desc(approvedDrafts.createdAt));
+
+        return drafts.map((d) => ({
+            id: d.id,
+            originalDraft: d.originalDraft,
+            editedDraft: d.editedDraft,
+            draftType: d.draftType,
+            approvalStatus: d.approvalStatus,
+            userNotes: d.userNotes,
+            createdAt: d.createdAt,
+        }));
+    }),
+
+    /**
+     * Endpoint 12: deleteApprovedDraft (Deletar minuta com ownership check)
+     */
+    deleteApprovedDraft: protectedProcedure
+        .input(z.object({ draftId: z.number() }))
+        .mutation(async ({ ctx, input }) => {
+            const db = await getDb();
+            if (!db) throw new Error("Database não disponível");
+
+            const result = await db
+                .select({ id: approvedDrafts.id })
+                .from(approvedDrafts)
+                .where(
+                    and(
+                        eq(approvedDrafts.id, input.draftId),
+                        eq(approvedDrafts.userId, ctx.user.id)
+                    )
+                )
+                .limit(1);
+
+            if (result.length === 0) throw new Error("Minuta não encontrada");
+
+            await db
+                .delete(approvedDrafts)
+                .where(eq(approvedDrafts.id, input.draftId));
+            return { success: true };
         }),
 });

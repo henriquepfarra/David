@@ -32,7 +32,7 @@
 | Área | Status | Detalhes |
 |------|--------|----------|
 | **UI/Layout** | 90% | Redesign Settings concluído, user dropdown atualizado |
-| **Features Jurídicas** | Backend ✅ / Frontend 70% | Comando /tese implementado, teses pendentes faltam UI |
+| **Features Jurídicas** | ✅ Backend + Frontend | Comando /tese, UI de revisão, CRUD teses/minutas em /intelligence |
 | **Multi-Provider LLM** | ✅ Concluído | Google, OpenAI, Anthropic com seletor de modelo |
 | **Sistema de Planos** | ✅ Concluído | tester/free/pro/avançado com créditos diários |
 | **Segurança** | ✅ Concluído | CSP, circuit breaker, rate limiting, SSRF prevention |
@@ -85,31 +85,29 @@ setSelectedConversationId → re-render → polling detecta mudança → LOOP
 
 **Objetivo**: Completar aprendizado ativo + melhorar integração de contexto
 
-#### 2A. Sistema de Teses (Aprendizado Ativo) — PARCIALMENTE CONCLUÍDO
+#### 2A. Sistema de Teses (Aprendizado Ativo) — ✅ CONCLUÍDO
 
 | # | Tarefa | Arquivos | Status |
 |---|--------|----------|--------|
 | 2A.0 | Comando /tese (ensino manual) | `server/commands/handlers/tese.handler.ts` | ✅ Concluído |
 | 2A.0b | Threshold RAG padronizado 0.5 | `server/services/RagService.ts` | ✅ Concluído |
 | 2A.0c | Auto-trigger extração na aprovação | `server/commands/handlers/minutar.handler.ts` | ✅ Concluído |
-| 2A.1 | UI de revisão de teses pendentes | `PendingTheses.tsx` — CRIAR | ❌ Pendente |
-| 2A.2 | Dialog approve/reject/edit | `ThesisReviewDialog.tsx` — CRIAR | ❌ Pendente |
-| 2A.3 | Badge de pendentes no sidebar | `DashboardLayout.tsx` | ❌ Pendente |
-| 2A.4 | Tab "Pendentes" na Memória | `MemoriaDavid.tsx` | ❌ Pendente |
+| 2A.1 | UI de revisão de teses pendentes | `Intelligence/PendingTheses.tsx` | ✅ Concluído |
+| 2A.2 | Dialog approve/reject/edit | `Intelligence/components/ThesisCard.tsx` | ✅ Concluído |
+| 2A.3 | Badge de pendentes no sidebar | `MemoriaJuridicaMenuItem.tsx` | ✅ Concluído |
+| 2A.4 | Página unificada /intelligence | `Intelligence.tsx` (3 tabs) | ✅ Concluído |
 
-**Endpoints disponíveis** (thesisRouter.ts):
-- `getPendingCount` — Contagem para badge
-- `getPendingTheses` — Lista para revisão
-- `approveThesis` — Aprovar tese
-- `editThesis` — Editar antes de aprovar
-- `rejectThesis` — Rejeitar tese
+**Página unificada** (`/intelligence`) com 3 tabs:
+- **Caixa de Entrada** — Aprovar/editar/rejeitar teses pendentes
+- **Teses Ativas** — CRUD de teses ativas (editar/deletar)
+- **Minutas Aprovadas** — Listar/visualizar/deletar minutas
 
-**Fluxo do usuário**:
-```
-Juiz aprova minuta → Sistema extrai tese →
-Tese vai para "Pendentes" → Juiz revisa/aprova →
-Tese ativa influencia futuras respostas
-```
+**Endpoints** (thesisRouter.ts — 12 endpoints):
+- `getPendingCount`, `getPendingTheses`, `approveThesis`, `editThesis`, `rejectThesis`
+- `getActiveTheses`, `updateActiveThesis`, `deleteThesis`, `getThesisById`
+- `listApprovedDrafts`, `deleteApprovedDraft`, `getThesisStats`
+
+**Nota:** Página `MemoriaDavid.tsx` removida — funcionalidade consolidada em Intelligence
 
 #### 2B. Análise de Petições (Novo Intent)
 
@@ -195,21 +193,18 @@ server/
 └── davidRouter.ts               # Fallback de modelo LLM
 ```
 
-### Semana 2 (Features Jurídicas)
+### Semana 2 (Features Jurídicas) ✅ CONCLUÍDA
 ```
-client/src/
-├── pages/MemoriaDavid.tsx       # Tab de pendentes
-├── components/
-│   ├── PendingTheses.tsx        # CRIAR - Lista de teses
-│   └── dialogs/
-│       └── ThesisReviewDialog.tsx # CRIAR - Approve/reject
-└── components/DashboardLayout.tsx # Badge de pendentes
+client/src/pages/Intelligence/
+├── index.tsx                    # Página com 3 tabs ✅
+├── PendingTheses.tsx            # Caixa de Entrada ✅
+├── KnowledgeLibrary.tsx         # Teses Ativas (edit/delete) ✅
+├── ApprovedDrafts.tsx           # Minutas Aprovadas ✅
+└── components/
+    ├── ThesisCard.tsx           # Card com approve/reject/edit ✅
+    └── StatsWidget.tsx          # Métricas ✅
 
-server/services/
-├── IntentService.ts             # Novo intent PETITION_ANALYSIS
-├── PromptBuilder.ts             # Template de análise
-├── ContextBuilder.ts            # Verificar integração docs
-└── RagService.ts                # Priorizar docs do processo
+server/routers/thesisRouter.ts   # 12 endpoints com ownership check ✅
 ```
 
 ### Semana 3 (UI Polish)
@@ -304,7 +299,7 @@ client/src/
 | useEffect hooks | 14 | <8 | **12** |
 | Bugs críticos | 2 | 0 | **0** ✅ |
 | Semana 1 | - | Completa | ✅ **100%** |
-| Features jurídicas completas | 60% | 90% | 70% |
+| Features jurídicas completas | 60% | 90% | **90%** ✅ |
 | Segurança implementada | 0% | 100% | **100%** ✅ |
 | Multi-Provider LLM | 0% | 100% | **100%** ✅ |
 | Sistema de Planos | 0% | 100% | **100%** ✅ |
@@ -334,9 +329,9 @@ client/src/
 
 ## 🚀 Próximos Passos Imediatos
 
-1. **UI de Revisão de Teses** (Semana 2 - pendente)
-   - Integrar PendingTheses na página MemoriaDavid
-   - Adicionar dialog de edição/aprovação/rejeição
+1. ~~**UI de Revisão de Teses**~~ ✅ Concluído (13/02/2026)
+   - Página `/intelligence` unificada com 3 tabs
+   - CRUD completo de teses e minutas
    - Badge no sidebar com contador de pendentes
 
 2. **Polish de UI/UX** (Semana 3)
@@ -360,6 +355,7 @@ Implementações que aceleraram o roadmap além do planejado:
 - ✅ **Redesign Settings**: Sidebar com 5 seções, plano avançado BYOK
 - ✅ **Auto-Migration**: drizzle-kit push no startup
 - ✅ **Comando /tese**: Ensino manual de teses implementado
+- ✅ **Página Intelligence unificada**: 3 tabs (Caixa de Entrada, Teses Ativas, Minutas Aprovadas) — MemoriaDavid removida
 
 ---
 

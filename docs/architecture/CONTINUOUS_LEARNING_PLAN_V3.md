@@ -2,8 +2,8 @@
 
 **Data:** 28/01/2026
 **Última atualização:** 13/02/2026
-**Status:** ✅ Backend completo, Frontend UI de revisão pendente
-**Prioridade:** 🟡 MÉDIA (falta apenas UI de revisão no frontend)
+**Status:** ✅ Completo (Backend + Frontend)
+**Prioridade:** ✅ CONCLUÍDO
 
 ---
 
@@ -33,11 +33,14 @@
 | **Auto-trigger extração** | ✅ Concluído | Extração automática na aprovação de minuta |
 | **Threshold RAG** | ✅ Concluído | Padronizado para 0.5 |
 
-### ❌ Pendente (Frontend)
+### ✅ Concluído (Frontend — Fev/2026)
 
-| Componente | Prioridade | Descrição |
-|------------|------------|-----------|
-| **UI Revisão de Teses** | ALTA | Frontend integrado para aprovar/rejeitar teses na página MemoriaDavid |
+| Componente | Status | Descrição |
+|------------|--------|-----------|
+| **UI Revisão de Teses** | ✅ Concluído | Página `/intelligence` unificada com 3 tabs (Caixa de Entrada, Teses Ativas, Minutas Aprovadas) |
+| **CRUD Teses Ativas** | ✅ Concluído | Editar/deletar teses na tab "Teses Ativas" (`KnowledgeLibrary.tsx`) |
+| **Minutas Aprovadas** | ✅ Concluído | Listar/visualizar/deletar minutas na tab "Minutas Aprovadas" (`ApprovedDrafts.tsx`) |
+| **Página MemoriaDavid** | ✅ Removida | Funcionalidade consolidada em Intelligence |
 
 ---
 
@@ -518,5 +521,5 @@ if (message.metadata?.canApprove) {
 ---
 
 **Última atualização:** 13/02/2026
-**Status:** ✅ Backend completo | ❌ UI de revisão de teses pendente (ver PENDENCIAS.md)
+**Status:** ✅ Completo — Backend + Frontend unificado em `/intelligence` (ver PENDENCIAS.md)
 
