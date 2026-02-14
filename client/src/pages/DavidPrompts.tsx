@@ -19,7 +19,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { ArrowLeft, Plus, Trash2, Edit, FileText } from "lucide-react";
+import { ArrowLeft, Plus, Trash2, Edit, FileText, Loader2 } from "lucide-react";
 import { useLocation } from "wouter";
 import { toast } from "sonner";
 import {
@@ -51,7 +51,7 @@ export default function DavidPrompts() {
     executionMode: "chat",
   });
 
-  const { data: prompts, refetch } = trpc.david.savedPrompts.list.useQuery();
+  const { data: prompts, refetch, isLoading } = trpc.david.savedPrompts.list.useQuery();
 
   const createMutation = trpc.david.savedPrompts.create.useMutation({
     onSuccess: () => {
@@ -266,6 +266,11 @@ export default function DavidPrompts() {
           </div>
         </div>
 
+        {isLoading ? (
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          </div>
+        ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {prompts?.map((prompt) => (
             <Card key={prompt.id}>
@@ -314,13 +319,14 @@ export default function DavidPrompts() {
           ))}
 
           {prompts?.length === 0 && (
-            <div className="col-span-2 text-center py-12 text-muted-foreground">
-              <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
+            <div className="col-span-2 flex flex-col items-center justify-center py-12 text-muted-foreground">
+              <FileText className="h-12 w-12 mb-4 opacity-50" />
               <p>Nenhum prompt salvo ainda</p>
-              <p className="text-sm">Crie seu primeiro prompt especializado</p>
+              <p className="text-sm mt-1">Crie seu primeiro prompt especializado</p>
             </div>
           )}
         </div>
+        )}
       </div>
     </div>
   );

@@ -12,7 +12,7 @@
 | # | Item | Esforco | Impacto |
 |---|------|---------|---------|
 | ~~1~~ | ~~UI de Revisao de Teses~~ | ~~Medio~~ | ~~Alto~~ ✅ Concluido |
-| 3 | Modulos Incompletos (remover ou implementar) | Baixo | Medio - evita confusao no UI |
+| ~~3~~ | ~~Modulos Incompletos~~ | ~~Baixo~~ | ~~Medio~~ ✅ Ja estao cinza com "Em breve" no UI |
 
 ### Fase 2 — Polish para usuarios reais
 
@@ -66,17 +66,11 @@ Intent `PETITION_ANALYSIS` existe no IntentService mas nao tem handler dedicado 
 
 ---
 
-### 3. Modulos Incompletos (Prioridade Media)
+### 3. ~~Modulos Incompletos~~ ✅ JA TRATADO
 
-Apenas JEC tem implementacao real. Outros modulos tem `systemPrompt: ''`.
+Modulos familia, criminal e fazenda ja aparecem como `isAvailable: false` no UI, com label "Em breve" e botoes desabilitados. Nao confunde o usuario.
 
-**Arquivos:**
-- `server/modules/jec/` - Implementado
-- `server/modules/familia/` - Vazio
-- `server/modules/criminal/` - Vazio
-- `server/modules/fazenda/` - Vazio
-
-**Acao:** Implementar prompts especificos OU remover opcoes do UI.
+Quando implementar prompts especificos, basta preencher `systemPrompt` e mudar `isAvailable: true` em `server/prompts/modules/index.ts`.
 
 ---
 

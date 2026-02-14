@@ -1,7 +1,7 @@
 import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { useState, useMemo } from "react";
-import { Search, X } from "lucide-react";
+import { Search, X, MessageSquare, Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -17,7 +17,7 @@ export default function SearchPage() {
     const [searchQuery, setSearchQuery] = useState("");
 
     // Fetch all conversations
-    const { data: conversations } = trpc.david.listConversations.useQuery();
+    const { data: conversations, isLoading } = trpc.david.listConversations.useQuery();
 
     // Filter conversations by search query
     const filteredConversations = useMemo(() => {
@@ -72,47 +72,55 @@ export default function SearchPage() {
                 {/* Results */}
                 <div className="flex-1 px-6 overflow-y-auto">
                     <div className="max-w-2xl mx-auto">
-                        {searchQuery && (
-                            <p className="text-sm text-muted-foreground mb-4">
-                                {filteredConversations.length} resultado(s) para "{searchQuery}"
-                            </p>
+                        {isLoading ? (
+                            <div className="flex items-center justify-center py-12">
+                                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                            </div>
+                        ) : (
+                            <>
+                                {searchQuery && (
+                                    <p className="text-sm text-muted-foreground mb-4">
+                                        {filteredConversations.length} resultado(s) para "{searchQuery}"
+                                    </p>
+                                )}
+
+                                <div className="space-y-1">
+                                    {filteredConversations.map((conv) => (
+                                        <button
+                                            key={conv.id}
+                                            onClick={() => handleSelectConversation(conv.id)}
+                                            className="w-full flex items-start gap-4 p-4 rounded-lg hover:bg-accent transition-colors text-left"
+                                        >
+                                            <div className="flex-1 min-w-0">
+                                                <h3 className="font-medium truncate">{conv.title}</h3>
+                                            </div>
+                                            <span className="text-xs text-muted-foreground whitespace-nowrap">
+                                                {formatDistanceToNow(new Date(conv.updatedAt), {
+                                                    addSuffix: false,
+                                                    locale: ptBR,
+                                                })}
+                                            </span>
+                                        </button>
+                                    ))}
+
+                                    {searchQuery && filteredConversations.length === 0 && (
+                                        <div className="flex flex-col items-center justify-center py-12 text-center text-muted-foreground">
+                                            <Search className="h-12 w-12 mb-4 opacity-50" />
+                                            <p>Nenhuma conversa encontrada para "{searchQuery}"</p>
+                                            <p className="text-sm mt-1">Tente ajustar sua busca</p>
+                                        </div>
+                                    )}
+
+                                    {!searchQuery && filteredConversations.length === 0 && (
+                                        <div className="flex flex-col items-center justify-center py-12 text-center text-muted-foreground">
+                                            <MessageSquare className="h-12 w-12 mb-4 opacity-50" />
+                                            <p>Nenhuma conversa ainda</p>
+                                            <p className="text-sm mt-1">Comece uma nova conversa!</p>
+                                        </div>
+                                    )}
+                                </div>
+                            </>
                         )}
-
-                        <div className="space-y-1">
-                            {filteredConversations.map((conv) => (
-                                <button
-                                    key={conv.id}
-                                    onClick={() => handleSelectConversation(conv.id)}
-                                    className="w-full flex items-start gap-4 p-4 rounded-lg hover:bg-accent transition-colors text-left"
-                                >
-                                    <div className="flex-1 min-w-0">
-                                        <h3 className="font-medium truncate">{conv.title}</h3>
-                                    </div>
-                                    <span className="text-xs text-muted-foreground whitespace-nowrap">
-                                        {formatDistanceToNow(new Date(conv.updatedAt), {
-                                            addSuffix: false,
-                                            locale: ptBR,
-                                        })}
-                                    </span>
-                                </button>
-                            ))}
-
-                            {searchQuery && filteredConversations.length === 0 && (
-                                <div className="text-center py-12">
-                                    <p className="text-muted-foreground">
-                                        Nenhuma conversa encontrada para "{searchQuery}"
-                                    </p>
-                                </div>
-                            )}
-
-                            {!searchQuery && filteredConversations.length === 0 && (
-                                <div className="text-center py-12">
-                                    <p className="text-muted-foreground">
-                                        Nenhuma conversa ainda. Comece uma nova conversa!
-                                    </p>
-                                </div>
-                            )}
-                        </div>
                     </div>
                 </div>
             </div>
