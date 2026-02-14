@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { trpc } from "@/lib/trpc";
 import StatsWidget from "./components/StatsWidget";
+import CurationSuggestions from "./components/CurationSuggestions";
 import { Loader2, Edit, Trash2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -97,6 +98,9 @@ export default function KnowledgeLibrary() {
     return (
         <div className="space-y-6 pb-6">
             {stats && <StatsWidget stats={stats} />}
+
+            {/* Sugestões de curadoria */}
+            <CurationSuggestions />
 
             {/* Search */}
             <div className="flex items-center gap-4">

@@ -26,7 +26,7 @@ import { appRouter } from "../routers";
 import { createContext } from "./context";
 import { serveStatic } from "./vite";
 import cors from "cors";
-import { getConversationById, getConversationMessages, createMessage, getProcessForContext, getUserSettings, getUserKnowledgeBase, getProcessDocuments, checkRateLimit, trackUsage } from "../db";
+import { getConversationById, getConversationMessages, createMessage, getProcessForContext, getUserSettings, getUserKnowledgeBase, getProcessDocuments, checkRateLimit, trackUsage, cleanupAbandonedConversations } from "../db";
 import { invokeLLMStreamWithThinking as streamFn, resolveApiKeyForProvider } from "../_core/llm";
 import { sdk } from "./sdk";
 
@@ -733,6 +733,16 @@ async function startServer() {
 
   server.listen(port, "0.0.0.0", () => {
     console.log(`Server running on http://localhost:${port}/ (bound to 0.0.0.0)`);
+
+    // Cleanup de conversas abandonadas: roda no startup + a cada 24h
+    cleanupAbandonedConversations().catch(err =>
+      console.error("[Startup] Cleanup inicial falhou:", err)
+    );
+    setInterval(() => {
+      cleanupAbandonedConversations().catch(err =>
+        console.error("[Scheduled] Cleanup falhou:", err)
+      );
+    }, 24 * 60 * 60 * 1000);
   });
 }
 

@@ -12,7 +12,8 @@ Documentos de design e arquitetura do sistema:
 - **rag_on_demand_evolution.md** - Evolução do sistema RAG on-demand com hierarquia e filtros
 - **system_commands_architecture.md** - Arquitetura de Slash Commands do Sistema (/analise1, /minutar, /tese, etc.)
 - **PDF_EXTRACTION_STRATEGY.md** - Estratégia híbrida de extração de PDF (local + File API)
-- **CONTINUOUS_LEARNING_PLAN_V3.md** - Plano de aprendizado contínuo (teses + estilo)
+- **CONTINUOUS_LEARNING_PLAN_V3.md** - Aprendizado continuo: ciclo de teses, curadoria inteligente (deduplicacao + tracking + clusters), cleanup
+- **PLANO_MIGRACAO_INFRA.md** - Plano de migracao de infraestrutura (Railway → Fly.io/Supabase → AWS)
 
 ### `/modules` - Módulos de Especialização
 Planos e documentação dos módulos especializados (JEC, FONAJE, etc.):
@@ -116,6 +117,11 @@ Documentos de refatorações e correções já concluídas (referência históri
 - Plano Avançado com BYOK (Bring Your Own Key)
 - Widget de créditos e uso
 - User dropdown com resumo do plano
+
+### ✅ Curadoria Inteligente de Teses (Fev/2026)
+- Deduplicação na aprovação (cosine similarity > 0.85, dialog Substituir/Mesclar/Manter)
+- Rastreamento de uso (useCount + lastUsedAt, fire-and-forget)
+- Sugestões de curadoria (teses não usadas + clusters similares via Union-Find)
 
 ### ✅ Qualidade
 - 100% precisão nos testes The Gauntlet

@@ -322,6 +322,10 @@ export const learnedTheses = mysqlTable("learnedTheses", {
   // Flags de controle
   isObsolete: int("isObsolete").default(0).notNull(), // Marca se a tese foi superada
 
+  // Rastreamento de uso (Curadoria Inteligente)
+  useCount: int("useCount").default(0).notNull(), // Quantas vezes foi retornada pelo RAG
+  lastUsedAt: timestamp("lastUsedAt"), // Última vez que foi retornada pelo RAG
+
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 }, (table) => ({

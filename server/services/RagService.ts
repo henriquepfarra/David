@@ -10,7 +10,7 @@
 import { hybridSearch, hasExactReference } from "../_core/hybridSearch";
 import { getDb } from "../db";
 import { knowledgeBase, learnedTheses } from "../../drizzle/schema";
-import { eq, and, inArray } from "drizzle-orm";
+import { eq, and, inArray, sql } from "drizzle-orm";
 
 // ============================================
 // TIPOS
@@ -245,6 +245,15 @@ export class RagService {
             .slice(0, limit);
 
         console.log(`[RagService] Teses Jurídicas: ${results.length} encontradas (threshold: ${threshold})`);
+
+        // Rastrear uso das teses retornadas (fire-and-forget)
+        if (results.length > 0) {
+            const matchedIds = results.map(r => r.id);
+            this.trackThesisUsage(matchedIds).catch(err =>
+                console.error("[RagService] Erro ao rastrear uso de teses:", err)
+            );
+        }
+
         return results;
     }
 
@@ -298,6 +307,15 @@ export class RagService {
             .slice(0, limit);
 
         console.log(`[RagService] Amostras de Estilo: ${results.length} encontradas (threshold: ${threshold})`);
+
+        // Rastrear uso (compartilha a mesma tese)
+        if (results.length > 0) {
+            const matchedIds = results.map(r => r.id);
+            this.trackThesisUsage(matchedIds).catch(err =>
+                console.error("[RagService] Erro ao rastrear uso de estilo:", err)
+            );
+        }
+
         return results;
     }
 
@@ -341,6 +359,159 @@ export class RagService {
     }
 
     /**
+     * Busca teses similares a um embedding dado (para deduplicação)
+     * Usado ao aprovar/criar teses para detectar duplicatas
+     */
+    async findSimilarTheses(
+        embedding: number[],
+        userId: number,
+        options: { threshold?: number; excludeId?: number } = {}
+    ): Promise<Array<{
+        id: number;
+        legalThesis: string;
+        legalFoundations: string | null;
+        keywords: string | null;
+        similarity: number;
+    }>> {
+        const db = await getDb();
+        if (!db) return [];
+
+        const { threshold = 0.85, excludeId } = options;
+
+        // Buscar teses ativas do usuário
+        const theses = await db.select()
+            .from(learnedTheses)
+            .where(and(
+                eq(learnedTheses.userId, userId),
+                eq(learnedTheses.status, "ACTIVE" as any),
+                eq(learnedTheses.isObsolete, 0)
+            ));
+
+        if (theses.length === 0) return [];
+
+        const { cosineSimilarity } = await import("../_core/embeddings");
+
+        const results = theses
+            .filter(t => t.thesisEmbedding && (!excludeId || t.id !== excludeId))
+            .map(t => ({
+                id: t.id,
+                legalThesis: t.legalThesis,
+                legalFoundations: t.legalFoundations,
+                keywords: t.keywords,
+                similarity: cosineSimilarity(embedding, t.thesisEmbedding as number[]),
+            }))
+            .filter(r => r.similarity >= threshold)
+            .sort((a, b) => b.similarity - a.similarity);
+
+        if (results.length > 0) {
+            console.log(`[RagService] Encontradas ${results.length} teses similares (threshold: ${threshold})`);
+        }
+
+        return results;
+    }
+
+    /**
+     * Encontra clusters de teses similares entre si (para curadoria)
+     * Retorna grupos de 2+ teses com similaridade > threshold
+     */
+    async findThesisClusters(
+        userId: number,
+        options: { threshold?: number } = {}
+    ): Promise<Array<{
+        theses: Array<{ id: number; legalThesis: string; keywords: string | null }>;
+        avgSimilarity: number;
+    }>> {
+        const db = await getDb();
+        if (!db) return [];
+
+        const { threshold = 0.80 } = options;
+
+        const allTheses = await db.select()
+            .from(learnedTheses)
+            .where(and(
+                eq(learnedTheses.userId, userId),
+                eq(learnedTheses.status, "ACTIVE" as any),
+                eq(learnedTheses.isObsolete, 0)
+            ));
+
+        const withEmbeddings = allTheses.filter(t => t.thesisEmbedding);
+        if (withEmbeddings.length < 2) return [];
+
+        const { cosineSimilarity } = await import("../_core/embeddings");
+
+        // Union-Find para agrupar teses similares
+        const parent = new Map<number, number>();
+        const find = (id: number): number => {
+            if (!parent.has(id)) parent.set(id, id);
+            if (parent.get(id) !== id) parent.set(id, find(parent.get(id)!));
+            return parent.get(id)!;
+        };
+        const union = (a: number, b: number) => {
+            parent.set(find(a), find(b));
+        };
+
+        // Pairwise similarity — O(n²), ok para < 1000 teses
+        const similarities = new Map<string, number>();
+        for (let i = 0; i < withEmbeddings.length; i++) {
+            for (let j = i + 1; j < withEmbeddings.length; j++) {
+                const sim = cosineSimilarity(
+                    withEmbeddings[i].thesisEmbedding as number[],
+                    withEmbeddings[j].thesisEmbedding as number[]
+                );
+                if (sim >= threshold) {
+                    union(withEmbeddings[i].id, withEmbeddings[j].id);
+                    const key = `${withEmbeddings[i].id}-${withEmbeddings[j].id}`;
+                    similarities.set(key, sim);
+                }
+            }
+        }
+
+        // Agrupar por raiz do union-find
+        const groups = new Map<number, typeof withEmbeddings>();
+        for (const t of withEmbeddings) {
+            const root = find(t.id);
+            if (!groups.has(root)) groups.set(root, []);
+            groups.get(root)!.push(t);
+        }
+
+        // Filtrar clusters com 2+ teses e calcular similaridade média
+        const clusters: Array<{
+            theses: Array<{ id: number; legalThesis: string; keywords: string | null }>;
+            avgSimilarity: number;
+        }> = [];
+
+        const groupEntries = Array.from(groups.values());
+        for (const group of groupEntries) {
+            if (group.length < 2) continue;
+
+            let totalSim = 0;
+            let pairCount = 0;
+            for (let i = 0; i < group.length; i++) {
+                for (let j = i + 1; j < group.length; j++) {
+                    const key1 = `${group[i].id}-${group[j].id}`;
+                    const key2 = `${group[j].id}-${group[i].id}`;
+                    const sim = similarities.get(key1) ?? similarities.get(key2) ?? 0;
+                    if (sim > 0) {
+                        totalSim += sim;
+                        pairCount++;
+                    }
+                }
+            }
+
+            clusters.push({
+                theses: group.map((t: typeof group[number]) => ({
+                    id: t.id,
+                    legalThesis: t.legalThesis,
+                    keywords: t.keywords,
+                })),
+                avgSimilarity: pairCount > 0 ? totalSim / pairCount : 0,
+            });
+        }
+
+        return clusters.sort((a, b) => b.avgSimilarity - a.avgSimilarity);
+    }
+
+    /**
      * Invalida o cache (usar após inserir/atualizar documentos)
      */
     invalidateCache(): void {
@@ -350,6 +521,22 @@ export class RagService {
     // ============================================
     // MÉTODOS PRIVADOS
     // ============================================
+
+    /**
+     * Incrementa useCount e atualiza lastUsedAt para teses retornadas pelo RAG
+     */
+    private async trackThesisUsage(thesisIds: number[]): Promise<void> {
+        const db = await getDb();
+        if (!db || thesisIds.length === 0) return;
+
+        await db
+            .update(learnedTheses)
+            .set({
+                useCount: sql`${learnedTheses.useCount} + 1`,
+                lastUsedAt: new Date(),
+            })
+            .where(inArray(learnedTheses.id, thesisIds));
+    }
 
     private async loadDocuments(
         userId?: number,

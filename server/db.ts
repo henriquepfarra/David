@@ -473,6 +473,45 @@ export async function deleteEmptyConversations(userId: number) {
   }
 }
 
+// Cleanup global: remove conversas vazias com mais de 7 dias (todos os usuarios)
+export async function cleanupAbandonedConversations() {
+  const db = await getDb();
+  if (!db) return;
+
+  const { inArray, lt, notInArray } = await import("drizzle-orm");
+  const { conversations, messages } = await import("../drizzle/schema");
+
+  try {
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+
+    // Buscar conversas antigas
+    const oldConvos = await db
+      .select({ id: conversations.id })
+      .from(conversations)
+      .where(lt(conversations.createdAt, sevenDaysAgo));
+
+    if (oldConvos.length === 0) return;
+
+    const oldIds = oldConvos.map(c => c.id);
+
+    // Encontrar quais tem mensagens
+    const withMessages = await db
+      .selectDistinct({ conversationId: messages.conversationId })
+      .from(messages)
+      .where(inArray(messages.conversationId, oldIds));
+
+    const activeIds = new Set(withMessages.map(c => c.conversationId));
+    const idsToDelete = oldIds.filter(id => !activeIds.has(id));
+
+    if (idsToDelete.length > 0) {
+      await db.delete(conversations).where(inArray(conversations.id, idsToDelete));
+      logger.info(`[Cleanup] Removidas ${idsToDelete.length} conversas abandonadas (>7 dias, sem mensagens)`);
+    }
+  } catch (err) {
+    console.error("[Cleanup] Erro ao limpar conversas abandonadas:", err);
+  }
+}
+
 export async function getUserConversations(userId: number): Promise<Conversation[]> {
   const db = await getDb();
   if (!db) return [];

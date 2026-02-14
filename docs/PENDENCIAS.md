@@ -26,8 +26,8 @@
 
 | # | Item | Esforco | Impacto |
 |---|------|---------|---------|
-| 6 | Cleanup de Conversas | Baixo | Medio - banco nao cresce sem controle |
-| 5 | Embedding Storage | Medio | Medio - escalabilidade |
+| ~~6~~ | ~~Cleanup de Conversas~~ | ~~Baixo~~ | ~~Medio~~ ✅ Concluido |
+| ~~5~~ | ~~Curadoria Inteligente de Teses~~ | ~~Medio~~ | ~~Alto~~ ✅ Concluido (5A+5B+5C) |
 | 4 | Refatorar davidRouter.ts | Alto | Medio - manutenibilidade |
 
 ### Fase 4 — Infraestrutura (quando escalar)
@@ -38,6 +38,9 @@
 | 8 | Cobertura de Testes | Alto | Medio - confianca em deploys |
 | 9 | Cache Invalidation | Baixo | Baixo - edge case |
 | 2 | Handler Analise Peticoes | Medio | Baixo - feature nova |
+| M1 | Migracao Railway → Fly.io + Supabase | Alto | Alto - quando atingir ponto de inflexao |
+
+**Plano detalhado:** [PLANO_MIGRACAO_INFRA.md](./architecture/PLANO_MIGRACAO_INFRA.md)
 
 ---
 
@@ -50,7 +53,7 @@ Pagina unificada `/intelligence` com 3 abas:
 - **Teses Ativas** — Listar, editar, deletar teses ativas (`KnowledgeLibrary.tsx`)
 - **Minutas Aprovadas** — Listar, visualizar, deletar minutas (`ApprovedDrafts.tsx`)
 
-**Endpoints no `thesisRouter.ts`:** getPendingCount, getPendingTheses, approveThesis, editThesis, rejectThesis, getActiveTheses, updateActiveThesis, deleteThesis, listApprovedDrafts, deleteApprovedDraft, getThesisStats, getThesisById
+**Endpoints no `thesisRouter.ts`:** getPendingCount, getPendingTheses, approveThesis, editThesis, rejectThesis, getActiveTheses, updateActiveThesis, deleteThesis, listApprovedDrafts, deleteApprovedDraft, getThesisStats, getThesisById, checkSimilarTheses, approveWithResolution, getCurationSuggestions
 
 **Badge no sidebar:** `MemoriaJuridicaMenuItem.tsx` com contador de pendentes
 
@@ -92,21 +95,68 @@ server/routers/
 
 ---
 
-### 5. Embedding Storage sem Limite (Prioridade Media)
+### 5. ~~Curadoria Inteligente de Teses~~ ✅ CONCLUIDO (13/02/2026)
 
-Vetores de embedding crescem indefinidamente. Implementar:
-- Archiving de embeddings antigos (>6 meses)
-- Paginacao em queries de embedding
+Sistema completo de curadoria de teses com 3 subsistemas:
 
-**Arquivos:** `drizzle/schema.ts`, `server/services/RagService.ts`
+#### ~~5A. Deduplicacao na criacao~~ ✅
+
+Ao aprovar tese, compara embedding contra teses ativas (threshold 0.85).
+Se similar encontrada, dialog oferece: Substituir / Mesclar fundamentos / Manter ambas.
+
+**Backend:**
+- `RagService.findSimilarTheses(embedding, userId, { threshold, excludeId })` — busca por cosine similarity
+- `thesisRouter.checkSimilarTheses` — endpoint que retorna matches antes da aprovacao
+- `thesisRouter.approveWithResolution` — resolve conflito com 3 acoes:
+  - `replace`: marca tese antiga como obsoleta, aprova nova
+  - `merge`: combina fundamentos + keywords unicos, marca antiga como obsoleta, aprova nova
+  - `keep_both`: aprova nova sem alterar existente
+
+**Frontend:**
+- `SimilarThesisDialog.tsx` — dialog com cards de teses similares, % de similaridade, 3 botoes de acao
+- `PendingTheses.tsx` — fluxo: clicar Aprovar → fetch checkSimilarTheses → se match, mostrar dialog → resolver
+
+#### ~~5B. Rastreamento de uso~~ ✅
+
+Campos `useCount` (int, default 0) e `lastUsedAt` (timestamp, nullable) na tabela `learnedTheses`.
+Incrementados automaticamente quando RAG retorna a tese (fire-and-forget, nao bloqueia resposta).
+
+**Schema:** `drizzle/schema.ts` — 2 campos adicionados
+**Logica:** `RagService.trackThesisUsage(thesisIds)` — chamado apos `searchLegalTheses` e `searchWritingStyle`
+
+#### ~~5C. Curadoria assistida~~ ✅
+
+Painel de sugestoes na tab "Teses Ativas" com 2 tipos de alerta:
+
+**1. Teses nunca resgatadas** — `useCount = 0` apos 30+ dias de criacao
+- Indica teses que o RAG nunca retornou em respostas
+- Pode significar: tese muito especifica, mal formulada, ou redundante
+
+**2. Clusters de teses similares** — similaridade > 0.80 (cosine) entre si
+- Usa algoritmo Union-Find para agrupar teses similares
+- Mostra % media de similaridade do cluster
+- Permite deletar duplicatas diretamente
+
+**Backend:**
+- `RagService.findThesisClusters(userId, { threshold })` — O(n²) pairwise comparison + Union-Find
+- `thesisRouter.getCurationSuggestions` — endpoint que retorna unused + clusters
+
+**Frontend:**
+- `CurationSuggestions.tsx` — card colapsavel com badge de contagem
+- Integrado no topo do `KnowledgeLibrary.tsx`, acima da busca
+- Auto-esconde quando nao ha sugestoes (0 itens)
+- Botao de deletar em cada tese com confirmacao
+- Cache de 5 min (staleTime) para nao refazer calculo a cada render
+
+**Nota:** Performance O(n²) so e problema com 1000+ teses por usuario.
+Migrar para pgvector apenas se/quando escalar para 100+ usuarios ativos.
 
 ---
 
-### 6. Cleanup de Conversas Abandonadas (Prioridade Media)
+### 6. ~~Cleanup de Conversas Abandonadas~~ ✅ CONCLUIDO (13/02/2026)
 
-Conversas sem mensagens nao sao limpas. Criar job para limpar conversas vazias > 7 dias.
-
-**Arquivo:** `server/db.ts` ou novo `server/jobs/cleanup.ts`
+Funcao `cleanupAbandonedConversations()` em `server/db.ts` remove conversas sem mensagens com >7 dias.
+Roda no startup do server + a cada 24h via `setInterval` em `server/_core/index.ts`.
 
 ---
 
@@ -197,3 +247,8 @@ Para referencia, os seguintes itens ja foram resolvidos e estao documentados em 
 - Empty States (#10) - **Todas as paginas com icones e texto** (Fev/2026)
 - Loading States (#11) - **Skeleton loaders em listagens, Loader2 padronizado** (Fev/2026)
 - Modulos Incompletos (#3) - **Ja estao cinza com "Em breve"** (Fev/2026)
+- Cleanup de Conversas (#6) - **cleanupAbandonedConversations() + setInterval 24h** (Fev/2026)
+- Curadoria Inteligente de Teses (#5) - **Sistema completo: deduplicacao + tracking + sugestoes** (Fev/2026)
+  - 5A: findSimilarTheses + SimilarThesisDialog + approveWithResolution
+  - 5B: useCount + lastUsedAt + trackThesisUsage (fire-and-forget)
+  - 5C: getCurationSuggestions + CurationSuggestions.tsx (unused + clusters via Union-Find)

@@ -33,49 +33,66 @@
 | **Auto-trigger extração** | ✅ Concluído | Extração automática na aprovação de minuta |
 | **Threshold RAG** | ✅ Concluído | Padronizado para 0.5 |
 
-### ✅ Concluído (Frontend — Fev/2026)
+### ✅ Concluido (Frontend — Fev/2026)
 
-| Componente | Status | Descrição |
+| Componente | Status | Descricao |
 |------------|--------|-----------|
-| **UI Revisão de Teses** | ✅ Concluído | Página `/intelligence` unificada com 3 tabs (Caixa de Entrada, Teses Ativas, Minutas Aprovadas) |
-| **CRUD Teses Ativas** | ✅ Concluído | Editar/deletar teses na tab "Teses Ativas" (`KnowledgeLibrary.tsx`) |
-| **Minutas Aprovadas** | ✅ Concluído | Listar/visualizar/deletar minutas na tab "Minutas Aprovadas" (`ApprovedDrafts.tsx`) |
-| **Página MemoriaDavid** | ✅ Removida | Funcionalidade consolidada em Intelligence |
+| **UI Revisao de Teses** | ✅ Concluido | Pagina `/intelligence` unificada com 3 tabs (Caixa de Entrada, Teses Ativas, Minutas Aprovadas) |
+| **CRUD Teses Ativas** | ✅ Concluido | Editar/deletar teses na tab "Teses Ativas" (`KnowledgeLibrary.tsx`) |
+| **Minutas Aprovadas** | ✅ Concluido | Listar/visualizar/deletar minutas na tab "Minutas Aprovadas" (`ApprovedDrafts.tsx`) |
+| **Pagina MemoriaDavid** | ✅ Removida | Funcionalidade consolidada em Intelligence |
+
+### ✅ Concluido (Curadoria — Fev/2026)
+
+| Componente | Status | Descricao |
+|------------|--------|-----------|
+| **Rastreamento de Uso** | ✅ Concluido | `useCount` + `lastUsedAt` em learnedTheses, tracking fire-and-forget |
+| **Deduplicacao** | ✅ Concluido | `findSimilarTheses()`, dialog Substituir/Mesclar/Manter, `approveWithResolution` |
+| **Curadoria Assistida** | ✅ Concluido | `getCurationSuggestions`, `findThesisClusters` (Union-Find), `CurationSuggestions.tsx` |
+| **Cleanup Conversas** | ✅ Concluido | `cleanupAbandonedConversations()` + setInterval 24h |
 
 ---
 
 ## 🎯 Arquitetura do Aprendizado Contínuo
 
 ```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                         CICLO DE APRENDIZADO CONTÍNUO                        │
-├─────────────────────────────────────────────────────────────────────────────┤
-│                                                                              │
-│   ┌──────────────┐    ┌──────────────┐    ┌──────────────┐                  │
-│   │  1. GERAÇÃO  │───▶│  2. REVISÃO  │───▶│  3. ATIVAÇÃO │                  │
-│   │              │    │              │    │              │                  │
-│   │  /minutar    │    │  PENDING     │    │  ACTIVE      │                  │
-│   │  gera minuta │    │  REVIEW      │    │  no RAG      │                  │
-│   └──────────────┘    └──────────────┘    └──────────────┘                  │
-│          │                   │                   │                          │
-│          ▼                   ▼                   ▼                          │
-│   ┌──────────────┐    ┌──────────────┐    ┌──────────────┐                  │
-│   │  4. FEEDBACK │    │  5. EXTRAÇÃO │    │  6. INJEÇÃO  │                  │
-│   │              │    │              │    │              │                  │
-│   │  Aprovar/    │    │  LLM extrai  │    │  Context     │                  │
-│   │  Editar      │    │  Tese+Estilo │    │  Builder     │                  │
-│   └──────────────┘    └──────────────┘    └──────────────┘                  │
-│          │                   │                   │                          │
-│          └───────────────────┴───────────────────┘                          │
+┌──────────────────────────────────────────────────────────────────────────────┐
+│                    CICLO DE APRENDIZADO CONTINUO + CURADORIA                  │
+├──────────────────────────────────────────────────────────────────────────────┤
+│                                                                               │
+│   ┌──────────────┐    ┌──────────────┐    ┌──────────────┐                   │
+│   │  1. GERACAO  │───▶│  2. REVISAO  │───▶│  3. ATIVACAO │                   │
+│   │  /minutar    │    │  PENDING     │    │  ACTIVE      │                   │
+│   │  gera minuta │    │  REVIEW      │    │  no RAG      │                   │
+│   └──────────────┘    └──────┬───────┘    └──────┬───────┘                   │
+│          │                   │                   │                           │
+│          ▼                   ▼                   ▼                           │
+│   ┌──────────────┐    ┌──────────────┐    ┌──────────────┐                   │
+│   │  4. FEEDBACK │    │  5. EXTRACAO │    │  6. INJECAO  │                   │
+│   │  Aprovar/    │    │  LLM extrai  │    │  Context     │                   │
+│   │  Editar      │    │  Tese+Estilo │    │  Builder     │                   │
+│   └──────────────┘    └──────────────┘    └──────┬───────┘                   │
+│          │                                       │                           │
+│          └───────────────────────────────────────┘                           │
 │                              │                                               │
 │                              ▼                                               │
-│                    ┌──────────────────┐                                     │
-│                    │   PRÓXIMA MINUTA │                                     │
-│                    │   USA TESES      │                                     │
-│                    │   APRENDIDAS     │                                     │
-│                    └──────────────────┘                                     │
-│                                                                              │
-└─────────────────────────────────────────────────────────────────────────────┘
+│                    ┌──────────────────┐                                      │
+│                    │  PROXIMA MINUTA  │                                      │
+│                    │  USA TESES       │                                      │
+│                    │  APRENDIDAS      │                                      │
+│                    └──────────────────┘                                      │
+│                                                                               │
+│   ┌───────────────────── CURADORIA ─────────────────────┐                    │
+│   │                                                      │                   │
+│   │  [Na aprovacao]       [No uso]        [Periodico]    │                   │
+│   │  Deduplicacao ──────▶ Tracking ─────▶ Sugestoes      │                   │
+│   │  similarity>0.85      useCount++      - nao usadas   │                   │
+│   │  Substituir/          lastUsedAt      - clusters     │                   │
+│   │  Mesclar/Manter                       - Union-Find   │                   │
+│   │                                                      │                   │
+│   └──────────────────────────────────────────────────────┘                    │
+│                                                                               │
+└──────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
@@ -432,6 +449,155 @@ if (message.metadata?.canApprove) {
 
 ---
 
+### FASE 6: Curadoria Inteligente de Teses
+
+**Objetivo:** Manter qualidade da base de teses conforme cresce — sem arquivar por idade (tese antiga pode ser valida).
+
+**Status:** ✅ Completo (Fev/2026)
+
+#### 6.1 Schema — Rastreamento de Uso
+
+Dois campos adicionados na tabela `learnedTheses`:
+
+```sql
+useCount    INT DEFAULT 0 NOT NULL    -- Quantas vezes o RAG retornou esta tese
+lastUsedAt  TIMESTAMP NULL            -- Ultima vez que o RAG retornou esta tese
+```
+
+**Arquivo:** `drizzle/schema.ts:325-327`
+
+#### 6.2 Rastreamento Automatico (Fire-and-Forget)
+
+Quando `searchLegalTheses()` ou `searchWritingStyle()` retornam teses como resultado, o `RagService` incrementa `useCount` e atualiza `lastUsedAt` de forma assincrona (nao bloqueia a resposta ao usuario).
+
+```
+[Usuario envia mensagem]
+    |
+    v
+[RagService.searchLegalTheses()] -- retorna 3 teses
+    |
+    |-- [resposta ao usuario] (sincrono)
+    |
+    |-- [trackThesisUsage([id1, id2, id3])] (fire-and-forget)
+            |
+            v
+        UPDATE learnedTheses
+        SET useCount = useCount + 1, lastUsedAt = NOW()
+        WHERE id IN (id1, id2, id3)
+```
+
+**Arquivo:** `server/services/RagService.ts` — metodo privado `trackThesisUsage()`
+
+#### 6.3 Deduplicacao na Aprovacao
+
+Ao aprovar uma tese pendente, o sistema verifica automaticamente se ja existe tese ativa com conteudo similar (cosine similarity >= 0.85). Se encontrar, mostra dialog ao usuario.
+
+```
+[Usuario clica "Aprovar" em tese pendente]
+    |
+    v
+[Frontend chama trpc.thesis.checkSimilarTheses({ thesisId })]
+    |
+    v
+[Backend: RagService.findSimilarTheses(embedding, userId, { threshold: 0.85 })]
+    |
+    |-- Nenhuma similar → Aprova direto (approveThesis)
+    |
+    |-- Similar encontrada → Retorna matches ao frontend
+            |
+            v
+        [SimilarThesisDialog mostra opcoes:]
+            |
+            |-- "Substituir" → replace: marca antiga como obsoleta, aprova nova
+            |-- "Mesclar"    → merge: combina fundamentos + keywords, marca antiga como obsoleta
+            |-- "Manter"     → keep_both: aprova nova sem alterar existente
+            |
+            v
+        [trpc.thesis.approveWithResolution({ thesisId, resolution, replaceThesisId })]
+```
+
+**Endpoints:**
+- `thesisRouter.checkSimilarTheses` — query que retorna teses similares com % de similaridade
+- `thesisRouter.approveWithResolution` — mutation com 3 acoes (replace/merge/keep_both)
+
+**Frontend:**
+- `Intelligence/components/SimilarThesisDialog.tsx` — dialog com cards e botoes de acao
+- `Intelligence/PendingTheses.tsx` — fluxo de aprovacao modificado
+
+**Backend:**
+- `RagService.findSimilarTheses(embedding, userId, { threshold, excludeId })` — busca cosine similarity
+
+#### 6.4 Curadoria Assistida
+
+Painel de sugestoes na tab "Teses Ativas" que identifica problemas na base de teses:
+
+**Tipo 1: Teses nunca resgatadas**
+- Criterio: `useCount = 0` E `createdAt < 30 dias atras`
+- Significado: O RAG nunca retornou esta tese em nenhuma resposta
+- Causas possiveis: tese muito especifica, mal formulada, ou palavras-chave inadequadas
+- Acao sugerida: revisar ou remover
+
+**Tipo 2: Clusters de teses similares**
+- Criterio: Pares de teses com cosine similarity > 0.80
+- Algoritmo: Union-Find para agrupar teses transitivamente similares
+- Complexidade: O(n²) — aceitavel para < 1000 teses por usuario
+- Acao sugerida: mesclar ou remover duplicatas
+
+```
+[trpc.thesis.getCurationSuggestions]
+    |
+    |-- Query: teses com useCount=0 e createdAt < 30d
+    |       -> unusedTheses[]
+    |
+    |-- RagService.findThesisClusters(userId, { threshold: 0.80 })
+    |       -> Carrega todas teses ativas com embedding
+    |       -> Pairwise cosine similarity
+    |       -> Union-Find para agrupar
+    |       -> clusters[]
+    |
+    v
+[CurationSuggestions.tsx]
+    |-- Card colapsavel com badge de contagem
+    |-- Secao "Teses nunca resgatadas" com dias desde criacao
+    |-- Secao "Teses com conteudo similar" com % de similaridade
+    |-- Botao deletar em cada tese (com AlertDialog de confirmacao)
+    |-- Auto-esconde quando 0 sugestoes
+    |-- Cache de 5 min (staleTime) no React Query
+```
+
+**Endpoint:** `thesisRouter.getCurationSuggestions`
+**Backend:** `RagService.findThesisClusters(userId, { threshold })`
+**Frontend:** `Intelligence/components/CurationSuggestions.tsx` (integrado no `KnowledgeLibrary.tsx`)
+
+#### 6.5 Performance e Limites
+
+| Operacao | Complexidade | Limite Seguro |
+|----------|-------------|---------------|
+| findSimilarTheses | O(n) | < 1000 teses/usuario |
+| findThesisClusters | O(n²) | < 1000 teses/usuario |
+| trackThesisUsage | O(1) UPDATE | Sem limite |
+| getCurationSuggestions | O(n²) | Cache 5 min mitiga |
+
+Para escalar alem de 1000 teses por usuario, migrar para pgvector com indice HNSW.
+Ver [PLANO_MIGRACAO_INFRA.md](./PLANO_MIGRACAO_INFRA.md) para detalhes.
+
+---
+
+### Manutencao: Cleanup de Conversas Abandonadas
+
+Funcao `cleanupAbandonedConversations()` remove conversas sem mensagens com mais de 7 dias de todos os usuarios.
+
+```
+[Server startup] → cleanupAbandonedConversations() (execucao imediata)
+                  + setInterval(24h) → cleanupAbandonedConversations()
+```
+
+**Criterio:** conversa com `createdAt < 7 dias atras` E zero mensagens associadas.
+**Arquivo:** `server/db.ts` — funcao `cleanupAbandonedConversations()`
+**Agendamento:** `server/_core/index.ts` — startup + setInterval 24h
+
+---
+
 ## 📊 Métricas de Sucesso
 
 | Métrica | Meta | Como Medir |
@@ -471,20 +637,35 @@ if (message.metadata?.canApprove) {
 
 ## 🔗 Arquivos Relevantes
 
-### Backend
-- `server/services/ThesisLearningService.ts` - Orquestração do aprendizado
-- `server/services/RagService.ts` - Busca semântica de teses
-- `server/services/ContextBuilder.ts` - Onde injetar teses
-- `server/thesisExtractor.ts` - Extração via LLM
-- `drizzle/schema.ts` - Tabelas learnedTheses, approvedDrafts
+### Backend — Aprendizado
+- `server/services/ThesisLearningService.ts` - Orquestracao: extrair, aprovar, rejeitar, editar teses
+- `server/services/RagService.ts` - Busca semantica + deduplicacao + clusters + tracking de uso
+- `server/routers/thesisRouter.ts` - 15 endpoints TRPC para teses e minutas
+- `server/thesisExtractor.ts` - Extracao de tese dual via LLM
+- `drizzle/schema.ts` - Tabelas learnedTheses (com useCount/lastUsedAt), approvedDrafts
 
-### Frontend
-- `client/src/pages/Intelligence/` - Página de memória
-- `client/src/components/DashboardLayout.tsx` - Sidebar com badge
+### Backend — Contexto e Injecao
+- `server/services/ContextBuilder.ts` - Builder de contexto
+- `server/PromptBuilder.ts` - Injecao de teses e estilo no prompt (linhas 130-170)
+
+### Backend — Manutencao
+- `server/db.ts` - cleanupAbandonedConversations()
+- `server/_core/index.ts` - Agendamento de cleanup (startup + 24h)
+
+### Frontend — Intelligence
+- `client/src/pages/Intelligence/PendingTheses.tsx` - Caixa de entrada com fluxo de deduplicacao
+- `client/src/pages/Intelligence/KnowledgeLibrary.tsx` - Teses ativas + curadoria
+- `client/src/pages/Intelligence/ApprovedDrafts.tsx` - Minutas aprovadas
+- `client/src/pages/Intelligence/components/ThesisCard.tsx` - Card de tese pendente
+- `client/src/pages/Intelligence/components/SimilarThesisDialog.tsx` - Dialog de conflito
+- `client/src/pages/Intelligence/components/CurationSuggestions.tsx` - Painel de curadoria
+- `client/src/pages/Intelligence/components/StatsWidget.tsx` - Metricas
+
+### Frontend — Sidebar
+- `client/src/components/MemoriaJuridicaMenuItem.tsx` - Badge com contador de pendentes
 
 ### Comandos
-- `server/commands/handlers/` - Handlers existentes
-- `server/commands/registry.ts` - Registro de comandos
+- `server/commands/handlers/tese.handler.ts` - Comando /tese com subcomandos
 
 ---
 
@@ -518,8 +699,24 @@ if (message.metadata?.canApprove) {
 - [x] Endpoint `approveDraft` → `approvedDraftsRouter`
 - [x] Toast de confirmação
 
+### Fase 6 - Curadoria Inteligente ✅
+- [x] Adicionar `useCount` + `lastUsedAt` no schema (`drizzle/schema.ts`)
+- [x] Tracking automatico no RagService (`trackThesisUsage`)
+- [x] `findSimilarTheses()` no RagService (deduplicacao)
+- [x] `checkSimilarTheses` endpoint no thesisRouter
+- [x] `approveWithResolution` endpoint (replace/merge/keep_both)
+- [x] `SimilarThesisDialog.tsx` (frontend de conflito)
+- [x] Fluxo de aprovacao com verificacao automatica (`PendingTheses.tsx`)
+- [x] `findThesisClusters()` no RagService (Union-Find)
+- [x] `getCurationSuggestions` endpoint (unused + clusters)
+- [x] `CurationSuggestions.tsx` (painel no KnowledgeLibrary)
+
+### Manutencao ✅
+- [x] `cleanupAbandonedConversations()` em `server/db.ts`
+- [x] Agendamento no startup + setInterval 24h (`server/_core/index.ts`)
+
 ---
 
-**Última atualização:** 13/02/2026
-**Status:** ✅ Completo — Backend + Frontend unificado em `/intelligence` (ver PENDENCIAS.md)
+**Ultima atualizacao:** 13/02/2026
+**Status:** ✅ Completo — Aprendizado + Curadoria + Manutencao
 
