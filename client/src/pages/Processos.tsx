@@ -12,7 +12,8 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { trpc } from "@/lib/trpc";
-import { FileText, FolderOpen, Loader2, Plus, Trash2 } from "lucide-react";
+import { FileText, FolderOpen, Plus, Trash2 } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useState } from "react";
 import { toast } from "sonner";
 import { Link } from "wouter";
@@ -62,8 +63,23 @@ export default function Processos() {
         />
 
         {isLoading ? (
-          <div className="flex items-center justify-center py-12">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            {[...Array(6)].map((_, i) => (
+              <Card key={i}>
+                <CardHeader className="pb-3">
+                  <Skeleton className="h-5 w-3/4" />
+                  <Skeleton className="h-4 w-1/2 mt-2" />
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="space-y-2">
+                    <Skeleton className="h-4 w-full" />
+                    <Skeleton className="h-4 w-full" />
+                  </div>
+                  <Skeleton className="h-16 w-full rounded-lg" />
+                  <Skeleton className="h-9 w-full mt-2" />
+                </CardContent>
+              </Card>
+            ))}
           </div>
         ) : processes && processes.length > 0 ? (
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">

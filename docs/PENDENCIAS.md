@@ -18,9 +18,9 @@
 
 | # | Item | Esforco | Impacto |
 |---|------|---------|---------|
-| 10 | Empty States | Baixo | Medio - UX profissional |
-| 11 | Loading States | Baixo | Medio - UX profissional |
-| 12 | Responsividade Mobile | Medio | Medio - acessibilidade |
+| ~~10~~ | ~~Empty States~~ | ~~Baixo~~ | ~~Medio~~ ✅ Concluido |
+| ~~11~~ | ~~Loading States~~ | ~~Baixo~~ | ~~Medio~~ ✅ Concluido (skeletons) |
+| ~~12~~ | ~~Responsividade Mobile~~ | ~~Medio~~ | ~~Medio~~ Adiado (usuarios usam desktop) |
 
 ### Fase 3 — Saude operacional
 
@@ -137,21 +137,34 @@ RagService cache com TTL fixo 5min, sem invalidacao quando knowledgeBase muda.
 
 ## UI/UX
 
-### 10. Empty States (Prioridade Media)
+### 10. ~~Empty States~~ ✅ CONCLUIDO (13/02/2026)
 
-Chat vazio, listas vazias, inbox zero - adicionar estados visuais informativos.
+Todas as paginas com listas tem empty states visuais com icones e texto descritivo:
+- Processos: FolderOpen + CTA
+- Minutas: FileText + texto
+- Jurisprudencia: Scale + texto
+- SearchPage: Search/MessageSquare + texto
+- DavidPrompts: FileText + texto
+- Intelligence (3 tabs): emojis + hints de busca
 
 ---
 
-### 11. Loading States (Prioridade Media)
+### 11. ~~Loading States~~ ✅ CONCLUIDO (13/02/2026)
 
-Skeletons consistentes em todas as paginas.
+Skeleton loaders nas listagens principais, Loader2 spinner em paginas menores:
+- Processos: skeleton cards (6 placeholders em grid)
+- Minutas: skeleton cards (6 placeholders em grid)
+- Jurisprudencia: skeleton cards (3 placeholders em lista)
+- ProcessoDetalhes: Loader2 padronizado
+- SearchPage: Loader2 spinner
+- DavidPrompts: Loader2 spinner
+- Intelligence (3 tabs): Loader2 spinner
 
 ---
 
-### 12. Responsividade Mobile (Prioridade Media)
+### 12. ~~Responsividade Mobile~~ Adiado
 
-Ajustes de layout para dispositivos moveis.
+Usuarios usam desktop. Mobile nao e prioridade para beta.
 
 ---
 
@@ -181,3 +194,6 @@ Para referencia, os seguintes itens ja foram resolvidos e estao documentados em 
 - Loop de Aprendizado de Teses (M1) - **Ja funciona via PromptBuilder.ts** (linhas 130-167)
 - UI de Revisao de Teses (#1) - **Unificado em /intelligence** com 3 tabs (Fev/2026)
 - Pagina MemoriaDavid removida - **Consolidada em Intelligence** (Fev/2026)
+- Empty States (#10) - **Todas as paginas com icones e texto** (Fev/2026)
+- Loading States (#11) - **Skeleton loaders em listagens, Loader2 padronizado** (Fev/2026)
+- Modulos Incompletos (#3) - **Ja estao cinza com "Em breve"** (Fev/2026)

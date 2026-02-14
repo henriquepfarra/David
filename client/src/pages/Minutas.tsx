@@ -2,7 +2,8 @@ import DashboardLayout from "@/components/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { trpc } from "@/lib/trpc";
-import { FileText, Loader2, Trash2 } from "lucide-react";
+import { FileText, Trash2 } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { Streamdown } from "streamdown";
 import {
@@ -71,8 +72,22 @@ export default function Minutas() {
         </div>
 
         {isLoading ? (
-          <div className="flex items-center justify-center py-12">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {[...Array(6)].map((_, i) => (
+              <Card key={i}>
+                <CardHeader>
+                  <Skeleton className="h-5 w-20 rounded-full" />
+                  <Skeleton className="h-5 w-3/4 mt-2" />
+                  <Skeleton className="h-4 w-1/3 mt-1" />
+                </CardHeader>
+                <CardContent>
+                  <Skeleton className="h-4 w-full" />
+                  <Skeleton className="h-4 w-full mt-2" />
+                  <Skeleton className="h-4 w-2/3 mt-2" />
+                  <Skeleton className="h-9 w-full mt-4" />
+                </CardContent>
+              </Card>
+            ))}
           </div>
         ) : drafts && drafts.length > 0 ? (
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">

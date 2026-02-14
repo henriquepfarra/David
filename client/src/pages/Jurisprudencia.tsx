@@ -15,6 +15,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { trpc } from "@/lib/trpc";
 import { Loader2, Plus, Scale, Star, Trash2 } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -212,8 +213,29 @@ export default function Jurisprudencia() {
         </div>
 
         {isLoading ? (
-          <div className="flex items-center justify-center py-12">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <div className="space-y-4">
+            {[...Array(3)].map((_, i) => (
+              <Card key={i}>
+                <CardHeader>
+                  <div className="flex items-center gap-2 mb-2">
+                    <Skeleton className="h-5 w-16 rounded-full" />
+                    <Skeleton className="h-4 w-40" />
+                  </div>
+                  <Skeleton className="h-5 w-3/4" />
+                  <Skeleton className="h-4 w-full mt-2" />
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="flex gap-2">
+                    <Skeleton className="h-6 w-20 rounded-md" />
+                    <Skeleton className="h-6 w-24 rounded-md" />
+                    <Skeleton className="h-6 w-16 rounded-md" />
+                  </div>
+                  <Skeleton className="h-4 w-full" />
+                  <Skeleton className="h-4 w-full" />
+                  <Skeleton className="h-4 w-2/3" />
+                </CardContent>
+              </Card>
+            ))}
           </div>
         ) : jurisprudence && jurisprudence.length > 0 ? (
           <div className="space-y-4">

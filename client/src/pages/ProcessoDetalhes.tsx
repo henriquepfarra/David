@@ -1,5 +1,5 @@
 import { useParams, useLocation } from "wouter";
-import { ArrowLeft, Calendar, FileText, Scale, User } from "lucide-react";
+import { ArrowLeft, Calendar, FileText, Loader2, Scale, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -20,7 +20,7 @@ export default function ProcessoDetalhes() {
       <DashboardLayout>
         <div className="flex items-center justify-center min-h-[400px]">
           <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground mx-auto mb-4" />
             <p className="text-muted-foreground">Carregando detalhes do processo...</p>
           </div>
         </div>
