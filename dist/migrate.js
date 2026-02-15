@@ -32,13 +32,20 @@ async function ensureMigrationsSeeded(connection) {
     "SHOW TABLES LIKE 'users'"
   );
   const appTablesExist = appTables.length > 0;
+  const entries = readJournal();
+  const totalMigrations = entries.length;
   console.log(
-    `[Migration] Tracking records: ${count}, App tables exist: ${appTablesExist}`
+    `[Migration] Tracking records: ${count}, Total migrations: ${totalMigrations}, App tables exist: ${appTablesExist}`
   );
-  if (count === 0 && appTablesExist) {
-    const entries = readJournal();
+  if (appTablesExist && count < totalMigrations) {
+    if (count > 0) {
+      console.log(
+        `[Migration] Detected partial seeding (${count}/${totalMigrations}). Cleaning up...`
+      );
+      await connection.execute("DELETE FROM `__drizzle_migrations`");
+    }
     console.log(
-      `[Migration] Transitioning from push -> migrate. Seeding ${entries.length} records...`
+      `[Migration] Seeding ${totalMigrations} migration records...`
     );
     for (const entry of entries) {
       const hash = computeHash(entry.tag);
@@ -47,7 +54,7 @@ async function ensureMigrationsSeeded(connection) {
         [hash, entry.when]
       );
     }
-    console.log("[Migration] Transition seeding complete.");
+    console.log("[Migration] Seeding complete.");
   }
 }
 async function main() {

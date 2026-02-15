@@ -53,15 +53,26 @@ async function ensureMigrationsSeeded(connection: mysql.Connection) {
   )) as any[];
   const appTablesExist = appTables.length > 0;
 
+  const entries = readJournal();
+  const totalMigrations = entries.length;
+
   console.log(
-    `[Migration] Tracking records: ${count}, App tables exist: ${appTablesExist}`
+    `[Migration] Tracking records: ${count}, Total migrations: ${totalMigrations}, App tables exist: ${appTablesExist}`
   );
 
-  if (count === 0 && appTablesExist) {
-    // Transition from push: seed all existing migrations as applied
-    const entries = readJournal();
+  if (appTablesExist && count < totalMigrations) {
+    // DB has tables from push but tracking is missing or incomplete
+    // (can happen if a previous seeding attempt was interrupted by a crash).
+    // Wipe partial records and re-seed all existing migrations.
+    if (count > 0) {
+      console.log(
+        `[Migration] Detected partial seeding (${count}/${totalMigrations}). Cleaning up...`
+      );
+      await connection.execute("DELETE FROM `__drizzle_migrations`");
+    }
+
     console.log(
-      `[Migration] Transitioning from push -> migrate. Seeding ${entries.length} records...`
+      `[Migration] Seeding ${totalMigrations} migration records...`
     );
 
     for (const entry of entries) {
@@ -72,7 +83,7 @@ async function ensureMigrationsSeeded(connection: mysql.Connection) {
       );
     }
 
-    console.log("[Migration] Transition seeding complete.");
+    console.log("[Migration] Seeding complete.");
   }
 }
 
