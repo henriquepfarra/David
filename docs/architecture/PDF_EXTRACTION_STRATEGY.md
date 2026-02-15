@@ -1,137 +1,132 @@
-# Estratégia Híbrida de Extração de PDF
+# Estrategia Hibrida de Extracao de PDF
 
-**Data:** 2026-02-10
-**Status:** Implementado
-**Arquivos:** `server/_core/pdfExtractor.ts`, `server/processDocumentsRouter.ts`
+**Data:** 2026-02-15 (atualizado)
+**Status:** Implementado e centralizado
+**Arquivos principais:** `server/_core/pdfExtractor.ts`, `server/routers.ts` (uploadPdfQuick)
 
-## Visão Geral
+## Visao Geral
 
-Implementação de uma estratégia híbrida para extração de texto de PDFs que prioriza extração local (custo zero) com fallback automático para Google File API quando necessário.
+Extracao local (pdf.js, custo zero) roda no momento do upload, em paralelo com o upload pro Google File API. O texto extraido e persistido no banco (`conversations.pdfExtractedText`) e reutilizado por todos os fluxos downstream (chat, /analise1, qualquer comando futuro).
 
-## Motivação
+Para PDFs escaneados, fotos ou documentos de baixa qualidade, o sistema faz fallback automatico para o Google File API (Gemini visual).
 
-Os PDFs do ePROC (sistema judicial) são tipicamente:
-- PDFs nativos digitais (não scans)
-- Texto pesquisável/selecionável
-- Bem estruturados
-
-Para esses documentos, usar a Google File API (com Gemini) é **overkill** e gera custos desnecessários.
-
-## Arquitetura
+## Fluxo Completo
 
 ```
-PDF recebido
-    ↓
-1. Extração Local (PDF.js)
-    ↓
-2. Validação de Qualidade
-    ├─ OK (high/medium confidence) → Usa texto local ✓ (custo zero)
-    └─ Falha (low confidence) → File API (fallback seguro)
+PDF chega (upload)
+    |
+    v
+[uploadPdfQuick] Buffer disponivel
+    |
+    +--- Em paralelo --->  uploadPdfForMultipleQueries(buffer) --> fileUri
+    |
+    +--- Em paralelo --->  extractPdfWithQualityCheck(buffer) --> texto + qualidade
+    |
+    v
+Qualidade high/medium?
+    |--- SIM --> salva pdfExtractedText no DB (custo zero)
+    |--- NAO --> pdfExtractedText = null (FileAPI sera usado no momento do consumo)
+    |
+    v
+fileUri SEMPRE salvo no DB (safety net)
+
+--- No momento do uso (chat ou comando) ---
+
+pdfExtractedText existe?
+    |--- SIM --> usa direto (todos os providers, custo zero)
+    |--- NAO + Google provider --> fileUri nativo (Gemini visual)
+    |--- NAO + outro provider --> readContentFromUri fallback (FileAPI)
 ```
 
-## Critérios de Qualidade
+## Criterios de Qualidade
 
-A validação usa **thresholds conservadores** - na dúvida, prefere File API.
+A validacao usa **thresholds conservadores** - na duvida, prefere File API.
 
-| Critério | Threshold | O que detecta |
+| Criterio | Threshold | O que detecta |
 |----------|-----------|---------------|
-| Chars/página | ≥ 50 | Páginas vazias ou escaneadas |
-| Palavras/página | ≥ 8 | Conteúdo textual real |
-| Ratio alfabético | ≥ 50% | Encoding quebrado/garbage |
-| Páginas válidas | ≥ 60% | PDFs com muitas páginas vazias |
+| Chars/pagina | >= 50 | Paginas vazias ou escaneadas |
+| Palavras/pagina | >= 8 | Conteudo textual real |
+| Ratio alfabetico | >= 50% | Encoding quebrado/garbage |
+| Paginas validas | >= 60% | PDFs com muitas paginas vazias |
 
-### Níveis de Confiança
+### Niveis de Confianca
 
-- **high**: Todos os critérios passam → usa extração local
-- **medium**: 1 critério falhou → usa extração local (aceitável)
-- **low**: 2+ critérios falharam → vai para File API
+- **high**: Todos os criterios passam -> usa extracao local
+- **medium**: 1 criterio falhou -> usa extracao local (aceitavel)
+- **low**: 2+ criterios falharam -> vai para File API
 
-## Implementação
+## Arquitetura Centralizada
 
-### `pdfExtractor.ts`
+A extracao acontece em **um unico lugar** (uploadPdfQuick) e o resultado e consumido por todos os fluxos:
 
-```typescript
-// Thresholds conservadores
-const QUALITY_THRESHOLDS = {
-    MIN_CHARS_PER_PAGE: 50,
-    MIN_WORDS_PER_PAGE: 8,
-    MIN_ALPHABETIC_RATIO: 0.5,
-    MIN_VALID_PAGES_RATIO: 0.6,
-};
+### Upload (server/routers.ts - uploadPdfQuick)
+- Decodifica base64 para Buffer
+- Roda `extractPdfWithQualityCheck(buffer)` em paralelo com upload Google
+- Retorna `{ fileUri, fileName, displayName, extractedText }`
 
-// Função principal
-export async function extractPdfWithQualityCheck(buffer: Buffer): Promise<{
-    pages: ExtractedPage[];
-    fullText: string;
-    quality: ExtractionQualityResult;
-}>;
-```
+### Persistencia
+- `conversations.pdfExtractedText` (longtext, nullable) - texto extraido
+- `conversations.googleFileUri` - URI do Google (sempre mantido como fallback)
+- Ambos salvos via `updateConversationGoogleFile()`
 
-### `processDocumentsRouter.ts`
+### Consumidores
+Todos checam `pdfExtractedText` antes de usar FileAPI:
 
-```typescript
-// 1. Tentar extração local primeiro
-const localResult = await extractPdfWithQualityCheck(buffer);
-
-if (localResult.quality.isValid) {
-    // Usar extração local (custo zero)
-    extractedText = localResult.fullText;
-} else {
-    // Fallback para File API
-    const result = await readPdfWithVision(buffer, { apiKey, model });
-    extractedText = result.content;
-}
-```
+1. **Chat stream** (`server/_core/index.ts`) - fluxo de conversa normal
+2. **Comandos** (`server/commands/handlers/*.ts`) - /analise1, etc.
+3. **ConversationService** (`server/services/ConversationService.ts`) - via sendMessage
 
 ## Logs de Monitoramento
 
-### Extração local bem-sucedida:
+### Extracao local bem-sucedida (custo zero):
 ```
-[PDFExtractor] Extração local: 15 páginas, 8500 chars, qualidade: high
-[ProcessDocuments] Extração LOCAL bem-sucedida (high): 15 páginas, 8500 chars
-```
-
-### Fallback para File API:
-```
-[PDFExtractor] Extração local: 15 páginas, 200 chars, qualidade: low (Poucos caracteres por página)
-[ProcessDocuments] Extração local insuficiente: Poucos caracteres por página. Usando File API...
-[ProcessDocuments] File API: Leitura visual concluída. Tokens: 15000
+[PDFExtractor] Extracao local: 43 paginas, 42692 chars, qualidade: high
+[uploadPdfQuick] Extracao local: high (42692 chars), usando: LOCAL
+[analise1] PDF via texto local (42734 chars)
 ```
 
-## Economia Estimada
+### Fallback para File API (PDF escaneado):
+```
+[PDFExtractor] Extracao local: 15 paginas, 200 chars, qualidade: low (Poucos caracteres por pagina)
+[uploadPdfQuick] Extracao local: low (200 chars), usando: FILE_API
+[Stream] PDF fallback via FileAPI (scanned/low-quality): https://...
+```
 
-Para PDFs do ePROC (boa qualidade):
-- **60-80%** dos documentos usarão extração local
-- Economia aproximada: **$50-100/mês** para 100 PDFs/dia de 20 páginas
+### Google provider nativo (scan sem texto local):
+```
+[Stream] PDF fallback via Gemini nativo (scanned/low-quality): https://...
+```
 
-## Quando File API é Necessário
+## Quando File API e Necessario
 
 A File API continua essencial para:
 - Prints de conversa (WhatsApp, email)
 - Documentos escaneados
 - Tabelas complexas onde estrutura visual importa
 - Fotos de documentos
-- PDFs com encoding problemático
+- PDFs com encoding problematico
 
 ## Ajuste de Thresholds
 
-Se após testes você perceber que:
+Se apos testes voce perceber que:
 
-**Extração local aceita PDFs ruins:**
-→ Aumente os thresholds em `pdfExtractor.ts:27-35`
+**Extracao local aceita PDFs ruins:**
+-> Aumente os thresholds em `pdfExtractor.ts:27-35`
 
-**Extração local rejeita PDFs bons:**
-→ Diminua os thresholds
+**Extracao local rejeita PDFs bons:**
+-> Diminua os thresholds
 
 ## Arquivos Relacionados
 
-- [server/_core/pdfExtractor.ts](../../server/_core/pdfExtractor.ts) - Extração e validação
-- [server/_core/fileApi.ts](../../server/_core/fileApi.ts) - Google File API
-- [server/processDocumentsRouter.ts](../../server/processDocumentsRouter.ts) - Integração
+- [server/_core/pdfExtractor.ts](../../server/_core/pdfExtractor.ts) - Extracao e validacao de qualidade
+- [server/_core/fileApi.ts](../../server/_core/fileApi.ts) - Google File API (fallback)
+- [server/routers.ts](../../server/routers.ts) - uploadPdfQuick (ponto de extracao centralizado)
+- [server/_core/index.ts](../../server/_core/index.ts) - Stream handler (consumidor)
+- [server/commands/handlers/analise1.handler.ts](../../server/commands/handlers/analise1.handler.ts) - Comando /analise1 (consumidor)
+- [server/routers/david/googleFiles.ts](../../server/routers/david/googleFiles.ts) - Persistencia do texto extraido
+- [drizzle/schema.ts](../../drizzle/schema.ts) - Schema com campo pdfExtractedText
 
-## TODO / Melhorias Futuras
+## Historico
 
-- [ ] Monitorar taxa de fallback para File API em produção
-- [ ] Ajustar thresholds baseado em dados reais
-- [ ] Considerar cache de extrações para documentos recorrentes
-- [ ] Avaliar adição de Poppler como segunda opção de extração local (se PDF.js falhar em casos específicos)
+- **2026-02-10**: Criacao do pdfExtractor.ts com quality check (usado apenas em processDocumentsRouter)
+- **2026-02-15**: Centralizacao da extracao no uploadPdfQuick, persistencia no DB, simplificacao de todos os consumidores
