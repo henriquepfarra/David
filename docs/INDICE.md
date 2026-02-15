@@ -8,7 +8,7 @@ Mapa completo da documentação técnica, arquitetura, testes e relatórios do p
 
 ### `/architecture` - Arquitetura e Especificações
 Documentos de design e arquitetura do sistema:
-- **orchestration_architecture_v7.md** - Arquitetura completa do sistema de orquestração (IntentService + ContextBuilder + Motors)
+- **orchestration_architecture_v7.md** - Arquitetura de orquestracao (IntentService + ContextBuilder + Motors + Modulos)
 - **rag_on_demand_evolution.md** - Evolução do sistema RAG on-demand com hierarquia e filtros
 - **system_commands_architecture.md** - Arquitetura de Slash Commands do Sistema (/analise1, /minutar, /tese, etc.)
 - **PDF_EXTRACTION_STRATEGY.md** - Estratégia híbrida de extração de PDF (local + File API)
@@ -56,7 +56,7 @@ Documentação relacionada ao banco de dados:
 - **enunciados fonaje.docx** - Enunciados FONAJE
 
 ### Documentos na raiz de `/docs`
-- **PENDENCIAS.md** - Correções e implementações pendentes (consolidado)
+- **ROADMAP.md** - Rota de evolucao futura (Fases A-D: qualidade, observabilidade, features, escala)
 - **MODELO_NEGOCIO_API.md** - Modelo de negócio e precificação
 - **TESTING_ENV_SETUP.md** - Setup do ambiente de testes
 
@@ -78,6 +78,7 @@ Documentos de refatorações e correções já concluídas (referência históri
 - **rag_on_demand_spec.md** - Spec original RAG on-demand (substituída por evolution) ✅
 - **LEARNING_FIXES_PLAN.md** - Correções do aprendizado (incorporadas no V3) ✅
 - **CORRECOES_PENDENTES.md** - Tracker original (substituído por PENDENCIAS.md) ✅
+- **PENDENCIAS.md** - Tracker de pendencias concluidas (substituido por ROADMAP.md) ✅
 
 ---
 
@@ -141,7 +142,7 @@ Documentos de refatorações e correções já concluídas (referência históri
 3. **Para refatoração de frontend:** Comece por `frontend/README.md`
 4. **Para implementar RAG/Knowledge Base:** Consulte `rag/plano-rag-knowledge-base.md`
 5. **Para rodar testes:** Use as perguntas em `testing/the_gauntlet.md`
-6. **Para ver correções pendentes:** Confira `PENDENCIAS.md`
+6. **Para ver proximos passos:** Confira `ROADMAP.md`
 7. **Para modelo de negócio:** Veja `MODELO_NEGOCIO_API.md`
 
 ## Status Atual
@@ -156,4 +157,4 @@ Todos os blocos de 1-5 foram concluídos com sucesso. O sistema está robusto, t
 - ✅ Segurança Completa - CSP, circuit breaker, rate limiting, SSRF prevention
 - ✅ Monitoramento de Erros - Sentry integrado (frontend + backend)
 - ✅ Deploy em Railway - MySQL + Express + Vite com auto-migration
-- 📋 Detalhes em [BETA_READINESS.md](./reports/BETA_READINESS.md) e [PENDENCIAS.md](./PENDENCIAS.md)
+- 📋 Detalhes em [BETA_READINESS.md](./reports/BETA_READINESS.md) e [ROADMAP.md](./ROADMAP.md)

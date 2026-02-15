@@ -332,10 +332,47 @@ Em ambiente de desenvolvimento, mostrar badge no chat:
 
 ---
 
-## Próximos Passos
+## Sistema de Modulos Especializados
+
+O David suporta modulos juridicos especializados, cada um com prompts e comportamentos proprios.
+
+### Configuracao
+
+Modulos sao definidos em `server/prompts/modules/index.ts`. Cada modulo tem:
+
+```typescript
+{
+  id: string;          // ex: "jec", "familia", "criminal"
+  name: string;        // Nome exibido no UI
+  systemPrompt: string; // Prompt especializado (vazio = nao implementado)
+  isAvailable: boolean; // Se aparece ativo no UI
+}
+```
+
+### Estado Atual
+
+| Modulo | Status | Descricao |
+|--------|--------|-----------|
+| JEC | ✅ Ativo | Juizado Especial Civel — prompts especializados |
+| FONAJE | ✅ Ativo | Enunciados FONAJE integrados via RAG |
+| Familia | ⏳ Em breve | `isAvailable: false` — UI mostra badge "Em breve" |
+| Criminal | ⏳ Em breve | `isAvailable: false` — UI mostra badge "Em breve" |
+| Fazenda | ⏳ Em breve | `isAvailable: false` — UI mostra badge "Em breve" |
+
+### Como Ativar um Modulo Futuro
+
+1. Preencher `systemPrompt` com prompt especializado em `server/prompts/modules/index.ts`
+2. Mudar `isAvailable: true`
+3. (Opcional) Adicionar seeds de conhecimento especifico ao RAG
+
+O frontend ja trata modulos inativos com botoes desabilitados e label "Em breve".
+
+---
+
+## Proximos Passos
 
 1. [ ] Implementar `IntentService.ts` com `classifyAbstract()` e `classifyConcrete()`
-2. [ ] Criar prompts do Orquestrador (Flash) para classificação
+2. [ ] Criar prompts do Orquestrador (Flash) para classificacao
 3. [ ] Atualizar `ContextBuilder` com `createBuilderForIntent()`
 4. [ ] Integrar no endpoint de streaming
 5. [ ] Executar bateria de testes "The Gauntlet"
