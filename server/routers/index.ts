@@ -1,8 +1,5 @@
 /**
- * Exporta todos os sub-routers
- * 
- * Para uso no davidRouter principal
+ * Exporta sub-routers do David
  */
 
-export { conversationRouter } from "./conversationRouter";
-export { savedPromptRouter, promptCollectionRouter } from "./promptRouter";
+export { davidRouter } from "./david";
