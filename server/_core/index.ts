@@ -219,6 +219,7 @@ async function startServer() {
               conversationId: String(conversationId),
               processId: conversation.processId ? String(conversation.processId) : undefined,
               fileUri: conversation.googleFileUri || undefined,
+              pdfExtractedText: conversation.pdfExtractedText || undefined,
               argument: plan.argument,  // ⚠️ CRITICAL: sem isso, handlers recebem undefined
               args: content.split(/\s+/).slice(1),
               rawInput: content,
@@ -233,7 +234,9 @@ async function startServer() {
 
             // Streaming real: processar eventos do handler incrementalmente
             for await (const event of plan.definition.handler(commandCtx)) {
-              console.log(`[Stream-CMD] Event: ${event.type}`);
+              if (event.type !== 'content_chunk' && event.type !== 'thinking_chunk') {
+                console.log(`[Stream-CMD] Event: ${event.type}`);
+              }
               if (event.type === 'thinking_chunk') {
                 fullThinking += event.content;
                 res.write(`data: ${JSON.stringify({ type: "thinking", content: event.content })}\n\n`);
@@ -504,59 +507,54 @@ async function startServer() {
       try {
         // PRIORITIZAR o URI do body (enviado pelo frontend) sobre o do banco (pode ter race condition)
         const fileUri = bodyFileUri || conversation.googleFileUri || undefined;
+        const storedPdfText = conversation.pdfExtractedText || null;
         let pdfContextFromExtraction = "";
+        const provider = llmConfig.provider?.toLowerCase() || 'google';
 
-        if (fileUri) {
-          const provider = llmConfig.provider?.toLowerCase() || 'google';
-
-          if (provider === 'google') {
-            // NATIVO: Google Gemini lê o arquivo diretamente via URI
-            console.log(`[Stream] Incluindo arquivo PDF no contexto (Nativo): ${fileUri}`);
-          } else {
-            // CROSS-PROVIDER: Outros modelos (OpenAI, Claude) não leem URI do Google
-            // Solução: Extrair texto usando modelo barato do Google e injetar no contexto
-            console.log(`[Stream] Provider ${provider} não suporta URI nativo. Extraindo conteúdo...`);
-
+        if (fileUri || storedPdfText) {
+          if (storedPdfText) {
+            // TEXTO LOCAL: Extraído via pdf.js no upload (custo zero, instantâneo)
+            // Prioridade para TODOS os providers (inclusive Google)
+            console.log(`[Stream] PDF via texto local (${storedPdfText.length} chars)`);
+            pdfContextFromExtraction = `\n\n--- CONTEUDO DO DOCUMENTO ANEXADO (PDF) ---\n${storedPdfText}\n------------------------------------------\n`;
+          } else if (provider === 'google' && fileUri) {
+            // FALLBACK GOOGLE: PDF escaneado/low-quality → Gemini lê via URI nativo
+            console.log(`[Stream] PDF fallback via Gemini nativo (scanned/low-quality): ${fileUri}`);
+          } else if (fileUri) {
+            // FALLBACK OUTROS: PDF escaneado/low-quality + provider não-Google → FileAPI
+            console.log(`[Stream] PDF fallback via FileAPI (scanned/low-quality): ${fileUri}`);
             try {
               const { readContentFromUri } = await import("./fileApi");
-              // Usar chave de leitura do sistema (settings.readerApiKey ou ENV)
               const readerKey = settings?.readerApiKey || process.env.GEMINI_API_KEY;
 
               let extractedText = "";
               let extractionSuccess = false;
 
-              // TENTATIVA 1: Chave do Sistema (Padrão para uploads OpenAI/Anthropic)
               if (readerKey) {
                 try {
-                  console.log(`[Stream] Tentando extrair com chave de sistema: ${fileUri}`);
                   extractedText = await readContentFromUri(fileUri, readerKey);
                   extractionSuccess = true;
                 } catch (sysError) {
-                  console.warn("[Stream] Falha ao extrair com chave de sistema. Tentando chave do usuário...", sysError);
+                  console.warn("[Stream] Falha com chave de sistema, tentando fallback...", sysError);
                 }
               }
 
-              // TENTATIVA 2: Chave do servidor (Fallback para arquivos antigos do Gemini)
               if (!extractionSuccess) {
                 try {
                   const googleKey = resolveApiKeyForProvider('google', settings?.llmApiKey);
-                  console.log(`[Stream] Tentando extrair com chave do servidor: ${fileUri}`);
                   extractedText = await readContentFromUri(fileUri, googleKey);
                   extractionSuccess = true;
-                  console.log("[Stream] Sucesso na extração com chave do servidor (fallback).");
                 } catch (userError) {
-                  console.error("[Stream] Falha também com chave do servidor.", userError);
+                  console.error("[Stream] Falha com todas as chaves.", userError);
                 }
               }
 
               if (extractionSuccess) {
-                pdfContextFromExtraction = `\n\n--- CONTEÚDO DO DOCUMENTO ANEXADO (PDF) ---\n${extractedText}\n------------------------------------------\n`;
-                console.log(`[Stream] Conteúdo extraído com sucesso (${extractedText.length} chars)`);
+                pdfContextFromExtraction = `\n\n--- CONTEUDO DO DOCUMENTO ANEXADO (PDF) ---\n${extractedText}\n------------------------------------------\n`;
+                console.log(`[Stream] FileAPI: extraído com sucesso (${extractedText.length} chars)`);
               } else {
-                console.warn("[Stream] Não foi possível extrair PDF com nenhuma chave disponível.");
-                pdfContextFromExtraction = "\n\n[ERRO DE LEITURA: Não foi possível ler o documento anexado. Verifique as permissões.]\n";
+                pdfContextFromExtraction = "\n\n[ERRO DE LEITURA: Não foi possível ler o documento anexado.]\n";
               }
-
             } catch (extractError) {
               console.error("[Stream] Erro fatal na extração:", extractError);
               pdfContextFromExtraction = "\n\n[ERRO: Falha crítica na leitura do documento.]\n";
@@ -564,21 +562,23 @@ async function startServer() {
           }
         }
 
-        // Se extraímos texto manualmente, insira no System Prompt ou na última mensagem
+        // Se temos texto extraído (local ou FileAPI), injetar no contexto
         if (pdfContextFromExtraction) {
-          // Injetar no início das mensagens para garantir contexto
-          llmMessages.splice(1, 0, { // Logo após o System Prompt original
+          llmMessages.splice(1, 0, {
             role: "system",
             content: "O usuário anexou um documento PDF. Abaixo está o conteúdo extraído dele para sua análise:" + pdfContextFromExtraction
           });
         }
+
+        // Só passa fileUri quando não há texto local E o provider é Google (fallback visual para scans)
+        const useNativeFileUri = !storedPdfText && provider === 'google' ? fileUri : undefined;
 
         for await (const yieldData of streamFn({
           messages: llmMessages,
           apiKey: llmConfig.apiKey,
           model: llmConfig.model,
           provider: llmConfig.provider,
-          fileUri
+          fileUri: useNativeFileUri
         })) {
           if (chunkCount === 0) {
             console.log(`[Stream] First chunk received after ${Date.now() - startTime}ms`);

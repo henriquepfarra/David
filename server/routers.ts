@@ -183,36 +183,47 @@ export const appRouter = router({
         const isGoogleProvider = !settings?.llmProvider || settings.llmProvider === 'google';
 
         try {
-          // Apenas fazer upload para Google (rápido - ~2s)
           const { uploadPdfForMultipleQueries } = await import("./_core/fileApi");
           const buffer = Buffer.from(input.fileData, "base64");
 
           console.log(`[uploadPdfQuick] Iniciando upload: ${input.filename}`);
 
           // Para upload de PDF, sempre usar chave Google (File API é exclusiva do Gemini)
-          // Se o usuário usa Google como provider, usar a mesma chave para consistência
           const isGoogleProvider = !settings?.llmProvider || settings.llmProvider === 'google';
           let apiKeyToUse: string;
 
           if (isGoogleProvider) {
             apiKeyToUse = resolveApiKeyForProvider('google', settings?.llmApiKey);
           } else {
-            // Provider não-Google: usar chave do sistema para File API
             apiKeyToUse = settings?.readerApiKey || ENV.geminiApiKey;
           }
           console.log(`[uploadPdfQuick] Provider: ${settings?.llmProvider || 'google'}, usando chave ${isGoogleProvider ? 'do provider' : 'do sistema'}`);
 
-          const result = await uploadPdfForMultipleQueries(
-            buffer,
-            apiKeyToUse
-          );
+          // Extração local (pdf.js) + upload Google em PARALELO
+          const [googleResult, localResult] = await Promise.all([
+            uploadPdfForMultipleQueries(buffer, apiKeyToUse),
+            (async () => {
+              try {
+                const { extractPdfWithQualityCheck } = await import("./_core/pdfExtractor");
+                return await extractPdfWithQualityCheck(buffer);
+              } catch (err) {
+                console.warn("[uploadPdfQuick] Extração local falhou:", err);
+                return null;
+              }
+            })(),
+          ]);
 
-          console.log(`[uploadPdfQuick] ✅ Upload completo: ${result.fileUri}`);
+          // Usar texto local se qualidade OK (high/medium), senão null → FileAPI no momento do uso
+          const extractedText = localResult?.quality.isValid ? localResult.fullText : null;
+
+          console.log(`[uploadPdfQuick] Extração local: ${localResult ? `${localResult.quality.confidence} (${localResult.quality.metrics.totalChars} chars)` : 'falhou'}, usando: ${extractedText ? 'LOCAL' : 'FILE_API'}`);
+          console.log(`[uploadPdfQuick] Upload Google completo: ${googleResult.fileUri}`);
 
           return {
-            fileUri: result.fileUri,
-            fileName: result.fileName,
+            fileUri: googleResult.fileUri,
+            fileName: googleResult.fileName,
             displayName: input.filename,
+            extractedText,
           };
         } catch (error: any) {
           console.error("[uploadPdfQuick] Erro:", error);

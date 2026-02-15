@@ -190,6 +190,7 @@ export const conversations = mysqlTable("conversations", {
   isPinned: int("isPinned").default(0).notNull(), // 0 = não fixada, 1 = fixada
   googleFileUri: varchar("googleFileUri", { length: 500 }), // URI do arquivo no Google (para sessão)
   googleFileName: varchar("googleFileName", { length: 200 }), // Nome do arquivo no Google (para cleanup)
+  pdfExtractedText: longtext("pdfExtractedText"), // Texto extraído localmente via pdf.js (null = usar FileAPI)
   moduleSlug: varchar("moduleSlug", { length: 20 }), // Módulo usado nesta conversa (opcional)
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),

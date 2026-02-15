@@ -83,6 +83,7 @@ export const davidChatRouter = router({
         userId: ctx.user.id,
         processId: conversation.processId,
         fileUri: conversation.googleFileUri,
+        pdfExtractedText: conversation.pdfExtractedText,
       });
 
       if (commandResult) {
@@ -216,6 +217,7 @@ export const davidChatRouter = router({
         userId: ctx.user.id,
         processId: conversation.processId,
         fileUri: conversation.googleFileUri,
+        pdfExtractedText: conversation.pdfExtractedText,
       });
       console.log(`[Stream] tryExecuteCommand retornou: ${commandResult ? 'resultado' : 'null'}`);
 

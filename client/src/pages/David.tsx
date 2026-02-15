@@ -175,7 +175,7 @@ export default function David() {
   // Estados removidos na Fase 0.5: localAttachedFile, activeFile
 
   // Estado de arquivos anexados à conversa (persiste após criar conversa)
-  const [attachedFiles, setAttachedFiles] = useState<Array<{ name: string; uri: string }>>([]);
+  const [attachedFiles, setAttachedFiles] = useState<Array<{ name: string; uri: string; extractedText?: string | null }>>([]);
 
   // 🔧 INTEGRADO: usePdfUpload hook substitui lógica de upload inline
   const {
@@ -619,6 +619,7 @@ export default function David() {
               conversationId: newConv.id,
               googleFileUri: firstFile.uri,
               googleFileName: firstFile.name,
+              pdfExtractedText: firstFile.extractedText ?? null,
             });
           }
 

@@ -25,6 +25,7 @@ export interface Conversation {
   isPinned: number;
   googleFileUri: string | null;
   googleFileName: string | null;
+  pdfExtractedText: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -40,6 +41,7 @@ export interface TryExecuteCommandParams {
   userId: number;
   processId: number | null;
   fileUri?: string | null;  // Google File URI (PDF anexado)
+  pdfExtractedText?: string | null;  // Texto extraído localmente via pdf.js
 }
 
 export interface HandleFirstMessageParams {
@@ -81,7 +83,7 @@ export class ConversationService {
   async tryExecuteCommand(
     params: TryExecuteCommandParams
   ): Promise<string | null> {
-    const { content, conversationId, userId, processId, fileUri } = params;
+    const { content, conversationId, userId, processId, fileUri, pdfExtractedText } = params;
 
     // Verificar se é um comando (começa com /)
     if (!content.startsWith("/")) {
@@ -119,10 +121,11 @@ export class ConversationService {
           userId: String(userId),
           conversationId: String(conversationId),
           processId: processId ? String(processId) : undefined,
-          fileUri: fileUri || undefined,  // ✅ Passar fileUri ao handler
+          fileUri: fileUri || undefined,
+          pdfExtractedText: pdfExtractedText || undefined,
           moduleSlug: moduleSlug as any,
           argument: plan.argument,
-          history: [], // TODO: Load conversation history if needed
+          history: [],
           signal: new AbortController().signal,
         };
 

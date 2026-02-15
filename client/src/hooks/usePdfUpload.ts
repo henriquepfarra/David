@@ -21,6 +21,7 @@ export interface UploadState {
 export interface AttachedFile {
     name: string;
     uri: string;
+    extractedText?: string | null;
 }
 
 interface UsePdfUploadOptions {
@@ -68,6 +69,7 @@ export function usePdfUpload({
                     conversationId: selectedConversationId,
                     googleFileUri: data.fileUri,
                     googleFileName: data.displayName,
+                    pdfExtractedText: data.extractedText ?? null,
                 });
             }
 
@@ -76,12 +78,12 @@ export function usePdfUpload({
                 setAttachedFiles(prev => {
                     // Evitar duplicados
                     if (prev.some(f => f.uri === data.fileUri)) return prev;
-                    return [...prev, { name: data.displayName, uri: data.fileUri }];
+                    return [...prev, { name: data.displayName, uri: data.fileUri, extractedText: data.extractedText ?? null }];
                 });
             }
 
             // Callback alternativo
-            onFileAttached?.({ name: data.displayName, uri: data.fileUri });
+            onFileAttached?.({ name: data.displayName, uri: data.fileUri, extractedText: data.extractedText ?? null });
 
             // Manter isUploading=true por 1s para mostrar animação
             setTimeout(() => {

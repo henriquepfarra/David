@@ -15,6 +15,7 @@ export const davidGoogleFilesRouter = router({
         conversationId: z.number(),
         googleFileUri: z.string().nullable(),
         googleFileName: z.string().nullable(),
+        pdfExtractedText: z.string().nullable().optional(),
       })
     )
     .mutation(async ({ ctx, input }) => {
@@ -26,7 +27,8 @@ export const davidGoogleFilesRouter = router({
       await updateConversationGoogleFile(
         input.conversationId,
         input.googleFileUri,
-        input.googleFileName
+        input.googleFileName,
+        input.pdfExtractedText
       );
       return { success: true };
     }),
@@ -54,7 +56,7 @@ export const davidGoogleFilesRouter = router({
       }
 
       // Limpar referências no banco
-      await updateConversationGoogleFile(input.conversationId, null, null);
+      await updateConversationGoogleFile(input.conversationId, null, null, null);
       return { success: true };
     }),
 });

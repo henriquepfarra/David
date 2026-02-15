@@ -38,6 +38,7 @@ export interface CommandContext {
     conversationId: string
     processId?: string
     fileUri?: string  // Google File URI (PDF anexado)
+    pdfExtractedText?: string  // Texto extraído localmente via pdf.js (null = usar FileAPI)
     moduleSlug: ModuleSlug
     argument?: string
     history: Array<{ role: string; content: string }>

@@ -564,18 +564,26 @@ export async function updateConversationTitle(conversationId: number, title: str
 export async function updateConversationGoogleFile(
   conversationId: number,
   googleFileUri: string | null,
-  googleFileName: string | null
+  googleFileName: string | null,
+  pdfExtractedText?: string | null
 ) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
 
+  const setData: Record<string, any> = {
+    googleFileUri,
+    googleFileName,
+    updatedAt: new Date(),
+  };
+
+  // Só seta pdfExtractedText se explicitamente fornecido (undefined = não toca)
+  if (pdfExtractedText !== undefined) {
+    setData.pdfExtractedText = pdfExtractedText;
+  }
+
   await db
     .update(conversations)
-    .set({
-      googleFileUri,
-      googleFileName,
-      updatedAt: new Date()
-    })
+    .set(setData)
     .where(eq(conversations.id, conversationId));
 }
 
@@ -587,6 +595,7 @@ export async function getConversationGoogleFile(conversationId: number) {
     .select({
       googleFileUri: conversations.googleFileUri,
       googleFileName: conversations.googleFileName,
+      pdfExtractedText: conversations.pdfExtractedText,
     })
     .from(conversations)
     .where(eq(conversations.id, conversationId))
