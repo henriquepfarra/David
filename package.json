@@ -9,12 +9,13 @@
     "dev:server:watch": "cross-env NODE_ENV=development tsx watch server/_core/index.ts",
     "server": "cross-env NODE_ENV=development tsx server/_core/index.ts",
     "dev:client": "vite",
-    "build": "vite build && esbuild server/_core/index.ts server/instrument.ts --platform=node --packages=external --bundle --format=esm --outdir=dist",
-    "start": "pnpm run db:push && cross-env NODE_ENV=production node --import ./dist/instrument.js dist/_core/index.js",
+    "build": "vite build && esbuild server/_core/index.ts server/instrument.ts server/migrate.ts --platform=node --packages=external --bundle --format=esm --outdir=dist",
+    "start": "node dist/migrate.js && cross-env NODE_ENV=production node --import ./dist/instrument.js dist/_core/index.js",
     "check": "tsc --noEmit",
     "format": "prettier --write .",
     "test": "vitest run",
     "db:push": "drizzle-kit push",
+    "db:generate": "drizzle-kit generate",
     "seed:knowledge": "tsx scripts/seed-knowledge.ts"
   },
   "dependencies": {
