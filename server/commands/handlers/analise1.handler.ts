@@ -27,6 +27,7 @@ import {
     CORE_STYLE,
 } from '../../prompts/core'
 import { JEC_CONTEXT } from '../../modules/jec/context'
+import { ENV } from '../../_core/env'
 
 
 
@@ -119,17 +120,44 @@ export const analise1Handler: CommandHandler = async function* (ctx: CommandCont
 
             try {
                 const { readContentFromUri } = await import('../../_core/fileApi')
+                const { resolveApiKeyForProvider: resolveKey } = await import('../../_core/llm')
 
-                // Usar chave de leitura do sistema (settings.readerApiKey ou ENV)
-                const readerKey = (settings as any)?.readerApiKey || process.env.GEMINI_API_KEY
+                // Tentar com a chave de leitura/sistema (matches upload quando provider era não-Google)
+                const readerKey = settings?.readerApiKey || ENV.geminiApiKey
 
-                if (readerKey) {
-                    const extractedText = await readContentFromUri(fileUri, readerKey)
-                    pdfTextContext = `\n\n--- CONTEÚDO DO DOCUMENTO ANEXADO (PDF) ---\n${extractedText}\n------------------------------------------\n`
-                    console.log(`[analise1] Texto extraído com sucesso (${extractedText.length} chars)`)
-                } else {
+                if (!readerKey) {
                     console.warn('[analise1] Nenhuma chave de leitura disponível para extração cross-provider')
                     pdfTextContext = '\n\n[AVISO: Não foi possível ler o PDF. Configure uma chave de leitura do Google.]\n'
+                } else {
+                    let extractedText: string | null = null
+
+                    try {
+                        extractedText = await readContentFromUri(fileUri, readerKey)
+                    } catch (primaryError: any) {
+                        // Se 403, tentar com a chave Google do usuário (caso o arquivo tenha sido
+                        // uploaded enquanto o provider era Google, usando a chave pessoal do usuário)
+                        if (primaryError?.status === 403 && settings?.llmApiKey) {
+                            console.log('[analise1] 403 com chave do sistema, tentando com chave Google do usuário...')
+                            try {
+                                const googleKey = resolveKey('google', settings.llmApiKey)
+                                if (googleKey && googleKey !== readerKey) {
+                                    extractedText = await readContentFromUri(fileUri, googleKey)
+                                }
+                            } catch (fallbackError) {
+                                // Ambas falharam - log do erro original
+                                console.error('[analise1] Fallback também falhou:', fallbackError)
+                            }
+                        }
+
+                        if (!extractedText) {
+                            throw primaryError
+                        }
+                    }
+
+                    if (extractedText) {
+                        pdfTextContext = `\n\n--- CONTEÚDO DO DOCUMENTO ANEXADO (PDF) ---\n${extractedText}\n------------------------------------------\n`
+                        console.log(`[analise1] Texto extraído com sucesso (${extractedText.length} chars)`)
+                    }
                 }
             } catch (error) {
                 console.error('[analise1] Erro ao extrair texto do PDF:', error)
