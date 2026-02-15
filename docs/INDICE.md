@@ -1,6 +1,6 @@
 # Índice da Documentação - David
 
-**Última atualização:** 2026-02-13
+**Última atualização:** 2026-02-15
 
 Mapa completo da documentação técnica, arquitetura, testes e relatórios do projeto David.
 
@@ -124,6 +124,18 @@ Documentos de refatorações e correções já concluídas (referência históri
 - Rastreamento de uso (useCount + lastUsedAt, fire-and-forget)
 - Sugestões de curadoria (teses não usadas + clusters similares via Union-Find)
 
+### ✅ Refatoração Backend (Fev/2026)
+- Split de `davidRouter.ts` (1184 linhas → 6 sub-routers em `server/routers/david/`)
+- Composição via `mergeRouters` do tRPC — API paths inalterados
+- Remoção de routers antigos não conectados (conversationRouter, promptRouter)
+- Fix cross-provider PDF: fallback de API key no `/analise1` (system key → user key on 403)
+
+### ✅ Safe Migrations (Fev/2026)
+- Substituição de `drizzle-kit push` por `drizzle-orm/mysql2/migrator` em produção
+- Script `server/migrate.ts` com transição automática push→migrate
+- Tratamento de crash-loop (seeding parcial, BigInt coercion)
+- Workflow: `pnpm db:generate` → revisar SQL → deploy
+
 ### ✅ Qualidade
 - 100% precisão nos testes The Gauntlet
 - TypeCheck passando em todos os módulos
@@ -131,7 +143,6 @@ Documentos de refatorações e correções já concluídas (referência históri
 ### ✅ Performance
 - Mensagens de status dinâmicas (3.5s interval)
 - Transição suave entre streaming e banco
-- Auto-migration (drizzle-kit push) no startup
 
 ---
 
@@ -156,5 +167,6 @@ Todos os blocos de 1-5 foram concluídos com sucesso. O sistema está robusto, t
 - ✅ Sistema de Planos - tester/free/pro/avançado com créditos diários
 - ✅ Segurança Completa - CSP, circuit breaker, rate limiting, SSRF prevention
 - ✅ Monitoramento de Erros - Sentry integrado (frontend + backend)
-- ✅ Deploy em Railway - MySQL + Express + Vite com auto-migration
+- ✅ Deploy em Railway - MySQL + Express + Vite com safe migrations
+- ✅ Refatoração Backend - davidRouter split em 6 sub-routers (PR #9)
 - 📋 Detalhes em [BETA_READINESS.md](./reports/BETA_READINESS.md) e [ROADMAP.md](./ROADMAP.md)

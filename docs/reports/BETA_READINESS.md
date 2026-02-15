@@ -1,7 +1,7 @@
 # Beta Readiness - David Ghostwriter
 
 **Data de Criação**: 27/01/2026
-**Última atualização**: 13/02/2026
+**Última atualização**: 15/02/2026
 **Status**: Em Produção (Railway)
 
 ---
@@ -134,11 +134,39 @@ Página de configurações redesenhada com sidebar e 5 seções:
 
 ---
 
-### 7. Auto-Migration no Startup (12/02/2026)
+### 7. Safe Migrations (15/02/2026)
 
-Drizzle-kit push executa automaticamente no `pnpm start`, garantindo que migrações são aplicadas a cada deploy no Railway.
+Substituição de `drizzle-kit push` (que rodava interativamente e podia truncar tabelas) por migrações programáticas via `drizzle-orm/mysql2/migrator`.
 
-**Commit**: `f49f502` - ci: auto-run drizzle-kit push on server start
+| Aspecto | Antes (`drizzle-kit push`) | Depois (`migrate.ts`) |
+|---------|---------------------------|----------------------|
+| Interativo | Sim (TUI, requeria input) | Não (totalmente automático) |
+| Destrutivo | Sim (truncava tabelas em mudanças de enum) | Não (aplica apenas SQL revisado) |
+| Tracking | Nenhum | `__drizzle_migrations` table |
+| Transição | N/A | Automática (seed de migrations existentes) |
+
+**Workflow novo:** `pnpm db:generate` → revisar SQL → deploy
+
+**Commits**: `7881e1d`, `23664db`, `c66c427`, `1a60966`
+
+---
+
+### 8. Refatoração Backend (15/02/2026)
+
+Split de `server/davidRouter.ts` (1184 linhas, 42 endpoints) em 6 sub-routers em `server/routers/david/`, usando `mergeRouters` do tRPC. API paths inalterados — zero mudanças no frontend.
+
+| Sub-router | Endpoints | Domínio |
+|------------|-----------|---------|
+| `conversations.ts` | 11 | CRUD de conversas |
+| `chat.ts` | 4 | Mensagens e streaming |
+| `googleFiles.ts` | 2 | Google File API |
+| `prompts.ts` | 13 | Prompts e coleções |
+| `learning.ts` | 12 | Teses, drafts, config |
+| `admin.ts` | 1 | Admin migration |
+
+Também inclui fix de cross-provider PDF: fallback de API key no `/analise1` quando o PDF foi uploaded com uma chave diferente da chave de leitura (403 → tenta chave do usuário).
+
+**PR**: #9 | **Commits**: `b096561`, `a90c387`
 
 ---
 
@@ -290,8 +318,9 @@ ALLOWED_ORIGINS="https://seu-dominio.com"
 ```
 
 ### Notas de deploy:
-- Migrações de banco são aplicadas automaticamente via `drizzle-kit push` no startup
-- O script `start` em `package.json` já inclui: `drizzle-kit push && node dist/index.js`
+- Migrações de banco são aplicadas automaticamente via `server/migrate.ts` no startup
+- O script `start` em `package.json`: `node dist/migrate.js && node dist/index.js`
+- Para adicionar migrações: `pnpm db:generate` → revisar SQL em `drizzle/` → commit → deploy
 
 ---
 
@@ -306,4 +335,4 @@ ALLOWED_ORIGINS="https://seu-dominio.com"
 ---
 
 **Documento mantido por**: Equipe David
-**Última atualização**: 13/02/2026
+**Última atualização**: 15/02/2026

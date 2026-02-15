@@ -1,7 +1,7 @@
 # Roadmap - David
 
-**Ultima atualizacao:** 2026-02-13
-**Status atual:** Beta pronto (9/10)
+**Ultima atualizacao:** 2026-02-15
+**Status atual:** Beta pronto (10/10)
 
 ---
 
@@ -13,8 +13,8 @@
   Fase A                 Fase B                  Fase C              Fase D
   Qualidade de Codigo    Observabilidade         Features            Escala
   ───────────────────    ──────────────          ─────────           ──────
-  Refatorar routers      Structured Logging      Analise Peticoes    Migracao Infra
-                         Cobertura de Testes     Export PDF/DOCX     pgvector
+  ✅ Refatorar routers   Structured Logging      Analise Peticoes    Migracao Infra
+  ✅ Safe migrations     Cobertura de Testes     Export PDF/DOCX     pgvector
                          Cache Invalidation      Novos Modulos       Connection pooling
                                                  Dark mode
 
@@ -28,23 +28,28 @@
 **Quando:** Antes de adicionar features novas
 **Objetivo:** Manutenibilidade do codigo existente
 
-### A1. Refatorar davidRouter.ts
+### ✅ A1. Refatorar davidRouter.ts (Concluido 15/02/2026)
 
-**Prioridade:** Media | **Esforco:** Alto
-
-O `davidRouter.ts` tem ~712 linhas (god object). Quebrar em sub-routers por dominio:
+Split do monolito `davidRouter.ts` (1184 linhas, 42 endpoints) em 6 sub-routers por dominio usando `mergeRouters` do tRPC. API paths (`trpc.david.*`) inalterados — zero mudancas no frontend.
 
 ```
-server/routers/
-  davidRouter.ts       (composicao — ~50 linhas)
-  davidChat.ts         (conversa + mensagens)
-  davidLearning.ts     (teses + drafts aprovados)
-  davidDocuments.ts    (documentos do processo)
+server/routers/david/
+  index.ts             (composicao via mergeRouters — 16 linhas)
+  conversations.ts     (11 endpoints — CRUD de conversas)
+  chat.ts              (4 endpoints — mensagens e streaming)
+  googleFiles.ts       (2 endpoints — Google File API)
+  prompts.ts           (13 endpoints — prompts e colecoes)
+  learning.ts          (12 endpoints — teses, drafts, config)
+  admin.ts             (1 endpoint — migration admin)
 ```
 
-**Arquivo:** `server/davidRouter.ts`
-**Risco:** Baixo (refatoracao interna, API publica nao muda)
-**Dependencias:** Nenhuma
+**PR:** #9 | **Commits:** `b096561`, `a90c387`
+
+### ✅ A2. Safe Migrations (Concluido 15/02/2026)
+
+Substituicao de `drizzle-kit push` (interativo, destrutivo) por migrações programaticas via `drizzle-orm/mysql2/migrator`. Inclui transicao automatica push→migrate com seeding da tabela `__drizzle_migrations`.
+
+**Commits:** `7881e1d`, `23664db`, `c66c427`, `1a60966`
 
 ---
 
